@@ -124,6 +124,7 @@ export default function ProductEditPage() {
     is_local?: boolean;
     variant_id?: number;
     variant_index?: number;
+    preview_url?: string;
   }
 
   const navigate = useNavigate();

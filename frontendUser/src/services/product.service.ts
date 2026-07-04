@@ -34,7 +34,7 @@ export const fetchProducts = async (): Promise<ProductFrontend[]> => {
     // Determine main image
     let mainImage = '';
     let hoverImage: string | undefined;
-    let gallery: string[] = [];
+    let gallery: { url: string; variant_id?: number }[] = [];
     if (p.images && p.images.length > 0) {
       const sortedImages = [...p.images].sort((a: any, b: any) => a.id - b.id);
       const primaryImg = sortedImages.find((img: any) => img.is_primary);
