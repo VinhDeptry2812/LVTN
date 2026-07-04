@@ -1,7 +1,90 @@
-import { IsNotEmpty, IsString, IsOptional, IsNumber, IsBoolean } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsNumber, IsBoolean, ValidateNested, IsArray, IsObject } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+
+export class CreateProductDetailDto {
+  @ApiPropertyOptional({ 
+    description: 'Thông số kỹ thuật dạng key-value',
+    example: { 'Kích thước': '220 x 90 x 85 cm', 'Chất liệu': 'Da bò thật', 'Cân nặng': '45 kg', 'Bảo hành': '24 tháng' }
+  })
+  @IsOptional()
+  @IsObject()
+  specifications?: Record<string, string>;
+
+  @ApiPropertyOptional({ description: 'URL ảnh bản vẽ kỹ thuật / kích thước' })
+  @IsOptional()
+  @IsString()
+  blueprint_url?: string;
+}
+
+export class CreateProductVariantDto {
+  @ApiPropertyOptional({ description: 'ID của biến thể (chỉ dùng khi cập nhật)' })
+  @IsOptional()
+  @IsNumber()
+  id?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sku?: string;
+
+  @ApiPropertyOptional({
+    description: 'Thuộc tính biến thể dạng key-value',
+    example: { 'Màu sắc': 'Đen', 'Kích thước': 'L' }
+  })
+  @IsOptional()
+  @IsObject()
+  attributes?: Record<string, string>;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  stock?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  price_adjustment?: number;
+
+  @ApiPropertyOptional({ description: 'Hình ảnh đại diện của biến thể' })
+  @IsOptional()
+  @IsString()
+  image_url?: string;
+}
+
+export class CreateProductImageDto {
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  image_url: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  is_primary?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  is_hover?: boolean;
+
+  @ApiPropertyOptional({ description: 'Chỉ mục của biến thể trong mảng variants (khi tạo mới)' })
+  @IsOptional()
+  @IsNumber()
+  variant_index?: number;
+
+  @ApiPropertyOptional({ description: 'ID của biến thể (khi cập nhật)' })
+  @IsOptional()
+  @IsNumber()
+  variant_id?: number;
+}
 
 export class CreateProductDto {
+  @ApiPropertyOptional({ example: 'SP001' })
+  @IsOptional()
+  @IsString()
+  sku?: string;
+
   @ApiProperty({ example: 'Sofa da cao cấp', description: 'Tên sản phẩm' })
   @IsNotEmpty({ message: 'Tên sản phẩm không được để trống' })
   @IsString()
@@ -31,4 +114,30 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
+
+  @ApiPropertyOptional({ type: [Number], description: 'Danh sách ID bộ sưu tập' })
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  collection_ids?: number[];
+
+  @ApiPropertyOptional({ type: () => CreateProductDetailDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreateProductDetailDto)
+  detail?: CreateProductDetailDto;
+
+  @ApiPropertyOptional({ type: () => [CreateProductVariantDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateProductVariantDto)
+  variants?: CreateProductVariantDto[];
+
+  @ApiPropertyOptional({ type: () => [CreateProductImageDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateProductImageDto)
+  images?: CreateProductImageDto[];
 }

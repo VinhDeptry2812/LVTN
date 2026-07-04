@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsOptional, IsUrl } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsUrl, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateCategoryDto {
@@ -16,4 +16,9 @@ export class CreateCategoryDto {
   @IsOptional()
   @IsUrl({}, { message: 'Đường dẫn ảnh không hợp lệ' })
   image_url?: string;
+
+  @ApiPropertyOptional({ example: 1, description: 'ID của danh mục cha (nếu có)' })
+  @IsOptional()
+  @IsNumber({}, { message: 'ID danh mục cha phải là số' })
+  parentId?: number;
 }

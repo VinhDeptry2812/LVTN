@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -21,8 +21,8 @@ export class ProductsController {
 
   @ApiOperation({ summary: 'Lấy chi tiết 1 sản phẩm (Public)' })
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.productsService.findOne(+id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.productsService.findOne(id);
   }
 
   @ApiBearerAuth()
@@ -39,8 +39,8 @@ export class ProductsController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Cập nhật sản phẩm (Chỉ Admin)' })
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
-    return this.productsService.update(+id, updateProductDto);
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateProductDto: UpdateProductDto) {
+    return this.productsService.update(id, updateProductDto);
   }
 
   @ApiBearerAuth()
@@ -48,7 +48,7 @@ export class ProductsController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Xóa sản phẩm (Chỉ Admin)' })
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.productsService.remove(+id);
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.productsService.remove(id);
   }
 }

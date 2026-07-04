@@ -1,7 +1,8 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany, Tree, TreeParent, TreeChildren } from 'typeorm';
 import { Product } from '../products/product.entity';
 
 @Entity('categories')
+@Tree('closure-table')
 export class Category {
   @PrimaryGeneratedColumn()
   id: number;
@@ -14,6 +15,12 @@ export class Category {
 
   @Column({ nullable: true })
   image_url: string;
+
+  @TreeParent()
+  parent: Category | null;
+
+  @TreeChildren()
+  children: Category[];
 
   @OneToMany(() => Product, (product) => product.category)
   products: Product[];

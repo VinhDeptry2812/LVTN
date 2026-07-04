@@ -71,10 +71,10 @@ Sử dụng PostgreSQL kết hợp Vector DB:
 ```sql
 - users (id, email, password_hash, name, phone, role, status)
 - categories (id, name, slug, image_url)
-- products (id, name, slug, description, category_id, base_price, is_active)
-  * product_details (product_id, dimensions(LxWxH), weight, material)
-- product_variants (id, product_id, color, stock, price_adjustment)
-- product_images (id, product_id, image_url, is_primary)
+- products (id, sku, name, slug, description, category_id, base_price, is_active, created_at, deleted_at)
+  * product_details (product_id, dimensions, weight, material, warranty_time, assembly_required)
+- product_variants (id, product_id, sku, color, size, stock, price_adjustment)
+- product_images (id, product_id, variant_id, image_url, is_primary)
   * image_embeddings (image_id, embedding_vector VECTOR(512)) -- Bảng lưu Vector dùng cho Visual Search
 - orders (id, user_id, total_amount, status, payment_method, shipping_address)
 - order_items (id, order_id, product_variant_id, quantity, unit_price)

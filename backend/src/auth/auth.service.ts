@@ -33,7 +33,7 @@ export class AuthService {
     });
 
     // Return token directly after register
-    const payload = { sub: newUser.id, email: newUser.email, role: newUser.role };
+    const payload = { sub: newUser.id, email: newUser.email, name: newUser.name, role: newUser.role };
     return {
       message: 'Đăng ký thành công',
       access_token: await this.jwtService.signAsync(payload),
@@ -55,7 +55,7 @@ export class AuthService {
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = { sub: user.id, email: user.email, name: user.name, role: user.role };
     return {
       message: 'Đăng nhập thành công',
       access_token: await this.jwtService.signAsync(payload),
@@ -84,7 +84,7 @@ export class AuthService {
       });
     }
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = { sub: user.id, email: user.email, name: user.name, role: user.role };
     return {
       message: 'Đăng nhập Google thành công',
       access_token: await this.jwtService.signAsync(payload),

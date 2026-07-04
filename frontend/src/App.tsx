@@ -1,33 +1,43 @@
-import { useState } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom';
+import LoginPage from '@/pages/LoginPage';
+import AdminLayout from '@/pages/admin/AdminLayout';
+import DashboardPage from '@/pages/admin/DashboardPage';
+import ProductListPage from '@/pages/admin/ProductListPage';
+import ProductCreatePage from '@/pages/admin/ProductCreatePage';
+import ProductEditPage from '@/pages/admin/ProductEditPage';
+import CategoryListPage from '@/pages/admin/CategoryListPage';
+import CollectionListPage from '@/pages/admin/CollectionListPage';
+import OrderListPage from '@/pages/admin/OrderListPage';
+import PaymentResultPage from '@/pages/PaymentResultPage';
+import CustomerDemoPage from '@/pages/CustomerDemoPage';
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center font-sans text-slate-800">
-      <div className="max-w-3xl text-center px-4">
-        <h1 className="text-6xl font-bold text-primary mb-6 drop-shadow-md">
-          🛋️ FurniShop
-        </h1>
-        <p className="text-xl text-slate-600 mb-8 leading-relaxed">
-          Nền tảng thương mại điện tử chuyên đồ nội thất. <br/>
-          Tích hợp công nghệ AI (Visual Search & Auto-Description).
-        </p>
-        
-        <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-100 transition-all hover:shadow-xl">
-          <p className="text-lg font-medium mb-4">
-            Test Tailwind CSS & React State
-          </p>
-          <button
-            onClick={() => setCount((count) => count + 1)}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors active:scale-95"
-          >
-            Đã click {count} lần
-          </button>
-        </div>
-      </div>
-    </div>
-  )
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+
+      {/* Trang demo khách hàng - layout riêng */}
+      <Route path="/demo" element={<CustomerDemoPage />} />
+
+      {/* Trang kết quả thanh toán VNPAY */}
+      <Route path="/payment/result" element={<PaymentResultPage />} />
+
+      {/* Admin routes */}
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<DashboardPage />} />
+        <Route path="products" element={<ProductListPage />} />
+        <Route path="products/create" element={<ProductCreatePage />} />
+        <Route path="products/edit/:id" element={<ProductEditPage />} />
+        <Route path="categories" element={<CategoryListPage />} />
+        <Route path="collections" element={<CollectionListPage />} />
+        <Route path="orders" element={<OrderListPage />} />
+      </Route>
+
+      {/* Redirect mặc định */}
+      <Route path="*" element={<Navigate to="/admin" replace />} />
+    </Routes>
+  );
 }
 
-export default App
+
+export default App;

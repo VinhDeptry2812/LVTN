@@ -7,6 +7,13 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { AiModule } from './ai/ai.module';
+import { CartModule } from './cart/cart.module';
+import { OrdersModule } from './orders/orders.module';
+import { VnpayModule } from './vnpay/vnpay.module';
+import { MomoModule } from './momo/momo.module';
+import { CollectionsModule } from './collections/collections.module';
 
 @Module({
   imports: [
@@ -25,6 +32,13 @@ import { ProductsModule } from './products/products.module';
     AuthModule,
     CategoriesModule,
     ProductsModule,
+    CloudinaryModule,
+    AiModule,
+    CartModule,
+    OrdersModule,
+    VnpayModule,
+    MomoModule,
+    CollectionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
