@@ -37,6 +37,9 @@ export class Product {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   base_price: number;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  discount_price: number | null;
+
   @Column({ default: true })
   is_active: boolean;
 

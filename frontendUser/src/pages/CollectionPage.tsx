@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { type Collection, getCollectionBySlug } from '@/services/collection.service';
+import { mapBackendProductToFrontend } from '@/services/product.service';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -149,50 +150,42 @@ const CollectionPage: React.FC = () => {
             ) : (
               <div className="products-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 {collection.products.map((backendProd: any) => {
-                  let mainImage = 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?q=80&w=800&auto=format&fit=crop';
-                  let hoverImg = undefined;
-
-                  if (backendProd.images && backendProd.images.length > 0) {
-                    const sortedImages = [...backendProd.images].sort((a: any, b: any) => a.id - b.id);
-                    const primaryImg = sortedImages.find((img: any) => img.is_primary);
-                    mainImage = primaryImg ? primaryImg.image_url : sortedImages[0].image_url;
-                    const secondImg = sortedImages.find((img: any) => img.image_url !== mainImage);
-                    if (secondImg) hoverImg = secondImg.image_url;
-                  }
-
-                  const priceFormatted = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
-                    .format(Number(backendProd.base_price || 0));
+                  const product = mapBackendProductToFrontend(backendProd);
 
                   return (
                     <Link
-                      key={backendProd.id}
-                      to={`/product/${backendProd.id}`}
+                      key={product.id}
+                      to={`/product/${product.id}`}
                       className="product-card group block"
                     >
                       <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-white mb-4">
                         <img
-                          className={`absolute inset-0 w-full h-full object-contain p-4 transition-opacity duration-500 ${hoverImg ? 'opacity-100 group-hover:opacity-0' : ''}`}
-                          src={mainImage}
-                          alt={backendProd.name}
+                          className={`absolute inset-0 w-full h-full object-contain p-4 transition-opacity duration-500 ${product.hoverImage ? 'opacity-100 group-hover:opacity-0' : ''}`}
+                          src={product.image}
+                          alt={product.name}
                           loading="lazy"
                         />
-                        {hoverImg && (
+                        {product.hoverImage && (
                           <img
                             className="absolute inset-0 w-full h-full object-contain p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                            src={hoverImg}
-                            alt={`${backendProd.name} alternate view`}
+                            src={product.hoverImage}
+                            alt={`${product.name} alternate view`}
                             loading="lazy"
                           />
                         )}
                         
-                        {/* Optional badging could go here */}
+                        {product.discount && (
+                          <div className="absolute top-4 left-4 px-2.5 py-1 text-[11px] font-bold bg-rose-600 text-white rounded shadow-sm z-10 uppercase tracking-wide">
+                            Giảm {product.discount.replace('-', '')}
+                          </div>
+                        )}
 
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             e.preventDefault();
                           }}
-                          aria-label={`Thêm ${backendProd.name} vào yêu thích`}
+                          aria-label={`Thêm ${product.name} vào yêu thích`}
                           className="absolute top-4 right-4 w-11 h-11 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-primary opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                         >
                           <span className="material-symbols-outlined" aria-hidden="true">favorite</span>
@@ -200,10 +193,17 @@ const CollectionPage: React.FC = () => {
                       </div>
                       
                       <div className="text-left">
-                        <h2 className="font-headline-md text-headline-md text-on-surface mb-1 line-clamp-1">{backendProd.name}</h2>
-                        <p className="font-label-md text-label-md text-primary" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                          {priceFormatted}
-                        </p>
+                        <h2 className="font-headline-md text-headline-md text-on-surface mb-1 line-clamp-1">{product.name}</h2>
+                        <div className="flex items-baseline space-x-2">
+                          <p className="font-label-md text-label-md text-primary font-semibold" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                            {product.price}
+                          </p>
+                          {product.oldPrice && (
+                            <p className="text-xs text-on-surface-variant/60 line-through font-sans" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                              {product.oldPrice}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </Link>
                   );

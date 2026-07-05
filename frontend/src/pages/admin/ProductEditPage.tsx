@@ -3,8 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
 import { Upload, Sparkles, ArrowLeft, Loader2, Plus, Trash2 } from 'lucide-react';
-import ReactQuill from 'react-quill-new';
-import 'react-quill-new/dist/quill.snow.css';
+import TiptapEditor from '@/components/TiptapEditor';
 import { useRef, useMemo, useCallback } from 'react';
 
 interface SpecRow { key: string; value: string; }
@@ -139,7 +138,7 @@ export default function ProductEditPage() {
 
   const [form, setForm] = useState({
     sku: '', name: '', slug: '', description: '',
-    base_price: '', category_id: '', is_active: true,
+    base_price: '', discount_price: '', category_id: '', is_active: true,
   });
 
   const [specs, setSpecs] = useState<SpecRow[]>([]);
@@ -150,23 +149,7 @@ export default function ProductEditPage() {
 
   const [descTab, setDescTab] = useState<'edit' | 'preview'>('edit');
 
-  const quillRef = useRef<ReactQuill>(null);
 
-  const modules = useMemo(() => ({
-    toolbar: {
-      container: [
-        [{ font: [] }, { size: ['small', false, 'large', 'huge'] }],
-        [{ header: [1, 2, 3, 4, 5, 6, false] }],
-        ['bold', 'italic', 'underline', 'strike', 'blockquote', 'code-block'],
-        [{ align: [] }],
-        [{ list: 'ordered' }, { list: 'bullet' }, { indent: '-1' }, { indent: '+1' }],
-        [{ color: [] }, { background: [] }],
-        [{ script: 'sub' }, { script: 'super' }],
-        ['link', 'image', 'video'],
-        ['clean'],
-      ],
-    },
-  }), []);
 
   const [draggedImageIndex, setDraggedImageIndex] = useState<number | null>(null);
 
@@ -308,6 +291,7 @@ export default function ProductEditPage() {
         setForm({
           sku: p.sku || '', name: p.name || '', slug: p.slug || '',
           description: p.description || '', base_price: p.base_price?.toString() || '',
+          discount_price: p.discount_price?.toString() || '',
           category_id: p.category?.id?.toString() || '', is_active: p.is_active ?? true,
         });
 
@@ -566,7 +550,9 @@ export default function ProductEditPage() {
 
       const payload: Record<string, unknown> = {
         sku: form.sku, name: form.name, slug: form.slug, description: processedDescription,
-        base_price: Number(form.base_price), is_active: form.is_active, category_id: Number(form.category_id),
+        base_price: Number(form.base_price),
+        discount_price: form.discount_price ? Number(form.discount_price) : null,
+        is_active: form.is_active, category_id: Number(form.category_id),
         detail: { 
           specifications: Object.keys(specsObj).length > 0 ? specsObj : null,
         },
@@ -713,6 +699,10 @@ export default function ProductEditPage() {
               <label className="block text-sm font-medium text-slate-600 mb-1.5">Giá cơ bản (VNĐ) *</label>
               <input name="base_price" type="number" value={form.base_price} onChange={handleChange} required className={inputCls} placeholder="VD: 15000000" />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-600 mb-1.5">Giá khuyến mãi (VNĐ)</label>
+              <input name="discount_price" type="number" value={form.discount_price} onChange={handleChange} className={inputCls} placeholder="VD: 12000000 (Để trống nếu không giảm giá)" />
+            </div>
           </div>
           <div className="mt-5">
             <label className="block text-sm font-medium text-slate-600 mb-2">Bộ sưu tập</label>
@@ -761,29 +751,36 @@ export default function ProductEditPage() {
             </div>
           </div>
           {descTab === 'edit' ? (
-            <div className="bg-white">
-              <ReactQuill
-                ref={quillRef}
-                theme="snow"
-                value={form.description}
-                onChange={(value) => setForm({ ...form, description: value })}
-                modules={modules}
-                className="h-[500px] mb-12"
-                placeholder="Nhập mô tả sản phẩm (hỗ trợ chèn ảnh, in đậm, list...)"
-              />
-            </div>
+            <TiptapEditor
+              value={form.description}
+              onChange={(value) => setForm({ ...form, description: value })}
+              placeholder="Nhập mô tả sản phẩm (hỗ trợ chèn ảnh, in đậm, list...)"
+            />
           ) : (
             <div className="min-h-[300px] border border-slate-200 rounded-xl p-6 bg-slate-50">
               {form.description && form.description !== '<p><br></p>' ? (
-                <div className="ql-snow">
-                  <div
-                    className="ql-editor prose prose-base max-w-none !p-0
-                               prose-headings:font-bold prose-headings:text-slate-800
-                               prose-p:text-slate-700 prose-p:mb-4 prose-p:leading-relaxed
-                               prose-img:mx-auto prose-img:my-6 prose-img:w-full
-                               [&_span]:!bg-transparent [&_p]:!bg-transparent"
-                    dangerouslySetInnerHTML={{ __html: form.description }}
-                  />
+                <div className="tiptap">
+                  <style>{`
+                    .tiptap { max-width: 100%; word-break: normal; overflow-wrap: break-word; word-wrap: break-word; }
+                    .tiptap p { margin-bottom: 0.75rem; line-height: 1.625; color: #334155; }
+                    .tiptap h1 { font-size: 1.5rem; font-weight: 700; margin-top: 1.25rem; margin-bottom: 0.5rem; color: #1e293b; }
+                    .tiptap h2 { font-size: 1.25rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; color: #1e293b; }
+                    .tiptap h3 { font-size: 1.125rem; font-weight: 600; margin-top: 0.75rem; margin-bottom: 0.25rem; color: #1e293b; }
+                    .tiptap ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.75rem; }
+                    .tiptap ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.75rem; }
+                    .tiptap blockquote { border-left: 4px solid #cbd5e1; padding-left: 1rem; font-style: italic; color: #475569; margin: 0.75rem 0; }
+                    .tiptap code { background-color: #f1f5f9; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.875em; }
+                    .tiptap img { max-width: 100%; height: auto; display: block; margin: 1.5rem auto; border-radius: 8px; }
+                    
+                    /* Table styles */
+                    .tiptap table { border-collapse: collapse; margin: 1.5rem 0; width: 100%; overflow: hidden; }
+                    .tiptap th, .tiptap td { border: 1px solid #cbd5e1; padding: 0.5rem; text-align: left; }
+                    .tiptap th { background-color: #f1f5f9; font-weight: 600; }
+                    .tiptap mark { background-color: #fef08a; padding: 0.1rem 0.25rem; border-radius: 4px; color: #1e293b; }
+                    .tiptap hr { border: none; border-top: 2px solid #e2e8f0; margin: 1.5rem 0; }
+                    .tiptap pre { background-color: #0f172a; color: #f8fafc; padding: 1rem; border-radius: 8px; font-family: monospace; overflow-x: auto; margin: 1rem 0; }
+                  `}</style>
+                  <div dangerouslySetInnerHTML={{ __html: form.description }} />
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-48 text-slate-400">

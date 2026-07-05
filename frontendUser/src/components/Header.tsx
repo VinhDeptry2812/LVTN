@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCartStore } from '@/store/useCartStore';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -6,6 +6,7 @@ import { getCategories, type Category } from '@/services/category.service';
 import { getActiveCollections, type Collection } from '@/services/collection.service';
 import authService from '@/services/auth.service';
 import toast from 'react-hot-toast';
+import { fetchProducts, type ProductFrontend, matchProduct } from '@/services/product.service';
 
 export default function Header() {
   const loginDropdownRef = useRef<HTMLDivElement>(null);
@@ -31,11 +32,64 @@ export default function Header() {
   const [isLoginLoading, setIsLoginLoading] = useState(false);
   const [isLoginDropdownOpen, setIsLoginDropdownOpen] = useState(false);
 
+  // Search Overlay States
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchProducts, setSearchProducts] = useState<ProductFrontend[]>([]);
+  const desktopSearchContainerRef = useRef<HTMLDivElement>(null);
+  const mobileSearchInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus mobile input when mobile search opens
+  useEffect(() => {
+    if (isMobileSearchOpen && mobileSearchInputRef.current) {
+      const timer = setTimeout(() => {
+        mobileSearchInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isMobileSearchOpen]);
+
+  // Load products when search opens for instant filtering
+  useEffect(() => {
+    if ((isSearchOpen || isMobileSearchOpen) && searchProducts.length === 0) {
+      fetchProducts()
+        .then(setSearchProducts)
+        .catch((err) => console.error('Failed to load products for search', err));
+    }
+  }, [isSearchOpen, isMobileSearchOpen, searchProducts.length]);
+
+  // Live filter suggestions
+  const searchSuggestions = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    return searchProducts
+      .filter((p) => matchProduct(p, searchQuery))
+      .slice(0, 5);
+  }, [searchQuery, searchProducts]);
+
+  // Total matched count for search results
+  const totalMatchedCount = useMemo(() => {
+    if (!searchQuery.trim()) return 0;
+    return searchProducts.filter((p) => matchProduct(p, searchQuery)).length;
+  }, [searchQuery, searchProducts]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/shop?search=${encodeURIComponent(searchQuery.trim())}`);
+      setIsSearchOpen(false);
+      setSearchQuery('');
+    }
+  };
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (loginDropdownRef.current && !loginDropdownRef.current.contains(event.target as Node)) {
         setIsLoginDropdownOpen(false);
+      }
+      if (desktopSearchContainerRef.current && !desktopSearchContainerRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
       }
     };
 
@@ -226,11 +280,96 @@ export default function Header() {
           </div>
         </div>
         <div className="flex items-center gap-sp-md">
+          {/* Desktop Search Bar (MOHO Style) */}
+          <div className="hidden md:block relative w-60 lg:w-72 mx-2" ref={desktopSearchContainerRef}>
+            <form onSubmit={handleSearchSubmit} className="flex bg-[#f5f5f5] rounded-sm border border-transparent focus-within:border-outline-variant/60 focus-within:bg-white transition-all overflow-hidden">
+              <input
+                type="text"
+                value={searchQuery}
+                onFocus={() => {
+                  setIsSearchOpen(true);
+                }}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm kiếm sản phẩm..."
+                className="flex-1 bg-transparent border-none focus:outline-none pl-3 pr-2 py-1.5 text-xs text-on-surface placeholder:text-on-surface-variant/60 font-body-sm"
+              />
+              <button
+                type="submit"
+                className="bg-[#333333] hover:bg-black text-white px-3 flex items-center justify-center transition-colors cursor-pointer border-none"
+              >
+                <span className="material-symbols-outlined text-[18px]">search</span>
+              </button>
+            </form>
+
+            {/* Dropdown Suggestions matching Search Bar width */}
+            {isSearchOpen && searchQuery.trim() && (
+              <div className="absolute top-[105%] left-0 right-0 bg-white border border-outline-variant/30 shadow-2xl rounded-sm overflow-hidden flex flex-col z-[100] animate-slide-down">
+                {searchSuggestions.length > 0 ? (
+                  <>
+                    <div className="flex flex-col divide-y divide-outline-variant/10">
+                      {searchSuggestions.map((prod) => (
+                        <Link
+                          key={prod.id}
+                          to={`/product/${prod.id}`}
+                          onClick={() => {
+                            setIsSearchOpen(false);
+                            setSearchQuery('');
+                          }}
+                          className="flex items-center justify-between gap-3 p-3 hover:bg-surface-container-low/50 group transition-colors"
+                        >
+                          <div className="flex-1 min-w-0 pr-2">
+                            <h4 className="font-label-md text-on-surface group-hover:text-primary transition-colors text-xs font-semibold uppercase truncate mb-1">
+                              {prod.name}
+                            </h4>
+                            <div className="font-label-sm text-xs flex items-center gap-2">
+                              <span className="text-[#333333] font-bold">{prod.price}</span>
+                              {prod.oldPrice && (
+                                <span className="text-on-surface-variant line-through text-[11px] font-normal">
+                                  {prod.oldPrice}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="w-12 h-12 bg-white rounded border border-outline-variant/20 flex-shrink-0 flex items-center justify-center p-1 overflow-hidden">
+                            <img
+                              src={prod.image}
+                              alt={prod.name}
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                    
+                    {/* View more count */}
+                    <button
+                      onClick={handleSearchSubmit}
+                      className="bg-[#f5f5f5] hover:bg-[#eaeaea] py-2.5 text-center text-xs text-[#333] font-semibold transition-colors border-t border-outline-variant/20 cursor-pointer w-full"
+                    >
+                      Xem thêm {totalMatchedCount} sản phẩm
+                    </button>
+                  </>
+                ) : (
+                  <div className="py-6 text-center text-on-surface-variant flex flex-col items-center">
+                    <span className="material-symbols-outlined text-2xl mb-1 text-outline/60">search_off</span>
+                    <p className="font-body-sm text-[11px]">Không tìm thấy sản phẩm</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Mobile search toggle button */}
           <button
+            onClick={() => {
+              setIsMobileSearchOpen(!isMobileSearchOpen);
+            }}
             aria-label="Tìm kiếm sản phẩm"
-            className="p-2.5 min-w-[44px] min-h-[44px] rounded-full hover:bg-surface-container-low transition-colors duration-300 flex items-center justify-center"
+            className="md:hidden p-2.5 min-w-[44px] min-h-[44px] rounded-full hover:bg-surface-container-low transition-colors duration-300 flex items-center justify-center cursor-pointer"
           >
-            <span className="material-symbols-outlined text-on-surface-variant block" aria-hidden="true">search</span>
+            <span className="material-symbols-outlined text-on-surface-variant block" aria-hidden="true">
+              {isMobileSearchOpen ? 'close' : 'search'}
+            </span>
           </button>
           
           <Link
@@ -338,6 +477,92 @@ export default function Header() {
         </div>
       </nav>
 
+      {/* Mobile Search Row (MOHO Style) */}
+      {isMobileSearchOpen && (
+        <div className="md:hidden bg-surface border-t border-outline-variant/30 px-sp-md py-3 shadow-[0_10px_20px_rgba(0,0,0,0.05)] relative z-40 animate-slide-down">
+          <form onSubmit={handleSearchSubmit} className="relative flex items-center bg-[#f5f5f5] rounded-sm border border-outline-variant/50 focus-within:border-primary overflow-hidden">
+            <input
+              ref={mobileSearchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm kiếm sản phẩm..."
+              className="flex-1 bg-transparent border-none focus:outline-none pl-3 pr-12 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/60 font-body-sm"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-12 p-1 text-on-surface-variant/60 hover:text-on-surface transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-base block">close</span>
+              </button>
+            )}
+            <button
+              type="submit"
+              className="bg-[#333333] hover:bg-black text-white w-10 flex items-center justify-center transition-colors cursor-pointer border-none h-full absolute right-0 top-0 bottom-0"
+            >
+              <span className="material-symbols-outlined text-[18px]">search</span>
+            </button>
+          </form>
+
+          {/* Suggestions Dropdown for Mobile - takes full width below search input */}
+          {searchQuery.trim() && (
+            <div className="absolute top-[100%] left-0 right-0 bg-surface border-t border-outline-variant/20 shadow-2xl overflow-y-auto max-h-[70vh] flex flex-col z-[100] divide-y divide-outline-variant/10 animate-slide-down">
+              {searchSuggestions.length > 0 ? (
+                <>
+                  {searchSuggestions.map((prod) => (
+                    <Link
+                      key={prod.id}
+                      to={`/product/${prod.id}`}
+                      onClick={() => {
+                        setIsMobileSearchOpen(false);
+                        setSearchQuery('');
+                      }}
+                      className="flex items-center justify-between gap-3 p-4 hover:bg-surface-container-low/50 group transition-colors"
+                    >
+                      <div className="flex-1 min-w-0 pr-2">
+                        <h4 className="font-label-md text-on-surface group-hover:text-primary transition-colors text-xs font-semibold uppercase truncate mb-1">
+                          {prod.name}
+                        </h4>
+                        <div className="font-label-sm text-xs flex items-center gap-2">
+                          <span className="text-[#333333] font-bold">{prod.price}</span>
+                          {prod.oldPrice && (
+                            <span className="text-on-surface-variant line-through text-[11px] font-normal">
+                              {prod.oldPrice}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="w-12 h-12 bg-white rounded border border-outline-variant/20 flex-shrink-0 flex items-center justify-center p-1 overflow-hidden">
+                        <img
+                          src={prod.image}
+                          alt={prod.name}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    </Link>
+                  ))}
+                  
+                  {/* View more count */}
+                  <button
+                    onClick={handleSearchSubmit}
+                    className="bg-[#f5f5f5] hover:bg-[#eaeaea] py-3 text-center text-xs text-[#333] font-semibold transition-colors border-t border-outline-variant/20 cursor-pointer w-full"
+                  >
+                    Xem thêm {totalMatchedCount} sản phẩm
+                  </button>
+                </>
+              ) : (
+                <div className="py-10 text-center text-on-surface-variant flex flex-col items-center">
+                  <span className="material-symbols-outlined text-3xl mb-2 text-outline/60">search_off</span>
+                  <p className="font-body-sm text-xs">Không tìm thấy sản phẩm nào phù hợp</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Mobile Navigation Drawer */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-surface border-t border-outline-variant/30 py-4 px-sp-md space-y-3 transition-all duration-300 max-h-[80vh] overflow-y-auto">
@@ -401,6 +626,8 @@ export default function Header() {
 
         </div>
       )}
+
+
     </header>
   );
 }

@@ -14,10 +14,6 @@ export class ProductDetail {
   @Column({ type: 'jsonb', nullable: true })
   specifications: Record<string, string>;
 
-  /** URL ảnh bản vẽ kỹ thuật / kích thước */
-  @Column({ type: 'text', nullable: true })
-  blueprint_url: string;
-
   @DeleteDateColumn()
   deleted_at: Date;
 }

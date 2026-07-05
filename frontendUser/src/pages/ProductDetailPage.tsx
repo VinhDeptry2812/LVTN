@@ -14,6 +14,34 @@ gsap.registerPlugin(useGSAP, ScrollTrigger);
 
 import { fetchProductById, fetchProducts, formatPrice, type ProductFrontend } from '@/services/product.service';
 
+const COLOR_MAP: Record<string, string> = {
+  'trắng': '#ffffff',
+  'đen': '#000000',
+  'xám': '#808080',
+  'đỏ': '#ff0000',
+  'xanh lá': '#008000',
+  'xanh dương': '#0000ff',
+  'xanh': '#2b6cb0',
+  'vàng': '#ecc94b',
+  'cam': '#dd6b20',
+  'hồng': '#ed64a6',
+  'nâu': '#744210',
+  'kem': '#fffdd0',
+  'be': '#f5f5dc',
+  'gỗ': '#8b5a2b',
+  'white': '#ffffff',
+  'black': '#000000',
+  'gray': '#808080',
+  'red': '#ff0000',
+  'green': '#008000',
+  'blue': '#0000ff',
+  'yellow': '#ecc94b',
+  'orange': '#dd6b20',
+  'pink': '#ed64a6',
+  'brown': '#744210',
+  'beige': '#f5f5dc',
+};
+
 export default function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -26,6 +54,9 @@ export default function ProductDetailPage() {
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [zoomStyle, setZoomStyle] = useState<React.CSSProperties>({ transformOrigin: 'center' });
+  const [isHovered, setIsHovered] = useState(false);
+  const [isAdding, setIsAdding] = useState<'idle' | 'loading' | 'success'>('idle');
 
   useEffect(() => {
     if (id) {
@@ -72,7 +103,6 @@ export default function ProductDetailPage() {
         });
     }
   }, [id]);
-  const [isSpecsOpen, setIsSpecsOpen] = useState(false);
   const [isShippingOpen, setIsShippingOpen] = useState(false);
   const [isZoomOpen, setIsZoomOpen] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
@@ -80,6 +110,9 @@ export default function ProductDetailPage() {
   const currentVariant = product?.variants?.find((v: any) => v.id === selectedVariantId);
   const displayRawPrice = (product?.rawPrice || 0) + (currentVariant?.price_adjustment ? Number(currentVariant.price_adjustment) : 0);
   const displayPrice = formatPrice(displayRawPrice);
+
+  const displayRawOldPrice = product?.oldPrice ? ((product?.rawBasePrice || 0) + (currentVariant?.price_adjustment ? Number(currentVariant.price_adjustment) : 0)) : null;
+  const displayOldPrice = displayRawOldPrice ? formatPrice(displayRawOldPrice) : null;
 
   const attributeGroups = useMemo(() => {
     if (!product || !product.variants || product.variants.length === 0) return null;
@@ -139,27 +172,35 @@ export default function ProductDetailPage() {
   const handleAddToCart = () => {
     if (!product) return;
     
+    setIsAdding('loading');
+    
     // Determine material string for the variant, or default
     let materialStr = product.specs?.['Chất liệu'] || product.specs?.material || 'Mặc định';
     if (currentVariant && currentVariant.attributes && Object.keys(currentVariant.attributes).length > 0) {
       materialStr = Object.values(currentVariant.attributes).join(' - ');
     }
     
-    addItem({
-      id: `${product.id}-${selectedVariantId || 'base'}`,
-      productId: product.id,
-      variantId: selectedVariantId,
-      name: product.name,
-      material: materialStr,
-      price: displayPrice,
-      rawPrice: displayRawPrice,
-      basePrice: product.rawPrice,
-      image: currentVariant?.image_url || product.image,
-      quantity: quantity,
-      availableVariants: product.variants
-    });
-    toast.success('Đã thêm sản phẩm vào giỏ hàng!');
-    // navigate('/cart'); // Optional: Stop auto navigate so user can continue shopping
+    setTimeout(() => {
+      addItem({
+        id: `${product.id}-${selectedVariantId || 'base'}`,
+        productId: product.id,
+        variantId: selectedVariantId,
+        name: product.name,
+        material: materialStr,
+        price: displayPrice,
+        rawPrice: displayRawPrice,
+        basePrice: product.rawPrice,
+        image: currentVariant?.image_url || product.image,
+        quantity: quantity,
+        availableVariants: product.variants
+      });
+      setIsAdding('success');
+      toast.success('Đã thêm sản phẩm vào giỏ hàng!');
+      
+      setTimeout(() => {
+        setIsAdding('idle');
+      }, 2000);
+    }, 600);
   };
 
   const detailContainerRef = useRef<HTMLDivElement>(null);
@@ -226,6 +267,24 @@ export default function ProductDetailPage() {
 
   const handleQuantityChange = (amount: number) => {
     setQuantity((prev) => Math.max(1, prev + amount));
+  };
+
+  const handleImageMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - left) / width) * 100;
+    const y = ((e.clientY - top) / height) * 100;
+    setZoomStyle({
+      transformOrigin: `${x}% ${y}%`,
+      transform: 'scale(1.5)',
+    });
+  };
+
+  const handleImageMouseLeave = () => {
+    setIsHovered(false);
+    setZoomStyle({
+      transformOrigin: 'center',
+      transform: 'scale(1)',
+    });
   };
 
   const handleNextImage = (e: React.MouseEvent) => {
@@ -304,13 +363,17 @@ export default function ProductDetailPage() {
             {/* Left: Gallery */}
             <div className="detail-gallery flex flex-col md:flex-row gap-sp-md lg:gap-sp-lg h-auto md:max-h-[600px] sticky top-28">
               <div 
-                className="relative flex-1 aspect-[4/5] md:aspect-auto md:h-[600px] overflow-hidden cursor-zoom-in group order-1 md:order-2"
+                className="relative flex-1 aspect-[4/5] md:aspect-auto md:h-[600px] overflow-hidden cursor-zoom-in group order-1 md:order-2 rounded-2xl bg-white shadow-sm border border-outline-variant/30"
                 onClick={() => setIsZoomOpen(true)}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseMove={handleImageMouseMove}
+                onMouseLeave={handleImageMouseLeave}
               >
                 <img
-                  className="w-full h-full object-cover transition-all duration-700"
+                  className="w-full h-full object-cover transition-transform duration-100 ease-out"
                   src={activeImage}
                   alt={product.name}
+                  style={isHovered ? zoomStyle : undefined}
                 />
               </div>
               {filteredGallery && filteredGallery.length > 1 && (
@@ -345,68 +408,115 @@ export default function ProductDetailPage() {
 
             {/* Right: Product Info */}
             <div className="detail-info-block flex flex-col space-y-sp-md">
-              <div className="space-y-2">
-                <h1 className="font-headline-lg text-headline-lg text-on-surface">{product.name}</h1>
-                <p className="text-2xl text-primary font-bold">{displayPrice}</p>
+              <div className="border-b border-outline-variant/30 pb-6 mb-2 space-y-3">
+                <div className="space-y-2">
+                  <h1 className="font-headline-lg text-3xl md:text-4xl text-on-surface tracking-wide font-semibold leading-tight">
+                    {product.name}
+                  </h1>
+                  <div className="flex items-baseline space-x-3">
+                    <p className="text-3xl text-primary font-light font-sans tracking-tight" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {displayPrice}
+                    </p>
+                    {displayOldPrice && (
+                      <>
+                        <p className="text-lg text-on-surface-variant/60 line-through font-sans" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {displayOldPrice}
+                        </p>
+                        <span className="px-2 py-0.5 text-xs font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300 rounded uppercase tracking-wider">
+                          {product.discount}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2 text-xs text-on-surface-variant font-label-sm uppercase tracking-widest">
+                  <span>Mã SP: {product.sku || product.id}</span>
+                  <span>•</span>
+                  <span>Đánh giá: {product.rating} ★</span>
+                </div>
               </div>
 
               {/* Selection: Variants */}
               {attributeGroups && Object.keys(attributeGroups).length > 0 ? (
-                Object.entries(attributeGroups).map(([key, valueSet]) => (
-                  <div key={key} className="space-y-sp-sm">
-                    <p className="font-label-md text-label-md uppercase tracking-wider text-on-surface-variant">
-                      {key}
-                    </p>
-                    <div className="flex flex-wrap gap-3">
-                      {Array.from(valueSet).map((val) => {
-                        const isSelected = selectedAttributes[key] === val;
-                        const isColorAttr = key.toLowerCase().includes('màu') && val.includes('|');
-                        const displayVal = isColorAttr ? val.split('|')[0] : val;
-                        const colorCode = isColorAttr ? val.split('|')[1] : null;
+                Object.entries(attributeGroups).map(([key, valueSet]) => {
+                  const isColorGroup = key.toLowerCase().includes('màu');
+                  const selectedVal = selectedAttributes[key];
+                  const displaySelectedVal = selectedVal
+                    ? (selectedVal.includes('|') ? selectedVal.split('|')[0] : selectedVal)
+                    : '';
 
-                        if (isColorAttr && colorCode) {
+                  return (
+                    <div key={key} className="space-y-sp-sm">
+                      <p className="font-label-md text-label-md uppercase tracking-wider text-on-surface-variant">
+                        {key}
+                        {isColorGroup && displaySelectedVal && (
+                          <span className="normal-case text-on-surface ml-1.5 font-bold">: {displaySelectedVal}</span>
+                        )}
+                      </p>
+                      <div className="flex flex-wrap gap-3">
+                        {Array.from(valueSet).map((val) => {
+                          const isSelected = selectedAttributes[key] === val;
+                          const isColorAttr = key.toLowerCase().includes('màu');
+                          let displayVal = val;
+                          let colorCode: string | null = null;
+
+                          if (isColorAttr) {
+                            if (val.includes('|')) {
+                              const parts = val.split('|');
+                              displayVal = parts[0];
+                              colorCode = parts[1];
+                            } else {
+                              const cleanVal = val.trim().toLowerCase();
+                              colorCode = COLOR_MAP[cleanVal] || null;
+                            }
+                          }
+
+                          if (isColorAttr && colorCode) {
+                            return (
+                              <button
+                                key={val}
+                                onClick={() => handleAttributeSelect(key, val)}
+                                className={`relative flex items-center justify-center w-8 h-8 rounded-full cursor-pointer transition-all duration-500 border ${
+                                  isSelected 
+                                    ? 'border-primary ring-[1.5px] ring-primary ring-offset-[3px] scale-105' 
+                                    : 'border-outline-variant hover:ring-[1px] hover:ring-outline hover:ring-offset-[2px] hover:scale-105 shadow-sm'
+                                }`}
+                                style={{ backgroundColor: colorCode }}
+                                title={displayVal}
+                              >
+                                <span className="sr-only">{displayVal}</span>
+                                {isSelected && (
+                                  <svg
+                                    className="w-4 h-4 text-white mix-blend-difference"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </button>
+                            );
+                          }
+
                           return (
                             <button
                               key={val}
                               onClick={() => handleAttributeSelect(key, val)}
-                              className={`relative flex items-center justify-center w-8 h-8 rounded-full cursor-pointer transition-all duration-300 border ${
-                                isSelected ? 'border-primary ring-2 ring-primary ring-offset-2' : 'border-outline-variant hover:border-primary shadow-sm'
+                              className={`px-4 py-2 rounded-lg cursor-pointer transition-all duration-300 text-xs font-label-md border font-semibold ${
+                                isSelected
+                                  ? 'border-primary bg-primary text-white shadow-sm'
+                                  : 'border-outline-variant bg-transparent text-on-surface hover:bg-on-surface hover:text-surface'
                               }`}
-                              style={{ backgroundColor: colorCode }}
-                              title={displayVal}
                             >
-                              <span className="sr-only">{displayVal}</span>
-                              {isSelected && (
-                                <svg
-                                  className="w-4 h-4 text-white mix-blend-difference"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                </svg>
-                              )}
+                              {displayVal}
                             </button>
                           );
-                        }
-
-                        return (
-                          <button
-                            key={val}
-                            onClick={() => handleAttributeSelect(key, val)}
-                            className={`px-3 py-1.5 rounded-full cursor-pointer transition-all duration-300 text-xs font-label-sm border ${
-                              isSelected
-                                ? 'ring-2 ring-offset-2 ring-primary border-primary bg-primary text-white'
-                                : 'border-outline-variant bg-surface-container-low text-on-surface hover:border-primary'
-                            }`}
-                          >
-                            {displayVal}
-                          </button>
-                        );
-                      })}
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : product.variants && product.variants.length > 0 && (
                 <div className="space-y-sp-sm">
                   <p className="font-label-md text-label-md uppercase tracking-wider text-on-surface-variant">
@@ -428,10 +538,10 @@ export default function ProductDetailPage() {
                               setActiveImage(product.gallery[0].url);
                             }
                           }}
-                          className={`px-3 py-1.5 rounded-full cursor-pointer transition-all duration-300 text-xs font-label-sm border ${
+                          className={`px-4 py-2 rounded-lg cursor-pointer transition-all duration-300 text-xs font-label-md border font-semibold ${
                             isSelected
-                              ? 'ring-2 ring-offset-2 ring-primary border-primary bg-primary text-white'
-                              : 'border-outline-variant bg-surface-container-low text-on-surface hover:border-primary'
+                              ? 'border-primary bg-primary text-white shadow-sm'
+                              : 'border-outline-variant bg-transparent text-on-surface hover:bg-on-surface hover:text-surface'
                           }`}
                         >
                           {variantLabel}
@@ -463,7 +573,27 @@ export default function ProductDetailPage() {
                   >
                     <span className="material-symbols-outlined text-lg">remove</span>
                   </button>
-                  <span className="w-8 text-center font-label-md text-on-surface">{quantity}</span>
+                  <input
+                    type="text"
+                    value={quantity === 0 ? '' : quantity}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        setQuantity(0);
+                      } else {
+                        const parsed = parseInt(val, 10);
+                        if (!isNaN(parsed) && parsed > 0 && /^\d+$/.test(val)) {
+                          setQuantity(parsed);
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      if (quantity < 1) {
+                        setQuantity(1);
+                      }
+                    }}
+                    className="w-12 text-center font-label-md text-on-surface bg-transparent focus:outline-none font-bold"
+                  />
                   <button
                     onClick={() => handleQuantityChange(1)}
                     className="p-1 hover:text-primary transition-colors cursor-pointer"
@@ -477,17 +607,39 @@ export default function ProductDetailPage() {
               <div className="flex space-x-sp-md !mt-3">
                 <button
                   onClick={handleAddToCart}
-                  className="flex-grow bg-primary text-on-primary py-4 rounded-xl font-label-md text-label-md shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-300 cursor-pointer"
+                  disabled={isAdding !== 'idle'}
+                  className={`flex-grow py-4 rounded-xl font-label-md text-label-md shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-500 cursor-pointer flex items-center justify-center space-x-2 ${
+                    isAdding === 'success'
+                      ? 'bg-emerald-600 text-white shadow-emerald-100'
+                      : 'bg-primary text-on-primary hover:opacity-95'
+                  }`}
                 >
-                  THÊM VÀO GIỎ HÀNG
+                  {isAdding === 'loading' && (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      <span>ĐANG XỬ LÝ...</span>
+                    </>
+                  )}
+                  {isAdding === 'success' && (
+                    <>
+                      <span className="material-symbols-outlined text-lg">check_circle</span>
+                      <span>ĐÃ THÊM VÀO GIỎ HÀNG!</span>
+                    </>
+                  )}
+                  {isAdding === 'idle' && (
+                    <span>THÊM VÀO GIỎ HÀNG</span>
+                  )}
                 </button>
-                <button aria-label="Thêm vào danh sách yêu thích" className="px-4 border border-primary text-primary rounded-xl hover:bg-surface-container transition-colors active:scale-95 cursor-pointer">
-                  <span className="material-symbols-outlined" aria-hidden="true">favorite</span>
+                <button aria-label="Thêm vào danh sách yêu thích" className="px-4 border border-outline-variant text-on-surface-variant rounded-xl hover:bg-surface-container hover:text-primary transition-colors active:scale-95 cursor-pointer">
+                    <span className="material-symbols-outlined" aria-hidden="true">favorite</span>
                 </button>
               </div>
 
               {/* Trust Badges */}
-              <div className="grid grid-cols-2 gap-4 py-sp-md mt-sp-sm border-t border-b border-surface-container-highest">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-sp-md mt-sp-sm border-t border-b border-outline-variant/30">
                 <div className="flex items-center space-x-3 text-on-surface-variant">
                   <span className="material-symbols-outlined text-primary text-[28px]">local_shipping</span>
                   <span className="font-label-sm text-xs leading-tight">Giao hàng & Lắp đặt<br/><strong className="text-on-surface font-bold">Miễn phí</strong></span>
@@ -551,11 +703,28 @@ export default function ProductDetailPage() {
                 {product.desc ? (
                   <div>
                     <div className={`relative overflow-hidden transition-all duration-500 ease-in-out ${descExpanded ? 'max-h-[9999px]' : 'max-h-[420px]'}`}>
-                      <div className="ql-snow">
-                        <div
-                          className="ql-editor prose prose-base md:prose-lg max-w-none !p-0 prose-headings:font-headline-md prose-headings:text-on-surface prose-headings:mt-10 prose-headings:mb-4 prose-headings:font-bold prose-p:text-slate-700 prose-p:mb-6 prose-p:leading-loose prose-a:text-primary prose-img:mx-auto prose-img:my-10 prose-img:w-full [&_span]:!bg-transparent [&_p]:!bg-transparent [&_h1]:!bg-transparent [&_h2]:!bg-transparent [&_h3]:!bg-transparent [&_h4]:!bg-transparent [&_strong]:!bg-transparent [&_em]:!bg-transparent"
-                          dangerouslySetInnerHTML={{ __html: product.desc }}
-                        />
+                      <div className="tiptap">
+                        <style>{`
+                          .tiptap { max-width: 100%; word-break: normal; overflow-wrap: break-word; word-wrap: break-word; }
+                          .tiptap p { margin-bottom: 0.75rem; line-height: 1.625; color: #334155; }
+                          .tiptap h1 { font-size: 1.5rem; font-weight: 700; margin-top: 1.25rem; margin-bottom: 0.5rem; color: #1e293b; }
+                          .tiptap h2 { font-size: 1.25rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; color: #1e293b; }
+                          .tiptap h3 { font-size: 1.125rem; font-weight: 600; margin-top: 0.75rem; margin-bottom: 0.25rem; color: #1e293b; }
+                          .tiptap ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.75rem; }
+                          .tiptap ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.75rem; }
+                          .tiptap blockquote { border-left: 4px solid #cbd5e1; padding-left: 1rem; font-style: italic; color: #475569; margin: 0.75rem 0; }
+                          .tiptap code { background-color: #f1f5f9; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.875em; }
+                          .tiptap img { max-width: 100%; height: auto; display: block; margin: 1.5rem auto; border-radius: 8px; }
+                          
+                          /* Table styles */
+                          .tiptap table { border-collapse: collapse; margin: 1.5rem 0; width: 100%; overflow: hidden; }
+                          .tiptap th, .tiptap td { border: 1px solid #cbd5e1; padding: 0.5rem; text-align: left; }
+                          .tiptap th { background-color: #f1f5f9; font-weight: 600; }
+                          .tiptap mark { background-color: #fef08a; padding: 0.1rem 0.25rem; border-radius: 4px; color: #1e293b; }
+                          .tiptap hr { border: none; border-top: 2px solid #e2e8f0; margin: 1.5rem 0; }
+                          .tiptap pre { background-color: #0f172a; color: #f8fafc; padding: 1rem; border-radius: 8px; font-family: monospace; overflow-x: auto; margin: 1rem 0; }
+                        `}</style>
+                        <div dangerouslySetInnerHTML={{ __html: product.desc }} />
                       </div>
                       {!descExpanded && (
                         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#FAF7F2] to-transparent pointer-events-none" />
@@ -621,8 +790,8 @@ export default function ProductDetailPage() {
                         <span className="material-symbols-outlined" aria-hidden="true">favorite</span>
                       </button>
                     </div>
-                    <h2 className="font-headline-md text-headline-md text-on-surface mb-1 line-clamp-1">{p.name}</h2>
-                    <p className="font-label-md text-label-md text-primary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    <h3 className="font-label-md text-body-md text-on-surface mb-1 line-clamp-2 min-h-[48px]">{p.name}</h3>
+                      <p className="font-label-md text-label-md text-primary" style={{ fontVariantNumeric: 'tabular-nums' }}>
                       {p.price}
                     </p>
                   </Link>

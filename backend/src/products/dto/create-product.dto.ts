@@ -10,11 +10,6 @@ export class CreateProductDetailDto {
   @IsOptional()
   @IsObject()
   specifications?: Record<string, string>;
-
-  @ApiPropertyOptional({ description: 'URL ảnh bản vẽ kỹ thuật / kích thước' })
-  @IsOptional()
-  @IsString()
-  blueprint_url?: string;
 }
 
 export class CreateProductVariantDto {
@@ -104,6 +99,11 @@ export class CreateProductDto {
   @IsNotEmpty({ message: 'Giá bán không được để trống' })
   @IsNumber({}, { message: 'Giá bán phải là số' })
   base_price: number;
+
+  @ApiPropertyOptional({ example: 4000000, description: 'Giá khuyến mãi' })
+  @IsOptional()
+  @IsNumber({}, { message: 'Giá khuyến mãi phải là số' })
+  discount_price?: number;
 
   @ApiProperty({ example: 1, description: 'ID của danh mục cha' })
   @IsNotEmpty({ message: 'Danh mục không được để trống' })

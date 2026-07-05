@@ -9,15 +9,12 @@ import CategoryListPage from '@/pages/admin/CategoryListPage';
 import CollectionListPage from '@/pages/admin/CollectionListPage';
 import OrderListPage from '@/pages/admin/OrderListPage';
 import PaymentResultPage from '@/pages/PaymentResultPage';
-import CustomerDemoPage from '@/pages/CustomerDemoPage';
 
 function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
 
-      {/* Trang demo khách hàng - layout riêng */}
-      <Route path="/demo" element={<CustomerDemoPage />} />
 
       {/* Trang kết quả thanh toán VNPAY */}
       <Route path="/payment/result" element={<PaymentResultPage />} />

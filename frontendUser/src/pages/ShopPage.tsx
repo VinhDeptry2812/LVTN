@@ -9,7 +9,7 @@ import Footer from '@/components/Footer';
 // Register GSAP plugins
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
-import { fetchProducts, type ProductFrontend } from '@/services/product.service';
+import { fetchProducts, type ProductFrontend, matchProduct } from '@/services/product.service';
 import { getCategories, type Category } from '@/services/category.service';
 
 export default function ShopPage() {
@@ -17,7 +17,8 @@ export default function ShopPage() {
 
   // Selected filters from search params / state
   const initialCategory = searchParams.get('category') || '';
-  const [searchQuery, setSearchQuery] = useState('');
+  const initialSearch = searchParams.get('search') || '';
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     initialCategory ? [initialCategory] : []
   );
@@ -43,17 +44,21 @@ export default function ShopPage() {
       });
   }, []);
 
-  // Sync category filter when URL changes (e.g. clicking on Navbar 'Cửa hàng')
+  // Sync category & search filters when URL changes
   useEffect(() => {
     const categoryParam = searchParams.get('category');
+    const searchParam = searchParams.get('search');
+
     if (categoryParam) {
       setSelectedCategories([categoryParam]);
     } else {
-      // Khi không có tham số (VD: bấm vào "Cửa hàng" trên Navbar), reset toàn bộ filter
       setSelectedCategories([]);
+    }
+
+    if (searchParam !== null) {
+      setSearchQuery(searchParam);
+    } else {
       setSearchQuery('');
-      setMaxPrice(null);
-      setSortBy('popular');
     }
   }, [searchParams]);
 
@@ -63,11 +68,7 @@ export default function ShopPage() {
 
     // Search query filter
     if (searchQuery.trim() !== '') {
-      result = result.filter(
-        (p) =>
-          p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          p.desc.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      result = result.filter((p) => matchProduct(p, searchQuery));
     }
 
     // Category filter

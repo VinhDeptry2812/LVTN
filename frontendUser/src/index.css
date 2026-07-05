@@ -71,6 +71,18 @@
   --spacing-gutter: 24px;
   --spacing-sp-xs: 4px;
   --spacing-sp-lg: 48px;
+
+  /* Ken Burns Carousel Animations */
+  --animate-kenburns: kenburns 6s ease-out forwards;
+
+  @keyframes kenburns {
+    0% {
+      transform: scale(1.08);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
 }
 
 /* Base resets & styles */
@@ -207,4 +219,20 @@ body {
   line-height: 56px;
   letter-spacing: -0.02em;
   font-weight: 700;
+}
+
+/* Search Overlay Animations */
+@keyframes slideDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@utility animate-slide-down {
+  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
