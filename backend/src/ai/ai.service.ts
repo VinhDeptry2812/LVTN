@@ -13,32 +13,63 @@ export class AiService {
     }
   }
 
-  async generateProductDescription(name: string, category: string, attributes: string): Promise<string> {
+  async generateProductDescription(
+    name: string,
+    category: string,
+    attributes: string,
+  ): Promise<string> {
     if (!this.ai) {
       throw new InternalServerErrorException('Gemini API chưa được cấu hình.');
     }
 
     try {
-      const prompt = `Bạn là một chuyên gia viết content marketing cho cửa hàng nội thất cao cấp FurniShop.
-Hãy viết một bài mô tả sản phẩm (product description) thật hấp dẫn, chuyên nghiệp và chuẩn SEO dựa trên các thông tin sau:
+      const prompt = `Bạn là một chuyên gia viết content marketing cho thương hiệu nội thất cao cấp FurniShop.
+Nhiệm vụ của bạn là viết một bài mô tả sản phẩm (product description) thật hấp dẫn, chuyên nghiệp, chuẩn SEO và có cấu trúc rõ ràng bằng ngôn ngữ HTML để hiển thị trực tiếp trong trình soạn thảo Rich Text (Tiptap).
+
+Thông tin đầu vào:
 - Tên sản phẩm: ${name}
 - Danh mục: ${category}
-- Đặc điểm/Chất liệu/Kích thước: ${attributes}
+- Đặc điểm/Chất liệu/Kích thước/Thông số khác: ${attributes}
 
-Yêu cầu định dạng:
-1. Độ dài khoảng 150 - 250 chữ.
-2. Viết bằng tiếng Việt, giọng văn sang trọng, tinh tế và thuyết phục.
-3. Chia thành các đoạn văn ngắn rõ ràng. KHÔNG sử dụng Markdown (tuyệt đối không dùng dấu * hoặc **). Chỉ dùng văn bản thuần túy (plain text) hoặc dấu gạch ngang (-) cho danh sách.
-4. KHÔNG bao gồm các câu mở đầu dư thừa như "Dưới đây là mô tả...", chỉ trả về nội dung bài viết.`;
+Hãy viết mô tả sản phẩm theo cấu trúc chuẩn của thương hiệu nội thất cao cấp MOHO như sau:
+
+1. TIÊU ĐỀ & KHÁI QUÁT SẢN PHẨM:
+- Một dòng thông điệp/slogan ngắn gọn, cuốn hút về sản phẩm (nằm trong thẻ <h3>).
+- Một đoạn văn ngắn (2-3 câu) giới thiệu tổng quan về sản phẩm: công năng nổi bật, giải pháp thiết kế cho không gian sống, phong cách thẩm mỹ.
+
+2. CÁC ĐIỂM NỔI BẬT CHÍNH (dùng danh sách <ul> và <li>):
+- Khoảng 4-5 dòng mô tả các ưu điểm vượt trội của sản phẩm. Mỗi dòng bắt đầu bằng ký tự checkmark (✔) hoặc biểu tượng trực quan tương tự.
+- Tập trung vào các giá trị: Thiết kế thẩm mỹ sang trọng, Sự linh hoạt trong sắp đặt, Độ bền bỉ, Tính an toàn cho sức khỏe (chuẩn CARB P2 hoặc gỗ thân thiện môi trường), Khả năng tối ưu không gian sống.
+
+3. CHI TIẾT TỪNG PHÂN KHU/CÔNG NĂNG (dùng các thẻ <h3> cho tiêu đề phụ và <p>, <ul>, <li> cho nội dung):
+- Viết chi tiết về công năng sử dụng thực tế (ví dụ: khoang lưu trữ rộng rãi, thiết kế cánh tủ tinh xảo, phụ kiện ray trượt giảm chấn, độ bền bỉ của kết cấu...).
+- Giọng văn tinh tế, sang trọng, thuyết phục để khơi gợi nhu cầu mua sắm.
+
+4. THÔNG SỐ KỸ THUẬT (dùng thẻ <h3> cho tiêu đề):
+- Hãy tạo một danh sách chi tiết (thẻ <ul> và <li>) hoặc một bảng (<table>, <tr>, <td>) hiển thị rõ ràng các thông số:
+  + Kích thước: (ví dụ: Dài x Rộng x Cao hoặc Ngang x Sâu x Cao)
+  + Chất liệu: (chất liệu phần khung, phần mặt/cánh, các phụ kiện ray kéo, chân đế...)
+  + Màu sắc:
+  + Xuất xứ/Tiêu chuẩn: (tiêu chuẩn an toàn xuất khẩu, thân thiện môi trường)
+  + Đặc tính nổi bật khác:
+
+Yêu cầu về định dạng đầu ra:
+- CHỈ trả về đoạn mã HTML sạch sẽ, bắt đầu bằng các thẻ định dạng nội dung trực tiếp.
+- TUYỆT ĐỐI KHÔNG bọc trong khối code Markdown (không có ký tự \`\`\`html ở đầu và \`\`\` ở cuối).
+- KHÔNG bao gồm các thẻ cấu trúc trang như <html>, <head>, <body>.
+- Sử dụng các thẻ: <h3>, <h4>, <p>, <strong>, <ul>, <li>, và <table> để cấu trúc bài viết thật chuyên nghiệp.
+- KHÔNG sử dụng các câu mở đầu hoặc kết thúc dư thừa như "Dưới đây là HTML...", "Hy vọng bài viết này...", chỉ trả về duy nhất mã HTML mô tả sản phẩm.`;
 
       const response = await this.ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-2.5-flash',
         contents: prompt,
       });
       return response.text || 'Không thể tạo mô tả cho sản phẩm này.';
     } catch (error) {
       console.error('Lỗi Gemini API:', error);
-      throw new InternalServerErrorException('Không thể tạo mô tả tự động lúc này.');
+      throw new InternalServerErrorException(
+        'Không thể tạo mô tả tự động lúc này.',
+      );
     }
   }
 }

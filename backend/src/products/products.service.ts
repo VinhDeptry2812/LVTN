@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './product.entity';
@@ -16,15 +20,29 @@ export class ProductsService {
     private productsRepository: Repository<Product>,
     private cloudinaryService: CloudinaryService,
   ) {}
-  
+
   async findAll(): Promise<Product[]> {
-    return this.productsRepository.find({ relations: { category: true, detail: true, variants: true, images: true, collections: true } });
+    return this.productsRepository.find({
+      relations: {
+        category: true,
+        detail: true,
+        variants: true,
+        images: true,
+        collections: true,
+      },
+    });
   }
 
   async findOne(id: number): Promise<Product> {
-    const product = await this.productsRepository.findOne({ 
+    const product = await this.productsRepository.findOne({
       where: { id },
-      relations: { category: true, detail: true, variants: true, images: true, collections: true }
+      relations: {
+        category: true,
+        detail: true,
+        variants: true,
+        images: true,
+        collections: true,
+      },
     });
     if (!product) {
       throw new NotFoundException(`Không tìm thấy sản phẩm với ID ${id}`);
@@ -37,19 +55,25 @@ export class ProductsService {
       const { collection_ids, images, ...rest } = createProductDto as any;
       const product = this.productsRepository.create({
         ...rest,
-        category: { id: rest.category_id }
-      } as any);
-      
-      const savedProduct = (await this.productsRepository.save(product as any)) as any;
+        category: { id: rest.category_id },
+      });
+
+      const savedProduct = await this.productsRepository.save(product as any);
 
       if (images && images.length > 0) {
         savedProduct.images = images.map((img) => {
-          const imageEntity = this.productsRepository.manager.create(ProductImage, {
-            ...img,
-            product: savedProduct,
-          });
-          
-          if (img.variant_index !== undefined && savedProduct.variants?.[img.variant_index]) {
+          const imageEntity = this.productsRepository.manager.create(
+            ProductImage,
+            {
+              ...img,
+              product: savedProduct,
+            },
+          );
+
+          if (
+            img.variant_index !== undefined &&
+            savedProduct.variants?.[img.variant_index]
+          ) {
             imageEntity.variant = savedProduct.variants[img.variant_index];
           } else if (img.variant_id) {
             imageEntity.variant = { id: img.variant_id } as any;
@@ -57,9 +81,12 @@ export class ProductsService {
 
           return imageEntity;
         });
-        await this.productsRepository.manager.save(ProductImage, savedProduct.images);
+        await this.productsRepository.manager.save(
+          ProductImage,
+          savedProduct.images,
+        );
       }
-      
+
       if (collection_ids && collection_ids.length > 0) {
         await this.productsRepository.manager
           .createQueryBuilder()
@@ -67,7 +94,7 @@ export class ProductsService {
           .of(savedProduct.id)
           .add(collection_ids);
       }
-      
+
       return savedProduct;
     } catch (error) {
       if (error.code === '23505') {
@@ -77,16 +104,22 @@ export class ProductsService {
     }
   }
 
-  async update(id: number, updateProductDto: UpdateProductDto): Promise<Product> {
+  async update(
+    id: number,
+    updateProductDto: UpdateProductDto,
+  ): Promise<Product> {
     const product = await this.findOne(id);
 
     // Xử lý dọn dẹp ảnh bị xóa khỏi phần mô tả (description)
-    if (updateProductDto.description !== undefined && product.description !== updateProductDto.description) {
+    if (
+      updateProductDto.description !== undefined &&
+      product.description !== updateProductDto.description
+    ) {
       const oldDesc = product.description || '';
       const newDesc = updateProductDto.description || '';
-      
+
       const imgRegex = /<img[^>]+src="([^">]+)"/g;
-      
+
       const oldImages: string[] = [];
       let match;
       while ((match = imgRegex.exec(oldDesc)) !== null) {
@@ -94,17 +127,23 @@ export class ProductsService {
           oldImages.push(match[1]);
         }
       }
-      
+
       const newImages: string[] = [];
       while ((match = imgRegex.exec(newDesc)) !== null) {
         if (match[1].includes('cloudinary.com')) {
           newImages.push(match[1]);
         }
       }
-      
-      const orphanedImages = oldImages.filter(url => !newImages.includes(url));
+
+      const orphanedImages = oldImages.filter(
+        (url) => !newImages.includes(url),
+      );
       for (const url of orphanedImages) {
-        await this.cloudinaryService.deleteImageByUrl(url).catch(e => console.error('Lỗi khi xóa ảnh mô tả trên Cloudinary:', e));
+        await this.cloudinaryService
+          .deleteImageByUrl(url)
+          .catch((e) =>
+            console.error('Lỗi khi xóa ảnh mô tả trên Cloudinary:', e),
+          );
       }
     }
 
@@ -127,16 +166,16 @@ export class ProductsService {
       const existingVariants = product.variants || [];
 
       // Xóa các biến thể cũ không còn nằm trong danh sách gửi lên
-      const incomingIds = incomingVariants
-        .filter((v) => v.id)
-        .map((v) => v.id);
+      const incomingIds = incomingVariants.filter((v) => v.id).map((v) => v.id);
       const toDelete = existingVariants.filter(
         (ev) => !incomingIds.includes(ev.id),
       );
       if (toDelete.length > 0) {
         for (const variant of toDelete) {
           if (variant.image_url) {
-            const isImageUsed = incomingVariants.some(iv => iv.image_url === variant.image_url);
+            const isImageUsed = incomingVariants.some(
+              (iv) => iv.image_url === variant.image_url,
+            );
             if (!isImageUsed) {
               await this.cloudinaryService.deleteImageByUrl(variant.image_url);
             }
@@ -164,18 +203,28 @@ export class ProductsService {
       if (existingImages.length > 0) {
         for (const existingImg of existingImages) {
           if (existingImg.image_url) {
-            const isImageUsed = incomingImages.some(img => img.image_url === existingImg.image_url);
+            const isImageUsed = incomingImages.some(
+              (img) => img.image_url === existingImg.image_url,
+            );
             if (!isImageUsed) {
-              await this.cloudinaryService.deleteImageByUrl(existingImg.image_url);
+              await this.cloudinaryService.deleteImageByUrl(
+                existingImg.image_url,
+              );
             }
           }
         }
         await this.productsRepository.manager.remove(existingImages);
       }
       product.images = incomingImages.map((img) => {
-        const imageEntity = this.productsRepository.manager.create(ProductImage, img);
-        
-        if (img.variant_index !== undefined && product.variants?.[img.variant_index]) {
+        const imageEntity = this.productsRepository.manager.create(
+          ProductImage,
+          img,
+        );
+
+        if (
+          img.variant_index !== undefined &&
+          product.variants?.[img.variant_index]
+        ) {
           imageEntity.variant = product.variants[img.variant_index];
         } else if (img.variant_id) {
           imageEntity.variant = { id: img.variant_id } as any;
@@ -194,22 +243,29 @@ export class ProductsService {
     }
 
     try {
-      const savedProduct = (await this.productsRepository.save(updated as any)) as any;
-      
+      const savedProduct = await this.productsRepository.save(updated);
+
       if (collection_ids !== undefined) {
-        const currentCollectionIds = product.collections?.map(c => c.id) || [];
-        
+        const currentCollectionIds =
+          product.collections?.map((c) => c.id) || [];
+
         // Convert input to numbers
-        const newCollectionIds = (collection_ids || []).map((id: any) => Number(id));
-        
-        const toAdd = newCollectionIds.filter((id: number) => !currentCollectionIds.includes(id));
-        const toRemove = currentCollectionIds.filter((id: number) => !newCollectionIds.includes(id));
-        
+        const newCollectionIds = (collection_ids || []).map((id: any) =>
+          Number(id),
+        );
+
+        const toAdd = newCollectionIds.filter(
+          (id: number) => !currentCollectionIds.includes(id),
+        );
+        const toRemove = currentCollectionIds.filter(
+          (id: number) => !newCollectionIds.includes(id),
+        );
+
         const relBuilder = this.productsRepository.manager
           .createQueryBuilder()
           .relation(Product, 'collections')
           .of(savedProduct.id);
-          
+
         if (toRemove.length > 0) {
           await relBuilder.remove(toRemove);
         }
@@ -217,7 +273,7 @@ export class ProductsService {
           await relBuilder.add(toAdd);
         }
       }
-      
+
       return savedProduct;
     } catch (error) {
       if (error.code === '23505') {

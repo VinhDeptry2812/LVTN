@@ -79,6 +79,12 @@ export class Order {
   @Column({ type: 'varchar', length: 100, nullable: true })
   momo_trans_id: string | null;
 
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  voucher_code: string | null;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  discount_amount: number;
+
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
   items: OrderItem[];
 

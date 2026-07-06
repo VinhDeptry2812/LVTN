@@ -1,4 +1,13 @@
-import { Controller, Get, Param, Post, Body, Patch, Delete, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Body,
+  Patch,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CollectionsService } from './collections.service';
 import { CreateCollectionDto } from './dto/create-collection.dto';
@@ -48,7 +57,10 @@ export class CollectionsController {
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Cập nhật bộ sưu tập (Chỉ Admin)' })
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateCollectionDto: UpdateCollectionDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateCollectionDto: UpdateCollectionDto,
+  ) {
     return this.collectionsService.update(+id, updateCollectionDto);
   }
 

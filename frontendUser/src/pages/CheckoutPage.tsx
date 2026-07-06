@@ -3,9 +3,24 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { useCartStore } from '@/store/useCartStore';
+import { productCardImage } from '@/utils/cloudinaryUrl';
 import { useAuthStore } from '@/store/useAuthStore';
 import { createOrder } from '@/services/order.service';
 import toast from 'react-hot-toast';
+import api from '@/services/api';
+
+const formatAttributes = (attributes: Record<string, any> | undefined) => {
+  if (!attributes || Object.keys(attributes).length === 0) return '';
+  return Object.values(attributes)
+    .map((val: any) => {
+      const valStr = String(val);
+      if (valStr.includes('|')) {
+        return valStr.split('|')[0].trim();
+      }
+      return valStr.trim();
+    })
+    .join('|');
+};
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -74,18 +89,109 @@ export default function CheckoutPage() {
   };
 
   // Order Calculations
-  const { items, clearCart, orderNote, setOrderNote } = useCartStore();
+  const { items, clearCart, orderNote, setOrderNote, updateVariant, updateQuantity, removeItem } = useCartStore();
 
   const subtotal = items.reduce((total, item) => total + item.rawPrice * item.quantity, 0);
-  const total = subtotal;
 
   // Payment State
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'vnpay' | 'momo'>('cod');
   const [discountCode, setDiscountCode] = useState('');
 
+  // Voucher State
+  const [appliedVoucher, setAppliedVoucher] = useState<{
+    id: number;
+    code: string;
+    discount_type: 'percentage' | 'fixed_amount';
+    discount_value: number;
+    discountAmount: number;
+  } | null>(null);
+  const [isValidatingVoucher, setIsValidatingVoucher] = useState(false);
+
+  const discountAmount = appliedVoucher ? appliedVoucher.discountAmount : 0;
+  const total = Math.max(0, subtotal - discountAmount);
+
   // Order success modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Voucher Handlers
+  const handleApplyVoucher = async () => {
+    if (!discountCode.trim()) {
+      toast.error('Vui lòng nhập mã giảm giá.');
+      return;
+    }
+
+    try {
+      setIsValidatingVoucher(true);
+      const res = await api.post('/vouchers/validate', {
+        code: discountCode.trim().toUpperCase(),
+        orderValue: subtotal,
+        userId: user?.id,
+      });
+      setAppliedVoucher(res.data);
+      toast.success(`Áp dụng mã giảm giá ${res.data.code} thành công!`);
+    } catch (error: any) {
+      console.error('Lỗi áp dụng voucher:', error);
+      const errMsg = error.response?.data?.message || 'Mã giảm giá không hợp lệ hoặc đã hết hạn.';
+      toast.error(errMsg);
+      setAppliedVoucher(null);
+    } finally {
+      setIsValidatingVoucher(false);
+    }
+  };
+
+  const handleRemoveVoucher = () => {
+    setAppliedVoucher(null);
+    setDiscountCode('');
+    toast.success('Đã hủy áp dụng mã giảm giá.');
+  };
+
+  // Revalidate voucher when subtotal changes
+  useEffect(() => {
+    if (appliedVoucher) {
+      const revalidateVoucher = async () => {
+        try {
+          const res = await api.post('/vouchers/validate', {
+            code: appliedVoucher.code,
+            orderValue: subtotal,
+            userId: user?.id,
+          });
+          setAppliedVoucher(res.data);
+        } catch (error: any) {
+          const errMsg = error.response?.data?.message || 'Mã giảm giá không còn khả dụng.';
+          toast.error(`${errMsg} Đã tự động hủy áp dụng.`);
+          setAppliedVoucher(null);
+        }
+      };
+      revalidateVoucher();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subtotal, user?.id]);
+
+  // Variant change states
+  const [selectedItemForVariant, setSelectedItemForVariant] = useState<any | null>(null);
+  const [tempVariantId, setTempVariantId] = useState<number | string | null>(null);
+
+  const handleOpenVariantModal = (item: any) => {
+    setSelectedItemForVariant(item);
+    setTempVariantId(item.variantId || null);
+  };
+
+  const handleUpdateQuantity = (id: string, currentQty: number, delta: number, item: any) => {
+    const newQty = currentQty + delta;
+    if (newQty < 1) {
+      removeItem(id);
+      toast.success('Đã xóa sản phẩm khỏi đơn hàng.');
+    } else {
+      const variant = item.availableVariants?.find((v: any) => v.id === item.variantId);
+      const maxStock = variant ? (variant.stock || 0) : 9999;
+      if (newQty > maxStock) {
+        toast.error(`Sản phẩm chỉ còn tối đa ${maxStock} sản phẩm trong kho.`);
+        return;
+      }
+      updateQuantity(id, newQty);
+    }
+  };
 
   // GSAP animation
   useGSAP(() => {
@@ -138,8 +244,10 @@ export default function CheckoutPage() {
         phone,
         notes: orderNote,
         payment_method: paymentMethod as any,
+        voucher_code: appliedVoucher ? appliedVoucher.code : undefined,
         items: items.map(item => ({
           product_id: parseInt(item.id.toString(), 10),
+          variant_id: item.variantId ? parseInt(item.variantId.toString(), 10) : undefined,
           quantity: item.quantity,
           price: item.rawPrice
         }))
@@ -189,18 +297,65 @@ export default function CheckoutPage() {
             <span className="font-bold text-lg">{formatPrice(total)}</span>
           </div>
 
-          <div className="hidden lg:block space-y-4 mb-6">
+          <div className="space-y-4 mb-6">
             {items.map((item) => (
               <div key={item.id} className="flex gap-4 items-center">
-                <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-[#e1e1e1] bg-white flex-shrink-0">
-                  <img className="w-full h-full object-cover" src={item.image} alt={item.name} />
-                  <span className="absolute -top-2 -right-2 bg-black/60 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full font-medium z-10">
-                    {item.quantity}
-                  </span>
+                <div className="relative flex-shrink-0">
+                  <div className="w-16 h-16 rounded-lg overflow-hidden border border-[#e1e1e1] bg-white">
+                    <img className="w-full h-full object-cover" src={productCardImage(item.image)} alt={item.name} />
+                  </div>
                 </div>
-                <div className="flex-grow">
+                <div className="flex-grow text-left">
                   <p className="font-medium text-sm line-clamp-2">{item.name}</p>
-                  {item.material && <p className="text-xs text-[#737373] mt-1">{item.material}</p>}
+                  
+                  <div className="flex items-center gap-3 mt-2 flex-wrap">
+                    {/* Bộ chọn số lượng */}
+                    <div className="flex items-center border border-[#d9d9d9] rounded-md bg-white h-7" role="group" aria-label={`Số lượng ${item.name}`}>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateQuantity(item.id, item.quantity, -1, item)}
+                        aria-label="Giảm số lượng"
+                        className="w-7 h-full flex items-center justify-center text-[#555555] hover:text-primary hover:bg-[#fafafa] transition-colors cursor-pointer rounded-l-md"
+                      >
+                        <span className="material-symbols-outlined text-[14px]" aria-hidden="true">remove</span>
+                      </button>
+                      <span className="text-xs font-semibold w-7 text-center select-none" aria-live="polite">{item.quantity}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateQuantity(item.id, item.quantity, 1, item)}
+                        aria-label="Tăng số lượng"
+                        className="w-7 h-full flex items-center justify-center text-[#555555] hover:text-primary hover:bg-[#fafafa] transition-colors cursor-pointer rounded-r-md"
+                      >
+                        <span className="material-symbols-outlined text-[14px]" aria-hidden="true">add</span>
+                      </button>
+                    </div>
+
+                    {/* Chọn phân loại */}
+                    {item.availableVariants && item.availableVariants.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenVariantModal(item)}
+                        className="inline-flex items-center gap-1 bg-[#f5f5f5] hover:bg-[#eaeaea] text-[#333333] font-medium text-xs px-2.5 py-1 rounded-md transition-colors cursor-pointer border border-[#e1e1e1] h-7"
+                      >
+                        <span>
+                          {item.material
+                            ? (item.material.includes('|')
+                                ? item.material
+                                : item.material.split(' - ').map((s: string) => s.includes('|') ? s.split('|')[0].trim() : s.trim()).join('|'))
+                            : 'Chọn phân loại'}
+                        </span>
+                        <span className="material-symbols-outlined text-[14px]">chevron_right</span>
+                      </button>
+                    ) : (
+                      item.material && (
+                        <p className="text-xs text-[#737373] py-1">
+                          {item.material.includes('|') 
+                            ? item.material 
+                            : item.material.split(' - ').map((s: string) => s.includes('|') ? s.split('|')[0].trim() : s.trim()).join('|')}
+                        </p>
+                      )
+                    )}
+                  </div>
                 </div>
                 <div className="font-medium text-sm whitespace-nowrap">
                   {formatPrice(item.rawPrice * item.quantity)}
@@ -209,24 +364,61 @@ export default function CheckoutPage() {
             ))}
           </div>
 
-          <div className="py-4 border-y border-[#e1e1e1] flex gap-3">
-            <input
-              type="text"
-              value={discountCode}
-              onChange={(e) => setDiscountCode(e.target.value)}
-              placeholder="Mã giảm giá"
-              className="flex-grow bg-white border border-[#d9d9d9] rounded-md px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-shadow"
-            />
-            <button className="bg-[#c8c8c8] text-white px-6 py-3 rounded-md font-medium text-sm hover:bg-primary transition-colors">
-              Sử dụng
-            </button>
-          </div>
+          {appliedVoucher ? (
+            <div className="py-4 border-y border-[#e1e1e1] space-y-2">
+              <div className="flex justify-between items-center bg-emerald-50 border border-emerald-250 rounded-md px-4 py-3 text-sm text-emerald-850">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-emerald-600 text-lg">sell</span>
+                  <span className="font-semibold">{appliedVoucher.code}</span>
+                  <span className="text-xs text-emerald-600 bg-emerald-100/80 px-1.5 py-0.5 rounded-none font-medium">
+                    Đã áp dụng
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveVoucher}
+                  className="text-emerald-750 hover:text-emerald-950 font-semibold flex items-center transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-base">close</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="py-4 border-y border-[#e1e1e1] flex gap-3">
+              <input
+                type="text"
+                value={discountCode}
+                onChange={(e) => setDiscountCode(e.target.value)}
+                placeholder="Nhập mã giảm giá"
+                className="flex-grow bg-white border border-[#d9d9d9] rounded-md px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-shadow uppercase font-mono tracking-wider"
+                disabled={isValidatingVoucher}
+              />
+              <button
+                type="button"
+                onClick={handleApplyVoucher}
+                disabled={isValidatingVoucher}
+                className="bg-primary hover:brightness-110 text-white px-6 py-3 rounded-md font-medium text-sm transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center min-w-[100px]"
+              >
+                {isValidatingVoucher ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  'Sử dụng'
+                )}
+              </button>
+            </div>
+          )}
 
           <div className="py-4 space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-[#717171]">Tạm tính</span>
               <span className="font-medium">{formatPrice(subtotal)}</span>
             </div>
+            {appliedVoucher && (
+              <div className="flex justify-between text-emerald-700 font-medium">
+                <span>Giảm giá (Voucher)</span>
+                <span>-{formatPrice(discountAmount)}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-[#717171]">Phí vận chuyển</span>
               <span className="font-medium">-</span>
@@ -355,6 +547,28 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            {/* Phương thức giao hàng */}
+            {selectedProvince && selectedDistrict && selectedWard && (
+              <div className="mb-8">
+                <h2 className="text-lg font-medium mb-4 text-left">Phương thức giao hàng</h2>
+                <div className="bg-white border border-[#333333] rounded-lg p-4 flex items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-1 flex-shrink-0 w-4 h-4 rounded-full border-2 border-[#333333] flex items-center justify-center">
+                      <div className="w-2 h-2 rounded-full bg-[#333333]" />
+                    </div>
+                    <p className="text-sm text-[#333333] text-left leading-relaxed">
+                      {(city.toLowerCase().includes('hồ chí minh') || selectedProvince === '79') ? (
+                        'Miễn phí giao hàng & lắp đặt tại tất cả quận huyện thuộc TP.HCM đối với các sản phẩm nội thất. Các sản phẩm thuộc danh mục Đồ Trang Trí, phí giao hàng sẽ được MOHO liên hệ báo sau.'
+                      ) : (
+                        'Các tỉnh thành không thuộc khu vực miễn phí giao hàng & lắp đặt, phí giao hàng sẽ được MOHO liên hệ báo sau.'
+                      )}
+                    </p>
+                  </div>
+                  <span className="font-bold text-sm whitespace-nowrap text-[#333333]">Miễn phí</span>
+                </div>
+              </div>
+            )}
+
             {/* Ghi chú đơn hàng */}
             {orderNote.trim().length > 0 && (
               <div className="mb-8">
@@ -418,7 +632,7 @@ export default function CheckoutPage() {
                 disabled={isSubmitting}
                 className="w-full sm:w-auto bg-primary text-white px-8 py-4 rounded-md font-medium hover:bg-primary-container hover:text-on-primary-container transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-md"
               >
-                {isSubmitting ? 'Đang xử lý...' : 'Hoàn tất đơn hàng'}
+                {isSubmitting ? 'Đang xử lý...' : 'Đặt hàng'}
               </button>
             </div>
 
@@ -440,7 +654,7 @@ export default function CheckoutPage() {
             </div>
             <h2 className="font-headline-md text-headline-md text-primary">Đặt hàng thành công!</h2>
             <p className="font-body-md text-body-md text-on-surface-variant">
-              Cảm ơn {fullName} đã tin tưởng chọn FurniShop. Đơn hàng của bạn đang được xử lý và sẽ được chuyển đi sớm nhất.
+              Cảm ơn {fullName} đã tin tưởng chọn Nội thất. Đơn hàng của bạn đang được xử lý và sẽ được chuyển đi sớm nhất.
             </p>
             <div className="pt-4">
               <button
@@ -456,6 +670,92 @@ export default function CheckoutPage() {
           </div>
         </div>
       )}
+
+      {/* Variant Selection Modal */}
+      {selectedItemForVariant && (() => {
+        const currentTempVariant = selectedItemForVariant.availableVariants?.find(
+          (v: any) => v.id === tempVariantId
+        );
+        const basePrice = selectedItemForVariant.basePrice || selectedItemForVariant.rawPrice || 0;
+        const tempPrice = basePrice + (currentTempVariant?.price_adjustment ? Number(currentTempVariant.price_adjustment) : 0);
+        const tempImage = currentTempVariant?.image_url || selectedItemForVariant.image;
+
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-outline-variant/30 flex flex-col max-h-[90vh]">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant/50">
+                <button 
+                  type="button" 
+                  onClick={() => setSelectedItemForVariant(null)} 
+                  className="w-8 h-8 rounded-full bg-[#f5f5f5] hover:bg-[#eaeaea] flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[20px]">close</span>
+                </button>
+                <h3 className="font-headline-md text-lg font-bold text-[#333333] flex-grow text-center pr-8">Chọn phân loại</h3>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 overflow-y-auto space-y-6 flex-grow">
+                {/* Product Info Preview */}
+                <div className="flex gap-4 items-center">
+                  <img 
+                    src={productCardImage(tempImage)} 
+                    alt={selectedItemForVariant.name} 
+                    className="w-24 h-24 rounded-lg object-cover border border-[#e1e1e1] bg-white"
+                  />
+                  <div className="text-left space-y-1">
+                    <p className="font-medium text-sm text-[#333333] line-clamp-2">{selectedItemForVariant.name}</p>
+                    <p className="font-bold text-lg text-primary">{formatPrice(tempPrice)}</p>
+                  </div>
+                </div>
+
+                {/* Variant Options */}
+                <div className="text-left space-y-3">
+                  <span className="font-label-md text-sm text-[#333333] font-semibold block">Màu sắc / Phân loại</span>
+                  <div className="flex flex-wrap gap-2.5">
+                    {selectedItemForVariant.availableVariants?.map((v: any) => {
+                      const isSelected = v.id === tempVariantId;
+                      const label = (v.attributes && Object.keys(v.attributes).length > 0)
+                        ? formatAttributes(v.attributes)
+                        : (v.sku || `Phân loại ${v.id}`);
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() => setTempVariantId(v.id)}
+                          className={`px-4 py-2 text-sm rounded-lg border-2 font-medium transition-all cursor-pointer ${
+                            isSelected
+                              ? 'border-primary bg-primary/5 text-primary'
+                              : 'border-[#d9d9d9] hover:border-[#999999] bg-white text-[#555555]'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-6 border-t border-outline-variant/50">
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateVariant(selectedItemForVariant.id, tempVariantId);
+                    setSelectedItemForVariant(null);
+                    toast.success('Đã cập nhật phân loại sản phẩm.');
+                  }}
+                  className="w-full bg-primary text-white py-4 rounded-lg font-bold hover:brightness-110 active:scale-[0.98] transition-all shadow-md cursor-pointer uppercase tracking-wider text-sm"
+                >
+                  Xác nhận
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

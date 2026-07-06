@@ -1,4 +1,14 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany, Tree, TreeParent, TreeChildren } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
+  Tree,
+  TreeParent,
+  TreeChildren,
+} from 'typeorm';
 import { Product } from '../products/product.entity';
 
 @Entity('categories')

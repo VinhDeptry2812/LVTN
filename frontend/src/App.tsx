@@ -8,6 +8,7 @@ import ProductEditPage from '@/pages/admin/ProductEditPage';
 import CategoryListPage from '@/pages/admin/CategoryListPage';
 import CollectionListPage from '@/pages/admin/CollectionListPage';
 import OrderListPage from '@/pages/admin/OrderListPage';
+import VoucherListPage from '@/pages/admin/VoucherListPage';
 import PaymentResultPage from '@/pages/PaymentResultPage';
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
         <Route path="categories" element={<CategoryListPage />} />
         <Route path="collections" element={<CollectionListPage />} />
         <Route path="orders" element={<OrderListPage />} />
+        <Route path="vouchers" element={<VoucherListPage />} />
       </Route>
 
       {/* Redirect mặc định */}

@@ -74,7 +74,9 @@ export class CartService {
         where: { id: product_variant_id, product: { id: product_id } },
       });
       if (!variant) {
-        throw new NotFoundException('Biến thể sản phẩm không tồn tại hoặc không thuộc sản phẩm này');
+        throw new NotFoundException(
+          'Biến thể sản phẩm không tồn tại hoặc không thuộc sản phẩm này',
+        );
       }
       availableStock = variant.stock;
     }

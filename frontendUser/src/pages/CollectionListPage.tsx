@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { getActiveCollections, type Collection } from '@/services/collection.service';
+import { heroBannerImage } from '@/utils/cloudinaryUrl';
 
 const CollectionListPage: React.FC = () => {
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -49,7 +50,7 @@ const CollectionListPage: React.FC = () => {
               <Link key={col.id} to={`/collection/${col.slug}`} className="collection-card group block">
                 <div className="relative aspect-[16/10] md:aspect-[4/3] overflow-hidden bg-surface-container-low mb-6">
                   <img 
-                    src={col.cover_image || 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?q=80&w=1200&auto=format&fit=crop'} 
+                    src={heroBannerImage(col.cover_image) || 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?q=80&w=1200&auto=format&fit=crop'} 
                     alt={col.name} 
                     className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
                     loading="lazy"

@@ -8,6 +8,6 @@ import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 @Module({
   imports: [TypeOrmModule.forFeature([Collection]), CloudinaryModule],
   controllers: [CollectionsController],
-  providers: [CollectionsService]
+  providers: [CollectionsService],
 })
 export class CollectionsModule {}

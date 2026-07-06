@@ -71,7 +71,10 @@ export class MomoService {
       let responseData: any;
       try {
         responseData = await response.json();
-        console.log('MoMo Response Data:', JSON.stringify(responseData, null, 2));
+        console.log(
+          'MoMo Response Data:',
+          JSON.stringify(responseData, null, 2),
+        );
       } catch (jsonErr) {
         console.error('Failed to parse MoMo response JSON:', jsonErr);
         const text = await response.text();
@@ -80,14 +83,18 @@ export class MomoService {
       }
 
       if (!response.ok || responseData.resultCode !== 0) {
-        const errorMsg = responseData?.message || `MoMo API error! status: ${response.status}, resultCode: ${responseData?.resultCode}`;
+        const errorMsg =
+          responseData?.message ||
+          `MoMo API error! status: ${response.status}, resultCode: ${responseData?.resultCode}`;
         throw new Error(errorMsg);
       }
 
       return responseData.payUrl; // Trả về payUrl để khách hàng click
     } catch (error) {
       console.error('Error creating MoMo payment link:', error);
-      throw new Error(`Kết nối tới cổng thanh toán MoMo thất bại! Chi tiết: ${error.message}`);
+      throw new Error(
+        `Kết nối tới cổng thanh toán MoMo thất bại! Chi tiết: ${error.message}`,
+      );
     }
   }
 

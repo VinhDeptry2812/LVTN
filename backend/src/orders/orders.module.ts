@@ -8,6 +8,7 @@ import { ProductVariant } from '../products/product-variant.entity';
 import { CartModule } from '../cart/cart.module';
 import { VnpayModule } from '../vnpay/vnpay.module';
 import { MomoModule } from '../momo/momo.module';
+import { VouchersModule } from '../vouchers/vouchers.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { MomoModule } from '../momo/momo.module';
     CartModule,
     forwardRef(() => VnpayModule),
     forwardRef(() => MomoModule),
+    VouchersModule,
   ],
   providers: [OrdersService],
   controllers: [OrdersController],

@@ -2,11 +2,17 @@ import { IsEmail, IsNotEmpty, MinLength, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class RegisterDto {
-  @ApiProperty({ example: 'nguyenvana@gmail.com', description: 'Email của người dùng' })
+  @ApiProperty({
+    example: 'nguyenvana@gmail.com',
+    description: 'Email của người dùng',
+  })
   @IsEmail({}, { message: 'Email không hợp lệ' })
   email: string;
 
-  @ApiProperty({ example: 'password123', description: 'Mật khẩu (ít nhất 6 ký tự)' })
+  @ApiProperty({
+    example: 'password123',
+    description: 'Mật khẩu (ít nhất 6 ký tự)',
+  })
   @IsString({ message: 'Mật khẩu phải là chuỗi ký tự' })
   @MinLength(6, { message: 'Mật khẩu phải từ 6 ký tự' })
   password: string;
@@ -18,7 +24,10 @@ export class RegisterDto {
 }
 
 export class LoginDto {
-  @ApiProperty({ example: 'nguyenvana@gmail.com', description: 'Email của người dùng' })
+  @ApiProperty({
+    example: 'nguyenvana@gmail.com',
+    description: 'Email của người dùng',
+  })
   @IsEmail({}, { message: 'Email không hợp lệ' })
   email: string;
 
@@ -29,7 +38,10 @@ export class LoginDto {
 }
 
 export class ForgotPasswordDto {
-  @ApiProperty({ example: 'nguyenvana@gmail.com', description: 'Email của tài khoản cần lấy lại mật khẩu' })
+  @ApiProperty({
+    example: 'nguyenvana@gmail.com',
+    description: 'Email của tài khoản cần lấy lại mật khẩu',
+  })
   @IsEmail({}, { message: 'Email không hợp lệ' })
   email: string;
 }

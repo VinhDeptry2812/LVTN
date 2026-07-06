@@ -14,6 +14,7 @@ import { OrdersModule } from './orders/orders.module';
 import { VnpayModule } from './vnpay/vnpay.module';
 import { MomoModule } from './momo/momo.module';
 import { CollectionsModule } from './collections/collections.module';
+import { VouchersModule } from './vouchers/vouchers.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { CollectionsModule } from './collections/collections.module';
     VnpayModule,
     MomoModule,
     CollectionsModule,
+    VouchersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

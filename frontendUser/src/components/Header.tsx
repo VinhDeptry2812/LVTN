@@ -7,14 +7,30 @@ import { getActiveCollections, type Collection } from '@/services/collection.ser
 import authService from '@/services/auth.service';
 import toast from 'react-hot-toast';
 import { fetchProducts, type ProductFrontend, matchProduct } from '@/services/product.service';
+import { productCardImage } from '@/utils/cloudinaryUrl';
+
+const formatAttributes = (attributes: Record<string, any> | undefined) => {
+  if (!attributes || Object.keys(attributes).length === 0) return '';
+  return Object.values(attributes)
+    .map((val: any) => {
+      const valStr = String(val);
+      if (valStr.includes('|')) {
+        return valStr.split('|')[0].trim();
+      }
+      return valStr.trim();
+    })
+    .join('|');
+};
 
 export default function Header() {
   const loginDropdownRef = useRef<HTMLDivElement>(null);
+  const cartDropdownRef = useRef<HTMLDivElement>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [categories, setCategories] = useState<{ 
-    rooms: Category[]; 
+  const [isCartDropdownOpen, setIsCartDropdownOpen] = useState(false);
+  const [categories, setCategories] = useState<{
+    rooms: Category[];
     products: Category[];
-    productTree: Category[]; 
+    productTree: Category[];
   }>({
     rooms: [],
     products: [],
@@ -23,7 +39,15 @@ export default function Header() {
   const [collections, setCollections] = useState<Collection[]>([]);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Zustand Cart Store
   const cartCount = useCartStore((state) => state.getCartCount());
+  const cartItems = useCartStore((state) => state.items);
+  const cartTotal = useCartStore((state) => state.getCartTotal());
+  const removeFromCart = useCartStore((state) => state.removeItem);
+  const lastAdded = useCartStore((state) => state.lastAdded);
+  const isInitialMount = useRef(true);
+
   const { user, logout } = useAuthStore();
   const setAuth = useAuthStore((state) => state.setAuth);
 
@@ -76,11 +100,25 @@ export default function Header() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/shop?search=${encodeURIComponent(searchQuery.trim())}`);
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
       setIsSearchOpen(false);
+      setIsMobileSearchOpen(false);
       setSearchQuery('');
     }
   };
+
+  // Lắng nghe thay đổi của lastAdded để tự động mở dropdown giỏ hàng
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    if (lastAdded && location.pathname !== '/cart') {
+      setIsCartDropdownOpen(true);
+      // Reset lastAdded trong store ngay lập tức để không tự động mở khi chuyển trang
+      useCartStore.setState({ lastAdded: undefined });
+    }
+  }, [lastAdded, location.pathname]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -90,6 +128,9 @@ export default function Header() {
       }
       if (desktopSearchContainerRef.current && !desktopSearchContainerRef.current.contains(event.target as Node)) {
         setIsSearchOpen(false);
+      }
+      if (cartDropdownRef.current && !cartDropdownRef.current.contains(event.target as Node)) {
+        setIsCartDropdownOpen(false);
       }
     };
 
@@ -132,7 +173,7 @@ export default function Header() {
         // Separate categories based on name containing "phòng"
         const rooms = allCategories.filter((c) => c.name.toLowerCase().includes('phòng'));
         const products = allCategories.filter((c) => !c.name.toLowerCase().includes('phòng'));
-        
+
         // Build a product tree for the mega menu (top-level products or direct children of rooms)
         const productTree: Category[] = [];
         data.forEach(c => {
@@ -186,11 +227,10 @@ export default function Header() {
           <div className="hidden md:flex items-center gap-sp-md">
             <Link
               to="/"
-              className={`font-label-md text-label-md ${
-                isActive('/')
-                  ? 'text-primary border-b-2 border-primary pb-1'
-                  : 'text-on-surface-variant hover:text-primary transition-colors'
-              }`}
+              className={`font-label-md text-label-md ${isActive('/')
+                ? 'text-primary border-b-2 border-primary pb-1'
+                : 'text-on-surface-variant hover:text-primary transition-colors'
+                }`}
             >
               Trang chủ
             </Link>
@@ -200,9 +240,9 @@ export default function Header() {
               <span className="font-label-md text-label-md text-on-surface-variant group-hover:text-primary transition-colors cursor-pointer flex items-center gap-1">
                 Không gian <span className="material-symbols-outlined text-[18px]">expand_more</span>
               </span>
-              <div className="absolute top-[80%] left-0 w-48 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pt-2 pb-2">
+              <div className="absolute top-[80%] left-0 w-48 bg-surface-container-lowest border border-outline-variant shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pt-2 pb-2">
                 {collections.filter(c => c.name.toLowerCase().includes('phòng')).map((collection) => (
-                  <Link 
+                  <Link
                     key={collection.id}
                     to={`/collection/${collection.slug}`}
                     className="group/link block px-5 py-2 font-body-sm text-on-surface hover:text-primary transition-colors"
@@ -221,14 +261,14 @@ export default function Header() {
               <Link to="/shop" className="font-label-md text-label-md text-on-surface-variant group-hover:text-primary transition-colors cursor-pointer flex items-center gap-1">
                 Sản phẩm <span className="material-symbols-outlined text-[18px]">expand_more</span>
               </Link>
-              
+
               {/* Mega Menu Container */}
-              <div className="absolute top-[80%] left-1/2 -translate-x-1/2 w-max max-w-[90vw] bg-surface-container-lowest border border-outline-variant rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 p-8">
+              <div className="absolute top-[80%] left-1/2 -translate-x-1/2 w-max max-w-[90vw] bg-surface-container-lowest border border-outline-variant shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 p-8">
                 <div className="flex gap-12">
                   {categories.productTree.map((parent) => (
                     <div key={parent.id} className="flex flex-col min-w-[120px]">
-                      <Link 
-                        to={`/shop?category=${parent.slug}`} 
+                      <Link
+                        to={`/shop?category=${parent.slug}`}
                         className="relative group/link w-fit font-headline-sm text-sm font-bold text-on-surface hover:text-primary mb-4 uppercase tracking-wider"
                       >
                         {parent.name}
@@ -239,9 +279,9 @@ export default function Header() {
                           parent.children
                             .filter(child => !child.name.toLowerCase().includes('phòng'))
                             .map(child => (
-                              <Link 
-                                key={child.id} 
-                                to={`/shop?category=${child.slug}`} 
+                              <Link
+                                key={child.id}
+                                to={`/shop?category=${child.slug}`}
                                 className="relative group/link w-fit font-body-md text-on-surface-variant hover:text-primary transition-colors py-0.5"
                               >
                                 {child.name}
@@ -261,9 +301,9 @@ export default function Header() {
               <Link to="/collections" className={`font-label-md text-label-md transition-colors flex items-center gap-1 ${isActive('/collection') ? 'text-primary' : 'text-on-surface-variant hover:text-primary'}`}>
                 Bộ sưu tập <span className="material-symbols-outlined text-[18px]">expand_more</span>
               </Link>
-              <div className="absolute top-[80%] left-0 w-48 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pt-2 pb-2">
+              <div className="absolute top-[80%] left-0 w-48 bg-surface-container-lowest border border-outline-variant shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pt-2 pb-2">
                 {collections.filter(c => !c.name.toLowerCase().includes('phòng')).map((col) => (
-                  <Link 
+                  <Link
                     key={col.id}
                     to={`/collection/${col.slug}`}
                     className="group/link block px-5 py-2 font-body-sm text-on-surface hover:text-primary transition-colors"
@@ -280,9 +320,10 @@ export default function Header() {
           </div>
         </div>
         <div className="flex items-center gap-sp-md">
-          {/* Desktop Search Bar (MOHO Style) */}
+          {/* Desktop Search Bar (Modern Premium Style) */}
           <div className="hidden md:block relative w-60 lg:w-72 mx-2" ref={desktopSearchContainerRef}>
-            <form onSubmit={handleSearchSubmit} className="flex bg-[#f5f5f5] rounded-sm border border-transparent focus-within:border-outline-variant/60 focus-within:bg-white transition-all overflow-hidden">
+            <form onSubmit={handleSearchSubmit} className="flex items-center bg-neutral-100/80 hover:bg-neutral-200/40 focus-within:bg-white border border-neutral-200/50 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10 rounded-full transition-all duration-300 pl-3 pr-2.5 py-1">
+              <span className="material-symbols-outlined text-neutral-400 text-[18px] mr-1.5 select-none">search</span>
               <input
                 type="text"
                 value={searchQuery}
@@ -291,14 +332,18 @@ export default function Header() {
                 }}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Tìm kiếm sản phẩm..."
-                className="flex-1 bg-transparent border-none focus:outline-none pl-3 pr-2 py-1.5 text-xs text-on-surface placeholder:text-on-surface-variant/60 font-body-sm"
+                className="flex-1 bg-transparent border-none focus:outline-none py-1 text-xs text-on-surface placeholder:text-neutral-400 font-body-sm"
               />
-              <button
-                type="submit"
-                className="bg-[#333333] hover:bg-black text-white px-3 flex items-center justify-center transition-colors cursor-pointer border-none"
-              >
-                <span className="material-symbols-outlined text-[18px]">search</span>
-              </button>
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="p-0.5 text-neutral-400 hover:text-on-surface transition-colors cursor-pointer"
+                  aria-label="Xóa nội dung tìm kiếm"
+                >
+                  <span className="material-symbols-outlined text-[16px] block">close</span>
+                </button>
+              )}
             </form>
 
             {/* Dropdown Suggestions matching Search Bar width */}
@@ -332,7 +377,7 @@ export default function Header() {
                           </div>
                           <div className="w-12 h-12 bg-white rounded border border-outline-variant/20 flex-shrink-0 flex items-center justify-center p-1 overflow-hidden">
                             <img
-                              src={prod.image}
+                              src={productCardImage(prod.image)}
                               alt={prod.name}
                               className="w-full h-full object-contain"
                             />
@@ -340,7 +385,7 @@ export default function Header() {
                         </Link>
                       ))}
                     </div>
-                    
+
                     {/* View more count */}
                     <button
                       onClick={handleSearchSubmit}
@@ -371,38 +416,179 @@ export default function Header() {
               {isMobileSearchOpen ? 'close' : 'search'}
             </span>
           </button>
-          
-          <Link
-            to="/cart"
-            aria-label={`Giỏ hàng${cartCount > 0 ? `, ${cartCount} sản phẩm` : ''}`}
-            className="p-2.5 min-w-[44px] min-h-[44px] rounded-full hover:bg-surface-container-low transition-colors duration-300 relative flex items-center justify-center"
-          >
-            <span className="material-symbols-outlined text-on-surface-variant block" aria-hidden="true">shopping_cart</span>
-            {cartCount > 0 && (
-              <span className="absolute top-1 right-1 bg-primary text-on-primary text-[10px] w-4 h-4 rounded-full flex items-center justify-center" aria-hidden="true">
-                {cartCount}
-              </span>
-            )}
-          </Link>
+
+          {/* Giỏ hàng & Dropdown giỏ hàng */}
+          <div className="relative" ref={cartDropdownRef}>
+            <button
+              onClick={() => setIsCartDropdownOpen(!isCartDropdownOpen)}
+              aria-label={`Giỏ hàng${cartCount > 0 ? `, ${cartCount} sản phẩm` : ''}`}
+              aria-expanded={isCartDropdownOpen}
+              className={`p-2.5 min-w-[44px] min-h-[44px] rounded-full hover:bg-surface-container-low transition-colors duration-300 relative flex items-center justify-center cursor-pointer ${isCartDropdownOpen ? 'bg-surface-container-low text-primary' : ''}`}
+            >
+              <span className={`material-symbols-outlined block ${isCartDropdownOpen ? 'text-primary' : 'text-on-surface-variant'}`} aria-hidden="true">shopping_cart</span>
+              {cartCount > 0 && (
+                <span className="absolute top-1 right-1 bg-primary text-on-primary text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-semibold" aria-hidden="true">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+
+            {/* Cart Dropdown (MOHO Style) */}
+            <div
+              className={`absolute right-0 top-full mt-2 w-[380px] bg-white border border-outline-variant/30 shadow-[0_10px_40px_rgba(0,0,0,0.08)] transition-all duration-300 z-50 rounded-sm before:content-[''] before:absolute before:-top-2 before:right-4 before:border-8 before:border-transparent before:border-b-white ${isCartDropdownOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'
+                }`}
+            >
+              <div className="p-4 border-b border-outline-variant/15 flex items-center justify-between">
+                <h3 className="font-headline-sm text-xs font-bold text-on-surface uppercase tracking-wider">Giỏ hàng của tôi ({cartCount})</h3>
+                <button
+                  onClick={() => setIsCartDropdownOpen(false)}
+                  className="text-on-surface-variant hover:text-primary transition-colors flex items-center cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
+              </div>
+
+              {/* Cart Items List */}
+              {cartCount > 0 ? (
+                <>
+                  <div className="max-h-[280px] overflow-y-auto divide-y divide-outline-variant/10 px-4">
+                    {cartItems.map((item) => {
+                      const itemVariant = item.availableVariants?.find((v: any) => v.id === item.variantId);
+                      return (
+                        <div key={item.id} className="py-3.5 flex gap-3">
+                          <div className="w-16 h-16 bg-white border border-outline-variant/10 rounded-sm overflow-hidden flex-shrink-0 flex items-center justify-center p-1">
+                            <img
+                              src={productCardImage(item.image)}
+                              alt={item.name}
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <Link
+                              to={`/product/${item.productId}`}
+                              onClick={() => setIsCartDropdownOpen(false)}
+                              className="block font-label-md text-xs font-bold text-on-surface hover:text-primary transition-colors truncate uppercase"
+                            >
+                              {item.name}
+                            </Link>
+                            {((itemVariant && itemVariant.attributes && Object.keys(itemVariant.attributes).length > 0) || (item.material && item.material !== 'Mặc định')) && (
+                              <p className="font-body-sm text-[10.5px] text-on-surface-variant mt-0.5 italic">
+                                {itemVariant && itemVariant.attributes && Object.keys(itemVariant.attributes).length > 0
+                                  ? formatAttributes(itemVariant.attributes)
+                                  : (item.material?.includes('|')
+                                    ? item.material
+                                    : item.material?.split(' - ').map(s => s.includes('|') ? s.split('|')[0].trim() : s.trim()).join('|'))}
+                              </p>
+                            )}
+                            <div className="flex items-center justify-between mt-1.5 gap-1">
+                              <span className="font-body-sm text-[11px] text-on-surface-variant">
+                                Số lượng: {item.quantity}
+                              </span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {item.rawOldPrice && item.rawOldPrice > item.rawPrice && (
+                                  <span className="font-body-sm text-[10px] text-on-surface-variant line-through">
+                                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
+                                      item.rawOldPrice * item.quantity
+                                    )}
+                                  </span>
+                                )}
+                                <span className="font-label-md text-xs font-bold text-primary">
+                                  {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
+                                    item.rawPrice * item.quantity
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => removeFromCart(item.id)}
+                            className="text-on-surface-variant/60 hover:text-error transition-colors self-start p-0.5 cursor-pointer"
+                            aria-label="Xóa sản phẩm"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">delete</span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Dropdown Footer */}
+                  <div className="p-4 bg-surface-container-lowest/50 border-t border-outline-variant/15 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-label-md text-xs font-bold text-on-surface uppercase tracking-wider">Tổng cộng:</span>
+                      <span className="font-headline-sm text-sm font-bold text-error">
+                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(cartTotal)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <Link
+                        to="/cart"
+                        onClick={() => setIsCartDropdownOpen(false)}
+                        className="py-2.5 text-center text-xs font-semibold uppercase tracking-wider border border-[#4A4A4A] text-[#4A4A4A] hover:bg-[#4A4A4A] hover:text-white transition-all duration-300 rounded-sm"
+                      >
+                        Xem giỏ hàng
+                      </Link>
+                      <Link
+                        to="/checkout"
+                        onClick={() => setIsCartDropdownOpen(false)}
+                        className="py-2.5 text-center text-xs font-semibold uppercase tracking-wider bg-[#333333] hover:bg-black text-white transition-all duration-300 rounded-sm flex items-center justify-center"
+                      >
+                        Thanh toán
+                      </Link>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="py-8 px-4 text-center">
+                  <span className="material-symbols-outlined text-4xl text-on-surface-variant/40 mb-2">shopping_bag</span>
+                  <p className="font-body-md text-xs text-on-surface-variant mb-4">Giỏ hàng của bạn đang trống.</p>
+                  <Link
+                    to="/shop"
+                    onClick={() => setIsCartDropdownOpen(false)}
+                    className="inline-block px-5 py-2 bg-[#4A4A4A] text-white text-xs font-semibold uppercase tracking-wider hover:bg-black transition-colors rounded-sm"
+                  >
+                    Tiếp tục mua sắm
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
 
           {user ? (
             <div className="relative group">
               <button
                 aria-label="Tài khoản"
-                className="p-2.5 min-w-[44px] min-h-[44px] rounded-full hover:bg-surface-container-low transition-colors duration-300 flex items-center justify-center"
+                className="py-1.5 px-3 rounded-full hover:bg-surface-container-low transition-all duration-300 flex items-center gap-1.5 text-xs font-semibold text-on-surface uppercase tracking-wider cursor-pointer whitespace-nowrap"
               >
-                <span className="material-symbols-outlined text-primary block" aria-hidden="true">account_circle</span>
+                <span className="material-symbols-outlined text-[20px] text-primary" aria-hidden="true">account_circle</span>
+                <span className="hidden sm:inline whitespace-nowrap">{user.name.split(/\s+/).pop()}</span>
+                <span className="material-symbols-outlined text-[16px] text-on-surface-variant/70">keyboard_arrow_down</span>
               </button>
-              <div className="absolute right-0 top-full mt-2 w-48 bg-surface-container-lowest border border-outline-variant rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                <div className="p-4 border-b border-outline-variant">
-                  <p className="font-label-md text-on-surface truncate">{user.name}</p>
+              <div className="absolute right-0 top-full mt-2 w-60 bg-white border border-outline-variant/60 shadow-[0_10px_30px_rgba(0,0,0,0.06)] p-5 space-y-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 rounded-sm">
+                <div className="pb-3 border-b border-outline-variant/30">
+                  <span className="block text-[10px] font-bold text-on-surface-variant/80 uppercase tracking-widest">Thông tin tài khoản</span>
+                  <span className="block font-bold text-sm text-on-surface truncate mt-1">{user.name}</span>
                 </div>
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-left px-4 py-3 font-label-md text-error hover:bg-surface-container-low transition-colors rounded-b-xl"
-                >
-                  Đăng xuất
-                </button>
+                <div className="flex flex-col gap-2.5 text-xs font-semibold uppercase tracking-wider">
+                  <Link
+                    to="/profile?tab=profile"
+                    className="py-1 text-on-surface-variant/70 hover:text-black transition-colors"
+                  >
+                    Tài khoản của bạn 
+                  </Link>
+                  <Link
+                    to="/profile?tab=address"
+                    className="py-1 text-on-surface-variant/70 hover:text-black transition-colors"
+                  >
+                    Danh sách địa chỉ
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left py-1 text-error/80 hover:text-error transition-colors font-semibold uppercase tracking-wider cursor-pointer"
+                  >
+                    Đăng xuất
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
@@ -415,14 +601,14 @@ export default function Header() {
               >
                 <span className={`material-symbols-outlined block ${isLoginDropdownOpen ? 'text-primary' : 'text-on-surface-variant'}`} aria-hidden="true">account_circle</span>
               </button>
-              
+
               {/* Login Dropdown */}
               <div className={`absolute right-0 top-full mt-2 w-[320px] bg-surface-container-lowest border border-outline-variant shadow-[0_10px_40px_rgba(0,0,0,0.08)] transition-all duration-300 z-50 p-6 before:content-[''] before:absolute before:-top-2 before:right-4 before:border-8 before:border-transparent before:border-b-surface-container-lowest ${isLoginDropdownOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'}`}>
                 <div className="text-center mb-5">
                   <h3 className="font-headline-sm font-bold text-on-surface uppercase tracking-wider mb-1">Đăng nhập tài khoản</h3>
                   <p className="font-body-sm text-on-surface-variant">Nhập email và mật khẩu của bạn:</p>
                 </div>
-                
+
                 <form onSubmit={handleQuickLogin} className="space-y-4">
                   <div>
                     <input
@@ -464,7 +650,7 @@ export default function Header() {
           )}
 
           {/* Mobile menu button */}
-          <button 
+          <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label={mobileMenuOpen ? 'Đóng menu' : 'Mở menu'}
             aria-expanded={mobileMenuOpen}
@@ -477,33 +663,29 @@ export default function Header() {
         </div>
       </nav>
 
-      {/* Mobile Search Row (MOHO Style) */}
+      {/* Mobile Search Row (Modern Premium Style) */}
       {isMobileSearchOpen && (
         <div className="md:hidden bg-surface border-t border-outline-variant/30 px-sp-md py-3 shadow-[0_10px_20px_rgba(0,0,0,0.05)] relative z-40 animate-slide-down">
-          <form onSubmit={handleSearchSubmit} className="relative flex items-center bg-[#f5f5f5] rounded-sm border border-outline-variant/50 focus-within:border-primary overflow-hidden">
+          <form onSubmit={handleSearchSubmit} className="flex items-center bg-neutral-100/80 hover:bg-neutral-200/40 focus-within:bg-white border border-neutral-200/50 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10 rounded-full transition-all duration-300 pl-3.5 pr-2.5 py-1.5">
+            <span className="material-symbols-outlined text-neutral-400 text-[18px] mr-1.5 select-none">search</span>
             <input
               ref={mobileSearchInputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm kiếm sản phẩm..."
-              className="flex-1 bg-transparent border-none focus:outline-none pl-3 pr-12 py-2 text-sm text-on-surface placeholder:text-on-surface-variant/60 font-body-sm"
+              className="flex-1 bg-transparent border-none focus:outline-none py-0.5 text-xs text-on-surface placeholder:text-neutral-400 font-body-sm"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-12 p-1 text-on-surface-variant/60 hover:text-on-surface transition-colors cursor-pointer"
+                className="p-1 text-neutral-400 hover:text-on-surface transition-colors cursor-pointer"
+                aria-label="Xóa nội dung tìm kiếm"
               >
-                <span className="material-symbols-outlined text-base block">close</span>
+                <span className="material-symbols-outlined text-[16px] block">close</span>
               </button>
             )}
-            <button
-              type="submit"
-              className="bg-[#333333] hover:bg-black text-white w-10 flex items-center justify-center transition-colors cursor-pointer border-none h-full absolute right-0 top-0 bottom-0"
-            >
-              <span className="material-symbols-outlined text-[18px]">search</span>
-            </button>
           </form>
 
           {/* Suggestions Dropdown for Mobile - takes full width below search input */}
@@ -536,14 +718,14 @@ export default function Header() {
                       </div>
                       <div className="w-12 h-12 bg-white rounded border border-outline-variant/20 flex-shrink-0 flex items-center justify-center p-1 overflow-hidden">
                         <img
-                          src={prod.image}
+                          src={productCardImage(prod.image)}
                           alt={prod.name}
                           className="w-full h-full object-contain"
                         />
                       </div>
                     </Link>
                   ))}
-                  
+
                   {/* View more count */}
                   <button
                     onClick={handleSearchSubmit}
@@ -569,13 +751,12 @@ export default function Header() {
           <Link
             to="/"
             onClick={() => setMobileMenuOpen(false)}
-            className={`block font-label-md text-label-md py-2 ${
-              isActive('/') ? 'text-primary font-bold' : 'text-on-surface-variant hover:text-primary'
-            }`}
+            className={`block font-label-md text-label-md py-2 ${isActive('/') ? 'text-primary font-bold' : 'text-on-surface-variant hover:text-primary'
+              }`}
           >
             Trang chủ
           </Link>
-          
+
           <div className="py-2 border-t border-outline-variant/30">
             <span className="block font-label-md text-label-md font-bold text-on-surface mb-2">Phòng</span>
             <div className="flex flex-col gap-2 pl-4">

@@ -10,9 +10,12 @@ import { Order, OrderStatus, PaymentStatus } from './order.entity';
 import { OrderItem } from './order-item.entity';
 import { CartService } from '../cart/cart.service';
 import { ProductVariant } from '../products/product-variant.entity';
+import { Product } from '../products/product.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
-import { UserRole } from '../users/user.entity';
+import { UserRole, User } from '../users/user.entity';
+import { VouchersService } from '../vouchers/vouchers.service';
+import { Voucher, DiscountType } from '../vouchers/voucher.entity';
 
 @Injectable()
 export class OrdersService {
@@ -25,6 +28,7 @@ export class OrdersService {
     private readonly variantRepository: Repository<ProductVariant>,
     private readonly cartService: CartService,
     private readonly dataSource: DataSource,
+    private readonly vouchersService: VouchersService,
   ) {}
 
   async createGuestOrder(dto: CreateOrderDto): Promise<Order> {
@@ -60,7 +64,9 @@ export class OrdersService {
           }
 
           if (variant.stock < item.quantity) {
-            throw new BadRequestException(`Không đủ hàng tồn kho. Chỉ còn lại ${variant.stock} sản phẩm.`);
+            throw new BadRequestException(
+              `Không đủ hàng tồn kho. Chỉ còn lại ${variant.stock} sản phẩm.`,
+            );
           }
 
           variant.stock -= item.quantity;
@@ -71,16 +77,74 @@ export class OrdersService {
         totalAmount += itemSubtotal;
 
         const orderItem = new OrderItem();
-        orderItem.product = { id: item.product_id } as any;
+        orderItem.product = { id: item.product_id } as unknown as Product;
         if (item.variant_id) {
-          orderItem.variant = { id: item.variant_id } as any;
+          orderItem.variant = {
+            id: item.variant_id,
+          } as unknown as ProductVariant;
         }
         orderItem.quantity = item.quantity;
         orderItem.price = item.price;
         orderItems.push(orderItem);
       }
 
-      order.total_amount = totalAmount;
+      if (dto.voucher_code) {
+        // Validate voucher outside transaction checks first
+        await this.vouchersService.validateVoucher(
+          dto.voucher_code,
+          totalAmount,
+        );
+
+        // Fetch and lock inside transaction to avoid race conditions
+        const cleanCode = dto.voucher_code.trim().toUpperCase();
+        const voucher = await queryRunner.manager.findOne(Voucher, {
+          where: { code: cleanCode },
+          lock: { mode: 'pessimistic_write' },
+        });
+
+        if (!voucher) {
+          throw new BadRequestException('Mã giảm giá không tồn tại.');
+        }
+
+        if (!voucher.is_active) {
+          throw new BadRequestException('Mã giảm giá này đã bị vô hiệu hóa.');
+        }
+
+        if (
+          voucher.usage_limit !== null &&
+          voucher.used_count >= voucher.usage_limit
+        ) {
+          throw new BadRequestException('Mã giảm giá đã hết lượt sử dụng.');
+        }
+
+        let discountAmount = 0;
+        if (voucher.discount_type === DiscountType.FIXED_AMOUNT) {
+          discountAmount = Number(voucher.discount_value);
+        } else {
+          discountAmount = totalAmount * (Number(voucher.discount_value) / 100);
+          if (voucher.max_discount_amount !== null) {
+            const maxDiscount = Number(voucher.max_discount_amount);
+            if (discountAmount > maxDiscount) {
+              discountAmount = maxDiscount;
+            }
+          }
+        }
+
+        if (discountAmount > totalAmount) {
+          discountAmount = totalAmount;
+        }
+
+        voucher.used_count += 1;
+        await queryRunner.manager.save(voucher);
+
+        order.voucher_code = voucher.code;
+        order.discount_amount = discountAmount;
+        order.total_amount = totalAmount - discountAmount;
+      } else {
+        order.total_amount = totalAmount;
+        order.discount_amount = 0;
+      }
+
       order.items = orderItems;
 
       const savedOrder = await queryRunner.manager.save(order);
@@ -110,7 +174,7 @@ export class OrdersService {
       const orderItems: OrderItem[] = [];
 
       const order = new Order();
-      order.user = { id: userId } as any;
+      order.user = { id: userId } as unknown as User;
       order.shipping_address = dto.shipping_address;
       order.phone = dto.phone;
       order.notes = dto.notes || null;
@@ -131,7 +195,9 @@ export class OrdersService {
           }
 
           if (variant.stock < item.quantity) {
-            throw new BadRequestException(`Không đủ hàng tồn kho. Chỉ còn lại ${variant.stock} sản phẩm.`);
+            throw new BadRequestException(
+              `Không đủ hàng tồn kho. Chỉ còn lại ${variant.stock} sản phẩm.`,
+            );
           }
 
           // Trừ tồn kho
@@ -145,16 +211,75 @@ export class OrdersService {
 
         // 3. Tạo OrderItem
         const orderItem = new OrderItem();
-        orderItem.product = { id: item.product_id } as any;
+        orderItem.product = { id: item.product_id } as unknown as Product;
         if (item.variant_id) {
-          orderItem.variant = { id: item.variant_id } as any;
+          orderItem.variant = {
+            id: item.variant_id,
+          } as unknown as ProductVariant;
         }
         orderItem.quantity = item.quantity;
         orderItem.price = item.price;
         orderItems.push(orderItem);
       }
 
-      order.total_amount = totalAmount;
+      if (dto.voucher_code) {
+        // Validate voucher outside transaction checks first
+        await this.vouchersService.validateVoucher(
+          dto.voucher_code,
+          totalAmount,
+          userId,
+        );
+
+        // Fetch and lock inside transaction to avoid race conditions
+        const cleanCode = dto.voucher_code.trim().toUpperCase();
+        const voucher = await queryRunner.manager.findOne(Voucher, {
+          where: { code: cleanCode },
+          lock: { mode: 'pessimistic_write' },
+        });
+
+        if (!voucher) {
+          throw new BadRequestException('Mã giảm giá không tồn tại.');
+        }
+
+        if (!voucher.is_active) {
+          throw new BadRequestException('Mã giảm giá này đã bị vô hiệu hóa.');
+        }
+
+        if (
+          voucher.usage_limit !== null &&
+          voucher.used_count >= voucher.usage_limit
+        ) {
+          throw new BadRequestException('Mã giảm giá đã hết lượt sử dụng.');
+        }
+
+        let discountAmount = 0;
+        if (voucher.discount_type === DiscountType.FIXED_AMOUNT) {
+          discountAmount = Number(voucher.discount_value);
+        } else {
+          discountAmount = totalAmount * (Number(voucher.discount_value) / 100);
+          if (voucher.max_discount_amount !== null) {
+            const maxDiscount = Number(voucher.max_discount_amount);
+            if (discountAmount > maxDiscount) {
+              discountAmount = maxDiscount;
+            }
+          }
+        }
+
+        if (discountAmount > totalAmount) {
+          discountAmount = totalAmount;
+        }
+
+        voucher.used_count += 1;
+        await queryRunner.manager.save(voucher);
+
+        order.voucher_code = voucher.code;
+        order.discount_amount = discountAmount;
+        order.total_amount = totalAmount - discountAmount;
+      } else {
+        order.total_amount = totalAmount;
+        order.discount_amount = 0;
+      }
+
       order.items = orderItems;
 
       // Lưu đơn hàng
@@ -163,7 +288,7 @@ export class OrdersService {
       // (Optional) Clear database cart if it exists, though frontend uses local cart
       try {
         await this.cartService.clearCart(userId);
-      } catch (e) {
+      } catch {
         // Ignore if cart doesn't exist
       }
 
@@ -320,7 +445,10 @@ export class OrdersService {
 
     try {
       // Trường hợp cập nhật trạng thái thành CANCELLED (Admin hủy đơn) và đơn trước đó chưa hủy
-      if (dto.status === OrderStatus.CANCELLED && order.status !== OrderStatus.CANCELLED) {
+      if (
+        dto.status === OrderStatus.CANCELLED &&
+        order.status !== OrderStatus.CANCELLED
+      ) {
         for (const item of order.items) {
           if (item.variant) {
             const variant = await queryRunner.manager.findOne(ProductVariant, {
@@ -357,7 +485,9 @@ export class OrdersService {
     });
 
     const totalOrders = orders.length;
-    const pendingOrders = orders.filter((o) => o.status === OrderStatus.PENDING).length;
+    const pendingOrders = orders.filter(
+      (o) => o.status === OrderStatus.PENDING,
+    ).length;
 
     const revenue = orders
       .filter((o) => o.status !== OrderStatus.CANCELLED)
@@ -394,7 +524,9 @@ export class OrdersService {
     });
 
     if (!order) {
-      throw new NotFoundException('Không tìm thấy đơn hàng cần cập nhật thanh toán');
+      throw new NotFoundException(
+        'Không tìm thấy đơn hàng cần cập nhật thanh toán',
+      );
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -402,7 +534,9 @@ export class OrdersService {
     await queryRunner.startTransaction();
 
     try {
-      const targetStatus = isSuccess ? PaymentStatus.PAID : PaymentStatus.FAILED;
+      const targetStatus = isSuccess
+        ? PaymentStatus.PAID
+        : PaymentStatus.FAILED;
       order.payment_status = targetStatus;
 
       if (paymentMethod === 'vnpay') {
@@ -442,4 +576,3 @@ export class OrdersService {
     }
   }
 }
-

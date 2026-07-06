@@ -13,12 +13,15 @@ export interface ProductFrontend {
   hoverImage?: string;
   badge?: string;
   isNew?: boolean;
+  isFeatured?: boolean;
+  soldCount?: number;
   discount?: string;
   oldPrice?: string;
   category: string;
   rating: number;
   specs?: Record<string, string>;
   variants?: any[];
+  createdAt?: string;
 }
 
 export const formatPrice = (value: number) => {
@@ -76,6 +79,18 @@ export const mapBackendProductToFrontend = (p: any): ProductFrontend => {
   const discountPrice = p.discount_price ? Number(p.discount_price) : null;
   const hasDiscount = discountPrice !== null && discountPrice > 0 && discountPrice < basePrice;
 
+  // Determine if product is "new" (created within the last 30 days)
+  let isNew = false;
+  if (p.created_at) {
+    const createdDate = new Date(p.created_at);
+    const now = new Date();
+    const diffDays = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
+    isNew = diffDays <= 30;
+  }
+
+  // Featured = has discount or special badge
+  const isFeatured = hasDiscount || !!p.badge;
+
   return {
     id: p.id.toString(),
     sku: p.sku || '',
@@ -92,8 +107,11 @@ export const mapBackendProductToFrontend = (p: any): ProductFrontend => {
     category: p.category ? p.category.slug : 'other',
     rating: 4.5,
     specs: specs,
-    isNew: false,
+    isNew,
+    isFeatured,
+    soldCount: p.sold_count || 0,
     variants: p.variants || [],
+    createdAt: p.created_at || undefined,
   };
 };
 

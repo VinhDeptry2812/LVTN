@@ -7,6 +7,20 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
 import { useCartStore } from '@/store/useCartStore';
+import { productCardImage } from '@/utils/cloudinaryUrl';
+
+const formatAttributes = (attributes: Record<string, any> | undefined) => {
+  if (!attributes || Object.keys(attributes).length === 0) return '';
+  return Object.values(attributes)
+    .map((val: any) => {
+      const valStr = String(val);
+      if (valStr.includes('|')) {
+        return valStr.split('|')[0].trim();
+      }
+      return valStr.trim();
+    })
+    .join('|');
+};
 
 export default function CartPage() {
   const navigate = useNavigate();
@@ -14,9 +28,7 @@ export default function CartPage() {
 
   const { items: cartItems, updateQuantity, removeItem, updateVariant, orderNote, setOrderNote } = useCartStore();
 
-  const [promoCode, setPromoCode] = useState('');
-  const [discount, setDiscount] = useState(0);
-  const [promoApplied, setPromoApplied] = useState(false);
+
 
   // GSAP animation
   useGSAP(() => {
@@ -37,7 +49,15 @@ export default function CartPage() {
     });
   }, { scope: cartContainerRef });
 
-  const handleUpdateQuantity = (id: string, currentQty: number, delta: number) => {
+  const handleUpdateQuantity = (id: string, currentQty: number, delta: number, item: any) => {
+    if (delta > 0) {
+      const variant = item.availableVariants?.find((v: any) => v.id === item.variantId);
+      const maxStock = variant ? (variant.stock || 0) : 9999;
+      if (currentQty >= maxStock) {
+        toast.error(`Sản phẩm này chỉ còn tối đa ${maxStock} sản phẩm trong kho!`);
+        return;
+      }
+    }
     updateQuantity(id, currentQty + delta);
   };
 
@@ -54,18 +74,9 @@ export default function CartPage() {
     });
   };
 
-  const applyPromo = () => {
-    if (promoCode.trim().toUpperCase() === 'MINIMALIST') {
-      setDiscount(0.1); // 10% discount
-      setPromoApplied(true);
-    } else {
-      toast.error('Mã giảm giá không hợp lệ. Thử mã "MINIMALIST"');
-    }
-  };
+
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.rawPrice * item.quantity, 0);
-  const discountAmount = subtotal * discount;
-  const total = subtotal - discountAmount;
 
   const formatPrice = (value: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
@@ -105,35 +116,62 @@ export default function CartPage() {
             <div className="flex flex-col lg:flex-row gap-gutter">
               {/* Product List Section (2/3) */}
               <div className="lg:w-2/3 space-y-sp-md">
+                {/* Banner số lượng sản phẩm */}
+                <div className="bg-surface-container-low px-6 py-3.5 rounded-xl font-body-md text-body-md text-on-surface-variant flex items-center justify-between border border-outline-variant/20 mb-4 text-left">
+                  <span>
+                    Có <span className="font-bold text-primary">{cartItems.length} sản phẩm</span> trong giỏ hàng của bạn
+                  </span>
+                </div>
+
                 {cartItems.map((item) => (
                   <div
                     key={item.id}
                     data-cart-item={item.id}
-                    className="cart-item-card flex flex-col sm:flex-row gap-4 sm:gap-6 p-4 sm:p-6 bg-white rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-outline-variant/30 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-shadow duration-300"
+                    className="cart-item-card relative flex flex-col sm:flex-row gap-4 sm:gap-6 p-4 sm:p-6 bg-white rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-outline-variant/30 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-shadow duration-300"
                   >
+                    {/* Delete button (Xóa) ở góc trên bên phải */}
+                    <button
+                      onClick={() => deleteItem(item.id)}
+                      aria-label={`Xóa ${item.name} khỏi giỏ hàng`}
+                      className="absolute top-4 right-4 sm:top-6 sm:right-6 text-on-surface-variant hover:text-error transition-colors p-1 rounded-full hover:bg-error/5 cursor-pointer z-10"
+                    >
+                      <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
+                        close
+                      </span>
+                    </button>
+
                     {/* Image Container */}
                     <Link to={`/product/${item.productId}`} className="w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0 bg-[#f4f5f4] rounded-xl overflow-hidden mx-auto sm:mx-0 flex items-center justify-center p-2 hover:opacity-80 transition-opacity">
-                      <img alt={item.name} className="max-w-full max-h-full object-contain mix-blend-multiply" src={item.image} loading="lazy" />
+                      <img alt={item.name} className="max-w-full max-h-full object-contain mix-blend-multiply" src={productCardImage(item.image)} loading="lazy" />
                     </Link>
 
                     {/* Content Container */}
-                    <div className="flex-grow flex flex-col min-w-0">
-
+                    <div className="flex-grow flex flex-col min-w-0 pr-0 sm:pr-8">
                       {/* Top row: Name, Variant, Price */}
-                      <div className="flex flex-col sm:flex-row justify-between items-start gap-3 sm:gap-4">
-                        <div className="min-w-0 flex-1 text-center sm:text-left">
-                          <Link to={`/product/${item.productId}`} className="font-headline-md text-headline-md text-on-surface line-clamp-2 hover:text-primary transition-colors block">{item.name}</Link>
+                      <div className="flex flex-col justify-between items-start gap-1">
+                        <div className="min-w-0 flex-1 text-left">
+                          <Link to={`/product/${item.productId}`} className="font-headline-md text-headline-md text-on-surface line-clamp-2 hover:text-primary transition-colors block pr-6 font-semibold">{item.name}</Link>
+
+                          {/* Đơn giá và giá gốc gạch ngang */}
+                          <div className="flex flex-wrap items-baseline gap-2 mt-1.5 text-left">
+                            <span className="font-body-sm text-sm text-on-surface-variant/80 font-medium">{formatPrice(item.rawPrice)}</span>
+                            {item.rawOldPrice && item.rawOldPrice > item.rawPrice && (
+                              <span className="font-body-sm text-xs text-on-surface-variant/50 line-through">{formatPrice(item.rawOldPrice)}</span>
+                            )}
+                          </div>
+
+                          {/* Chọn biến thể */}
                           {item.availableVariants && item.availableVariants.length > 0 ? (
-                            <div className="mt-2 inline-block">
+                            <div className="mt-2 text-left">
                               <select
                                 value={item.variantId || (item.availableVariants[0]?.id || '')}
                                 onChange={(e) => updateVariant(item.id, Number(e.target.value))}
-                                className="font-body-sm text-body-sm text-on-surface-variant border border-outline-variant rounded-lg py-1.5 px-3 bg-surface-container-lowest focus:ring-1 focus:ring-primary outline-none max-w-full cursor-pointer hover:border-primary transition-colors appearance-none"
-                                style={{ backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23495057%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.7rem top 50%', backgroundSize: '0.65rem auto', paddingRight: '2rem' }}
+                                className="font-body-sm text-xs text-on-surface-variant border border-outline-variant rounded-lg py-1 px-2.5 bg-surface-container-lowest focus:ring-1 focus:ring-primary outline-none max-w-full cursor-pointer hover:border-primary transition-colors appearance-none"
+                                style={{ backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23495057%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.6rem top 50%', backgroundSize: '0.55rem auto', paddingRight: '1.75rem' }}
                               >
                                 {item.availableVariants.map((v: any) => {
                                   const label = (v.attributes && Object.keys(v.attributes).length > 0)
-                                    ? Object.values(v.attributes).join(' - ')
+                                    ? formatAttributes(v.attributes)
                                     : (v.sku || `Biến thể ${v.id}`);
                                   return (
                                     <option key={v.id} value={v.id}>
@@ -144,21 +182,21 @@ export default function CartPage() {
                               </select>
                             </div>
                           ) : (
-                            <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">{item.material}</p>
+                            <p className="font-body-sm text-xs text-on-surface-variant mt-2 text-left">
+                              {item.material?.includes('|')
+                                ? item.material
+                                : item.material?.split(' - ').map(s => s.includes('|') ? s.split('|')[0].trim() : s.trim()).join('|')}
+                            </p>
                           )}
-                        </div>
-                        <div className="text-center sm:text-right flex-shrink-0 w-full sm:w-auto mt-1 sm:mt-0">
-                          <p className="font-headline-md text-headline-md text-primary" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatPrice(item.rawPrice)}</p>
                         </div>
                       </div>
 
-                      {/* Bottom row: Quantity and Delete */}
-                      <div className="mt-auto pt-4 flex justify-between items-center border-t border-outline-variant/20 sm:border-t-0 sm:pt-0 sm:mt-auto">
-
+                      {/* Bottom row: Quantity selector & Line item subtotal */}
+                      <div className="mt-6 pt-4 flex justify-between items-center border-t border-outline-variant/20">
                         {/* Quantity selector */}
                         <div className="flex items-center border border-outline-variant rounded-lg bg-surface-container-lowest h-9" role="group" aria-label={`Số lượng ${item.name}`}>
                           <button
-                            onClick={() => handleUpdateQuantity(item.id, item.quantity, -1)}
+                            onClick={() => handleUpdateQuantity(item.id, item.quantity, -1, item)}
                             aria-label="Giảm số lượng"
                             className="w-9 h-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors cursor-pointer rounded-l-lg"
                           >
@@ -166,7 +204,7 @@ export default function CartPage() {
                           </button>
                           <span className="font-label-md text-label-md w-10 text-center select-none" aria-live="polite">{item.quantity}</span>
                           <button
-                            onClick={() => handleUpdateQuantity(item.id, item.quantity, 1)}
+                            onClick={() => handleUpdateQuantity(item.id, item.quantity, 1, item)}
                             aria-label="Tăng số lượng"
                             className="w-9 h-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors cursor-pointer rounded-r-lg"
                           >
@@ -174,17 +212,12 @@ export default function CartPage() {
                           </button>
                         </div>
 
-                        {/* Delete button */}
-                        <button
-                          onClick={() => deleteItem(item.id)}
-                          aria-label={`Xóa ${item.name} khỏi giỏ hàng`}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-on-surface-variant hover:text-error hover:bg-error/5 rounded-lg transition-colors group cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined text-[20px] group-hover:scale-110 transition-transform" aria-hidden="true">
-                            delete
-                          </span>
-                          <span className="font-label-sm text-label-sm hidden sm:inline">Xóa</span>
-                        </button>
+                        {/* Line subtotal */}
+                        <div className="text-right">
+                          <p className="font-headline-md text-headline-md text-on-surface font-bold" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                            {formatPrice(item.rawPrice * item.quantity)}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -206,63 +239,58 @@ export default function CartPage() {
               </div>
 
               {/* Order Summary Section (1/3) */}
-              <div className="lg:w-1/3">
-                <div className="cart-summary-card bg-surface-container p-sp-md rounded-xl sticky top-28 space-y-sp-md">
-                  <h2 className="font-headline-md text-headline-md text-on-surface">Tóm tắt đơn hàng</h2>
-                  <div className="space-y-sp-sm border-b border-outline-variant pb-sp-lg">
-                    <div className="flex justify-between">
-                      <span className="font-body-md text-body-md text-on-surface-variant">Tạm tính</span>
-                      <span className="font-label-md text-label-md text-on-surface">{formatPrice(subtotal)}</span>
-                    </div>
-                    {promoApplied && (
-                      <div className="flex justify-between text-error">
-                        <span className="font-body-md text-body-md">Mã giảm giá (10%)</span>
-                        <span>-{formatPrice(discountAmount)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="font-body-md text-body-md text-on-surface-variant">Phí vận chuyển</span>
-                      <span className="font-label-md text-label-md text-primary">-</span>
-                    </div>
+              <div className="lg:w-1/3 space-y-sp-md">
+                <div className="cart-summary-card bg-surface-container p-sp-md rounded-xl sticky top-28 space-y-sp-md border border-outline-variant/30">
+                  <h2 className="font-headline-md text-headline-md text-on-surface font-semibold text-left">Thông tin đơn hàng</h2>
+
+                  <div className="flex justify-between items-end pb-4 pt-2">
+                    <span className="font-headline-md text-headline-md text-on-surface font-medium">Tổng tiền:</span>
+                    <span className="font-headline-lg text-headline-lg text-error font-bold" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatPrice(subtotal)}</span>
                   </div>
-                  <div className="flex justify-between items-end pb-4">
-                    <span className="font-headline-md text-headline-md text-on-surface">Tổng cộng</span>
-                    <span className="font-headline-md text-headline-md text-primary">{formatPrice(total)}</span>
-                  </div>
+
                   <div className="space-y-sp-sm">
                     <button
                       onClick={() => navigate('/checkout')}
-                      className="group relative w-full overflow-hidden bg-primary text-on-primary font-label-md text-label-md py-4 rounded-full active:scale-[0.98] transition-transform duration-300 shadow-sm cursor-pointer"
+                      className="w-full bg-primary text-on-primary font-label-md text-label-md py-4 rounded-lg hover:brightness-110 active:scale-[0.98] transition-all duration-300 shadow-md cursor-pointer uppercase font-bold tracking-wider flex items-center justify-center gap-2"
                     >
-                      <span className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-0 transition-transform duration-300 ease-in-out z-0"></span>
-                      <span className="relative z-10">Tiến hành thanh toán</span>
+                      Tiến hành thanh toán
                     </button>
+
                     <Link
                       to="/shop"
-                      className="block text-center font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors mt-sp-md"
+                      className="flex items-center justify-center gap-2 font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors mt-sp-md cursor-pointer"
                     >
-                      Tiếp tục mua sắm
+                      <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+                      Tiếp tục mua hàng
                     </Link>
                   </div>
 
-                  {/* Promotion Code Input */}
-                  <div className="pt-4 border-t border-outline-variant">
-                    <p className="font-label-sm text-label-sm text-on-surface-variant mb-2">Mã giảm giá</p>
-                    <div className="flex gap-2">
-                      <input
-                        value={promoCode}
-                        onChange={(e) => setPromoCode(e.target.value)}
-                        className="flex-grow bg-white border border-outline-variant rounded-lg font-body-sm text-body-sm px-4 focus:ring-1 focus:ring-primary h-12"
-                        placeholder="Nhập mã của bạn"
-                        type="text"
-                      />
-                      <button
-                        onClick={applyPromo}
-                        className="px-6 h-12 bg-surface-container-highest rounded-lg font-label-sm text-label-sm text-primary hover:bg-primary-fixed transition-colors cursor-pointer"
-                      >
-                        Áp dụng
-                      </button>
+                  {/* Trust Policies / Service Commitments */}
+                  <div className="pt-6 border-t border-outline-variant/30 space-y-3.5 text-left text-[12.5px] leading-relaxed text-on-surface-variant">
+                    <div className="flex gap-2.5 items-start">
+                      <span className="material-symbols-outlined text-green-600 text-[18px] shrink-0 mt-0.5 font-bold">check_circle</span>
+                      <p>
+                        <span className="font-semibold text-on-surface">Không rủi ro.</span> Đặt hàng trước, thanh toán sau tại nhà.
+                      </p>
                     </div>
+                    <div className="flex gap-2.5 items-start">
+                      <span className="material-symbols-outlined text-green-600 text-[18px] shrink-0 mt-0.5 font-bold">check_circle</span>
+                      <p>
+                        <span className="font-semibold text-on-surface">Miễn phí giao hàng & lắp đặt</span> tại tất cả quận huyện thuộc TP.HCM, Hà Nội, Khu đô thị Ecopark, Biên Hòa và Bình Dương (*)
+                      </p>
+                    </div>
+                    <div className="flex gap-2.5 items-start">
+                      <span className="material-symbols-outlined text-green-600 text-[18px] shrink-0 mt-0.5 font-bold">check_circle</span>
+                      <p>
+                        Đơn hàng của quý khách sẽ được <span className="font-semibold text-on-surface">giao hàng trong vòng 3 ngày</span>, vui lòng đợi nhân viên tư vấn xác nhận lịch giao hàng.
+                      </p>
+                    </div>
+                    <div className="flex gap-2.5 items-start">
+                      <span className="material-symbols-outlined text-green-600 text-[18px] shrink-0 mt-0.5 font-bold">check_circle</span>
+                      <p>
+                        <span className="font-semibold text-on-surface">Miễn phí 1 đổi 1</span> - Bảo hành 2 năm - Bảo trì trọn đời (**)
+                      </p>
+                    </div>  
                   </div>
                 </div>
               </div>

@@ -7,15 +7,35 @@ import {
   Trash2, 
   Pencil, 
   Search, 
-  Filter, 
-  SlidersHorizontal,
-  ChevronDown,
-  Eye,
-  MoreVertical,
-  ChevronLeft,
-  ChevronRight,
-  Sparkles
+  ChevronLeft, 
+  ChevronRight, 
+  Sparkles,
+  ArrowUpDown,
+  RotateCcw,
+  Package,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle
 } from 'lucide-react';
+
+interface ProductImage {
+  id: number;
+  image_url: string;
+  is_primary: boolean;
+  is_hover: boolean;
+}
+
+interface ProductVariant {
+  id: number;
+  sku: string;
+  stock: number;
+  price_adjustment: number;
+}
+
+interface Collection {
+  id: number;
+  name: string;
+}
 
 interface Product {
   id: number;
@@ -25,16 +45,31 @@ interface Product {
   discount_price?: number | null;
   is_active: boolean;
   category?: { name: string };
+  images?: ProductImage[];
+  variants?: ProductVariant[];
+  collections?: Collection[];
 }
 
 export default function ProductListPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [collectionsList, setCollectionsList] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [collectionFilter, setCollectionFilter] = useState('all');
+  const [stockFilter, setStockFilter] = useState('all');
+  
+  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const [pageSize, setPageSize] = useState(10);
+  
+  // Sorting State
+  const [sortField, setSortField] = useState<'name' | 'base_price' | 'stock' | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Status updating state
+  const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
 
   const fetchProducts = async () => {
     try {
@@ -47,8 +82,18 @@ export default function ProductListPage() {
     }
   };
 
+  const fetchCollections = async () => {
+    try {
+      const res = await api.get('/collections');
+      setCollectionsList(res.data);
+    } catch (err) {
+      console.error('Lỗi khi tải bộ sưu tập', err);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
+    fetchCollections();
   }, []);
 
   const handleDelete = async (id: number) => {
@@ -62,6 +107,21 @@ export default function ProductListPage() {
     }
   };
 
+  const handleToggleActive = async (id: number, currentStatus: boolean) => {
+    setUpdatingStatusId(id);
+    try {
+      await api.patch(`/products/${id}`, { is_active: !currentStatus });
+      toast.success('Đã cập nhật trạng thái sản phẩm!');
+      setProducts((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, is_active: !currentStatus } : p))
+      );
+    } catch {
+      toast.error('Cập nhật trạng thái thất bại');
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
   const formatPrice = (price: number) =>
     new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
 
@@ -70,11 +130,53 @@ export default function ProductListPage() {
     new Set(products.map((p) => p.category?.name).filter(Boolean))
   );
 
-  // Filter products based on search query, status and category
+  // Stats calculation
+  const stats = {
+    total: products.length,
+    active: products.filter((p) => p.is_active).length,
+    outOfStock: products.filter((p) => {
+      const stock = p.variants?.reduce((sum, v) => sum + (Number(v.stock) || 0), 0) ?? 0;
+      return stock === 0;
+    }).length,
+    lowStock: products.filter((p) => {
+      const stock = p.variants?.reduce((sum, v) => sum + (Number(v.stock) || 0), 0) ?? 0;
+      return stock > 0 && stock < 10;
+    }).length,
+  };
+
+  // Check if any filter is active
+  const hasActiveFilters = 
+    searchQuery !== '' || 
+    statusFilter !== 'all' || 
+    categoryFilter !== 'all' || 
+    collectionFilter !== 'all' || 
+    stockFilter !== 'all' ||
+    sortField !== null;
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setCategoryFilter('all');
+    setCollectionFilter('all');
+    setStockFilter('all');
+    setSortField(null);
+    toast.success('Đã đặt lại tất cả bộ lọc');
+  };
+
+  const handleSort = (field: 'name' | 'base_price' | 'stock') => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  // Filter products based on search query, status, category, collection and stock
   const filteredProducts = products.filter((p) => {
     const matchesSearch = 
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.sku.toLowerCase().includes(searchQuery.toLowerCase());
+      (p.sku ? p.sku.toLowerCase().includes(searchQuery.toLowerCase()) : false);
     
     const matchesStatus = 
       statusFilter === 'all' || 
@@ -85,20 +187,88 @@ export default function ProductListPage() {
       categoryFilter === 'all' || 
       p.category?.name === categoryFilter;
 
-    return matchesSearch && matchesStatus && matchesCategory;
+    const matchesCollection =
+      collectionFilter === 'all' ||
+      p.collections?.some((col) => col.name === collectionFilter);
+
+    const totalStock = p.variants?.reduce((sum, v) => sum + (Number(v.stock) || 0), 0) ?? 0;
+    const matchesStock =
+      stockFilter === 'all' ||
+      (stockFilter === 'instock' && totalStock > 0) ||
+      (stockFilter === 'outofstock' && totalStock === 0) ||
+      (stockFilter === 'lowstock' && totalStock > 0 && totalStock < 10);
+
+    return matchesSearch && matchesStatus && matchesCategory && matchesCollection && matchesStock;
+  });
+
+  // Sort products
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    if (!sortField) return 0;
+
+    let aValue: any = 0;
+    let bValue: any = 0;
+
+    if (sortField === 'stock') {
+      aValue = a.variants?.reduce((sum, v) => sum + (Number(v.stock) || 0), 0) ?? 0;
+      bValue = b.variants?.reduce((sum, v) => sum + (Number(v.stock) || 0), 0) ?? 0;
+    } else {
+      aValue = (a as any)[sortField];
+      bValue = (b as any)[sortField];
+    }
+
+    if (typeof aValue === 'string') {
+      return sortOrder === 'asc' 
+        ? aValue.localeCompare(bValue) 
+        : bValue.localeCompare(aValue);
+    }
+
+    return sortOrder === 'asc' 
+      ? (aValue ?? 0) - (bValue ?? 0) 
+      : (bValue ?? 0) - (aValue ?? 0);
   });
 
   // Calculate pagination
-  const totalItems = filteredProducts.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentProducts = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
+  const totalItems = sortedProducts.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const indexOfLastItem = currentPage * pageSize;
+  const indexOfFirstItem = indexOfLastItem - pageSize;
+  const currentProducts = sortedProducts.slice(indexOfFirstItem, indexOfLastItem);
 
-  // Reset page when filters change
+  // Generate pagination buttons
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      
+      let start = Math.max(2, currentPage - 1);
+      let end = Math.min(totalPages - 1, currentPage + 1);
+      
+      if (currentPage <= 2) {
+        end = 4;
+      } else if (currentPage >= totalPages - 1) {
+        start = totalPages - 3;
+      }
+      
+      if (start > 2) pages.push('...');
+      
+      for (let i = start; i <= end; i++) pages.push(i);
+      
+      if (end < totalPages - 1) pages.push('...');
+      
+      pages.push(totalPages);
+    }
+    
+    return pages;
+  };
+
+  // Reset page when filters or page size change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, categoryFilter]);
+  }, [searchQuery, statusFilter, categoryFilter, collectionFilter, stockFilter, pageSize]);
 
   if (loading) {
     return (
@@ -110,6 +280,21 @@ export default function ProductListPage() {
       </div>
     );
   }
+
+  const renderSortHeader = (field: 'name' | 'base_price' | 'stock', label: string, extraClasses = '') => {
+    const isSorted = sortField === field;
+    return (
+      <th 
+        onClick={() => handleSort(field)}
+        className={`px-6 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase cursor-pointer hover:text-slate-800 transition-colors select-none ${extraClasses}`}
+      >
+        <div className="flex items-center gap-1.5 justify-start">
+          <span>{label}</span>
+          <ArrowUpDown size={12} className={`transition-colors ${isSorted ? 'text-indigo-600' : 'text-slate-300'}`} />
+        </div>
+      </th>
+    );
+  };
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -127,6 +312,103 @@ export default function ProductListPage() {
           <Plus size={16} />
           Thêm sản phẩm mới
         </Link>
+      </div>
+
+      {/* Stats Dashboard */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        {/* Total Products */}
+        <button 
+          onClick={() => {
+            setSearchQuery('');
+            setStatusFilter('all');
+            setCategoryFilter('all');
+            setCollectionFilter('all');
+            setStockFilter('all');
+            toast.success('Đã hiển thị tất cả sản phẩm');
+          }}
+          className={`w-full text-left bg-white rounded-2xl border p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all flex items-center gap-4 cursor-pointer ${
+            !hasActiveFilters ? 'border-indigo-500 ring-2 ring-indigo-500/10' : 'border-slate-200/60'
+          }`}
+          title="Click để hiển thị tất cả sản phẩm"
+        >
+          <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
+            <Package size={20} />
+          </div>
+          <div>
+            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tổng sản phẩm</span>
+            <span className="text-xl font-black text-slate-800">{stats.total}</span>
+          </div>
+        </button>
+
+        {/* Active Products */}
+        <button 
+          onClick={() => {
+            setStatusFilter('active');
+            toast.success('Đang lọc sản phẩm đang bán');
+          }}
+          className={`w-full text-left bg-white rounded-2xl border p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all flex items-center gap-4 cursor-pointer ${
+            statusFilter === 'active' ? 'border-emerald-500 ring-2 ring-emerald-500/10' : 'border-slate-200/60'
+          }`}
+          title="Click để lọc sản phẩm đang bán"
+        >
+          <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+            <CheckCircle2 size={20} />
+          </div>
+          <div>
+            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Đang bán</span>
+            <span className="text-xl font-black text-slate-800">{stats.active}</span>
+          </div>
+        </button>
+
+        {/* Out Of Stock */}
+        <button 
+          onClick={() => {
+            setStockFilter('outofstock');
+            setCategoryFilter('all');
+            setCollectionFilter('all');
+            setStatusFilter('all');
+            setSearchQuery('');
+            toast.success('Đang lọc sản phẩm hết hàng');
+          }}
+          className={`w-full text-left bg-white rounded-2xl border p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all flex items-center gap-4 cursor-pointer ${
+            stockFilter === 'outofstock' ? 'border-rose-500 ring-2 ring-rose-500/10' : 'border-slate-200/60'
+          }`}
+          title="Click để lọc sản phẩm hết hàng"
+        >
+          <div className="p-3 rounded-xl bg-rose-50 text-rose-600 shrink-0">
+            <XCircle size={20} />
+          </div>
+          <div>
+            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Hết hàng</span>
+            <span className="text-xl font-black text-slate-800">{stats.outOfStock}</span>
+          </div>
+        </button>
+
+        {/* Low Stock */}
+        <button 
+          onClick={() => {
+            setStockFilter('lowstock');
+            setCategoryFilter('all');
+            setCollectionFilter('all');
+            setStatusFilter('all');
+            setSearchQuery('');
+            toast.success('Đang lọc sản phẩm sắp hết hàng');
+          }}
+          className={`w-full text-left bg-white rounded-2xl border p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all flex items-center gap-4 cursor-pointer ${
+            stockFilter === 'lowstock' ? 'border-amber-500 ring-2 ring-amber-500/10' : 'border-slate-200/60'
+          }`}
+          title="Click để lọc sản phẩm sắp hết hàng"
+        >
+          <div className="p-3 rounded-xl bg-amber-50 text-amber-600 shrink-0">
+            <AlertTriangle size={20} />
+          </div>
+          <div>
+            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sắp hết hàng</span>
+            <span className="text-xl font-black text-slate-800">{stats.lowStock}</span>
+          </div>
+        </button>
+
       </div>
 
       {/* Filter and search bar card */}
@@ -165,6 +447,36 @@ export default function ProductListPage() {
               </select>
             </div>
 
+            {/* Collection Filter */}
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Bộ sưu tập:</span>
+              <select
+                value={collectionFilter}
+                onChange={(e) => setCollectionFilter(e.target.value)}
+                className="text-xs bg-transparent border-none focus:outline-none font-bold text-slate-700 cursor-pointer"
+              >
+                <option value="all">Tất cả bộ sưu tập</option>
+                {collectionsList.map((col) => (
+                  <option key={col.id} value={col.name}>{col.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Stock Filter */}
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Tồn kho:</span>
+              <select
+                value={stockFilter}
+                onChange={(e) => setStockFilter(e.target.value)}
+                className="text-xs bg-transparent border-none focus:outline-none font-bold text-slate-700 cursor-pointer"
+              >
+                <option value="all">Tất cả tồn kho</option>
+                <option value="instock">Còn hàng</option>
+                <option value="outofstock">Hết hàng</option>
+                <option value="lowstock">Sắp hết hàng (&lt; 10)</option>
+              </select>
+            </div>
+
             {/* Status Filter */}
             <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
               <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Trạng thái:</span>
@@ -179,6 +491,18 @@ export default function ProductListPage() {
               </select>
             </div>
 
+            {/* Clear Filters Button */}
+            {hasActiveFilters && (
+              <button
+                onClick={handleClearFilters}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                title="Đặt lại bộ lọc"
+              >
+                <RotateCcw size={13} />
+                Xóa bộ lọc
+              </button>
+            )}
+
           </div>
 
         </div>
@@ -191,9 +515,11 @@ export default function ProductListPage() {
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200/80">
                 <th className="text-left px-6 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase">SKU</th>
-                <th className="text-left px-6 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase">Tên sản phẩm</th>
+                {renderSortHeader('name', 'Tên sản phẩm')}
                 <th className="text-left px-6 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase">Danh mục</th>
-                <th className="text-right px-6 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase">Giá cơ bản</th>
+                <th className="text-left px-6 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase">Bộ sưu tập</th>
+                {renderSortHeader('stock', 'Tồn kho', 'text-center')}
+                {renderSortHeader('base_price', 'Giá cơ bản', 'text-right')}
                 <th className="text-right px-6 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase">Giá khuyến mãi</th>
                 <th className="text-center px-6 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase">Trạng thái</th>
                 <th className="text-center px-6 py-4 font-bold text-slate-500 text-xs tracking-wider uppercase">Hành động</th>
@@ -202,111 +528,235 @@ export default function ProductListPage() {
             <tbody className="divide-y divide-slate-100">
               {currentProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-16 text-slate-400 font-medium">
-                    Không tìm thấy sản phẩm nào khớp với điều kiện lọc.
+                  <td colSpan={9} className="text-center py-16 px-6">
+                    <div className="flex flex-col items-center justify-center max-w-md mx-auto space-y-4">
+                      <div className="p-4 bg-slate-50 text-slate-400 rounded-full">
+                        <Search size={32} />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold text-slate-700">Không tìm thấy sản phẩm nào</p>
+                        <p className="text-xs text-slate-400">
+                          Không có sản phẩm nào khớp với các bộ lọc hiện tại của bạn. Thử thay đổi từ khóa hoặc xóa bộ lọc.
+                        </p>
+                      </div>
+                      {hasActiveFilters && (
+                        <button
+                          onClick={handleClearFilters}
+                          className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                        >
+                          Xóa tất cả bộ lọc
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
-                currentProducts.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
-                    {/* SKU code */}
-                    <td className="px-6 py-4 font-mono text-xs text-slate-400 font-bold">{p.sku}</td>
-                    
-                    {/* Name & Avatar mockup */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-slate-100/80 border border-slate-200/50 flex items-center justify-center font-bold text-slate-400 shrink-0 text-sm">
-                          {p.name.charAt(0).toUpperCase()}
+                currentProducts.map((p) => {
+                  const primaryImg = p.images?.find((img) => img.is_primary)?.image_url || p.images?.[0]?.image_url;
+                  const totalStock = p.variants?.reduce((sum, v) => sum + (Number(v.stock) || 0), 0) ?? 0;
+                  const variantCount = p.variants?.length ?? 0;
+
+                  return (
+                    <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
+                      {/* SKU code */}
+                      <td className="px-6 py-4 font-mono text-xs text-slate-400 font-bold">{p.sku}</td>
+                      
+                      {/* Name & Avatar/Image */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          {primaryImg ? (
+                            <img 
+                              src={primaryImg} 
+                              alt={p.name} 
+                              className="w-10 h-10 rounded-xl object-cover border border-slate-200/50 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-xl bg-slate-100/80 border border-slate-200/50 flex items-center justify-center font-bold text-slate-400 shrink-0 text-sm">
+                              {p.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <Link
+                              to={`/admin/products/edit/${p.id}`}
+                              className="font-bold text-slate-700 hover:text-indigo-600 transition-colors block cursor-pointer"
+                            >
+                              {p.name}
+                            </Link>
+                            <span className="text-[10px] text-slate-400 font-semibold">ID: #{p.id}</span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="font-bold text-slate-700 hover:text-indigo-600 transition-colors block cursor-pointer">
-                            {p.name}
+                      </td>
+
+                      {/* Category */}
+                      <td className="px-6 py-4 text-slate-500 font-medium">{p.category?.name || '—'}</td>
+
+                      {/* Collections */}
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-1 max-w-[150px]">
+                          {p.collections && p.collections.length > 0 ? (
+                            p.collections.map((col) => (
+                              <span key={col.id} className="inline-block px-1.5 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded">
+                                {col.name}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-slate-400 text-xs">—</span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Stock count */}
+                      <td className="px-6 py-4 text-center">
+                        {p.variants && p.variants.length > 0 ? (
+                          <div className="space-y-0.5">
+                            <span className={`font-bold ${
+                              totalStock === 0 
+                                ? 'text-rose-600' 
+                                : totalStock < 10 
+                                  ? 'text-amber-600' 
+                                  : 'text-slate-700'
+                            }`}>
+                              {totalStock}
+                            </span>
+                            <span className="block text-[10px] text-slate-400 font-medium">
+                              {variantCount} bản thể
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-rose-600 font-bold text-xs">0 bản thể</span>
+                        )}
+                      </td>
+
+                      {/* Base Price */}
+                      <td className="px-6 py-4 text-right font-semibold text-slate-700">
+                        {formatPrice(p.base_price)}
+                      </td>
+
+                      {/* Discount Price */}
+                      <td className="px-6 py-4 text-right">
+                        {p.discount_price ? (
+                          <div className="space-y-0.5">
+                            <span className="font-black text-rose-600 block">{formatPrice(p.discount_price)}</span>
+                            <span className="inline-block px-1.5 py-0.5 bg-rose-50 text-[10px] font-bold text-rose-600 rounded">
+                              Giảm {Math.round((1 - p.discount_price / p.base_price) * 100)}%
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-xs">Không áp dụng</span>
+                        )}
+                      </td>
+
+                      {/* Status Switch Toggle */}
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex items-center justify-center gap-3">
+                          {/* Badge Status */}
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition-colors ${
+                            p.is_active
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-slate-100 text-slate-500 border-slate-200'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${p.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                            {p.is_active ? 'Đang bán' : 'Ngừng bán'}
                           </span>
-                          <span className="text-[10px] text-slate-400 font-semibold">ID: #{p.id}</span>
+
+                          {/* iOS-style Toggle Switch */}
+                          <button
+                            onClick={() => handleToggleActive(p.id, p.is_active)}
+                            disabled={updatingStatusId === p.id}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                              p.is_active ? 'bg-indigo-600' : 'bg-slate-200'
+                            } ${updatingStatusId === p.id ? 'opacity-60 cursor-not-allowed' : 'hover:scale-105'}`}
+                            title={p.is_active ? 'Click để ngừng bán' : 'Click để đăng bán'}
+                          >
+                            <span className="sr-only">Toggle active status</span>
+                            {updatingStatusId === p.id ? (
+                              <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out flex items-center justify-center ${p.is_active ? 'translate-x-4' : 'translate-x-0'}`}>
+                                <span className="w-2.5 h-2.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                              </span>
+                            ) : (
+                              <span
+                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                  p.is_active ? 'translate-x-4' : 'translate-x-0'
+                                }`}
+                              />
+                            )}
+                          </button>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Category */}
-                    <td className="px-6 py-4 text-slate-500 font-medium">{p.category?.name || '—'}</td>
-
-                    {/* Base Price */}
-                    <td className="px-6 py-4 text-right font-semibold text-slate-700">
-                      {formatPrice(p.base_price)}
-                    </td>
-
-                    {/* Discount Price */}
-                    <td className="px-6 py-4 text-right">
-                      {p.discount_price ? (
-                        <div className="space-y-0.5">
-                          <span className="font-black text-rose-600 block">{formatPrice(p.discount_price)}</span>
-                          <span className="inline-block px-1.5 py-0.5 bg-rose-50 text-[10px] font-bold text-rose-600 rounded">
-                            Giảm {Math.round((1 - p.discount_price / p.base_price) * 100)}%
-                          </span>
+                      {/* Actions buttons */}
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <Link
+                            to={`/admin/products/edit/${p.id}`}
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            title="Sửa sản phẩm"
+                          >
+                            <Pencil size={15} />
+                          </Link>
+                          <button
+                            onClick={() => handleDelete(p.id)}
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                            title="Xóa sản phẩm"
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         </div>
-                      ) : (
-                        <span className="text-slate-400 text-xs">Không áp dụng</span>
-                      )}
-                    </td>
-
-                    {/* Status Toggle Tag */}
-                    <td className="px-6 py-4 text-center">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                          p.is_active
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-slate-100 text-slate-600 border border-slate-200'
-                        }`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${p.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-                        {p.is_active ? 'Đang bán' : 'Ngừng bán'}
-                      </span>
-                    </td>
-
-                    {/* Actions buttons */}
-                    <td className="px-6 py-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <Link
-                          to={`/admin/products/edit/${p.id}`}
-                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                          title="Sửa sản phẩm"
-                        >
-                          <Pencil size={15} />
-                        </Link>
-                        <button
-                          onClick={() => handleDelete(p.id)}
-                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
-                          title="Xóa sản phẩm"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination bar */}
-        {totalPages > 1 && (
-          <div className="bg-slate-50/80 px-6 py-4 flex items-center justify-between border-t border-slate-200/80">
+        {/* Improved Pagination bar */}
+        <div className="bg-slate-50/80 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200/80">
+          
+          {/* Page Size Changer & Items info */}
+          <div className="flex items-center gap-3">
             <span className="text-xs text-slate-500 font-semibold">
-              Hiển thị {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, totalItems)} của {totalItems} sản phẩm
+              Hiển thị {totalItems > 0 ? indexOfFirstItem + 1 : 0} - {Math.min(indexOfLastItem, totalItems)} của {totalItems} sản phẩm
             </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Dòng/Trang:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="text-xs bg-transparent border-none focus:outline-none font-bold text-slate-700 cursor-pointer"
               >
-                <ChevronLeft size={16} />
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            
+            {getPageNumbers().map((page, idx) => {
+              if (page === '...') {
+                return (
+                  <span key={`dots-${idx}`} className="px-2 text-xs text-slate-400 font-semibold">
+                    ...
+                  </span>
+                );
+              }
+              
+              return (
                 <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
+                  key={`page-${page}`}
+                  onClick={() => setCurrentPage(page as number)}
                   className={`w-8 h-8 rounded-lg text-xs font-bold border transition-colors ${
                     currentPage === page
                       ? 'bg-indigo-600 border-indigo-600 text-white shadow'
@@ -315,17 +765,20 @@ export default function ProductListPage() {
                 >
                   {page}
                 </button>
-              ))}
-              <button
-                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
+              );
+            })}
+
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronRight size={16} />
+            </button>
           </div>
-        )}
+
+        </div>
+
       </div>
     </div>
   );

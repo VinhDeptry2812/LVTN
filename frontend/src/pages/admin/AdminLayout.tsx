@@ -1,21 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Package, 
-  FolderTree, 
-  LogOut, 
-  ShoppingBag, 
-  Layers, 
-  Bell, 
-  Search, 
-  Menu, 
-  ChevronLeft, 
-  User, 
-  ExternalLink, 
+import {
+  LayoutDashboard,
+  Package,
+  FolderTree,
+  LogOut,
+  ShoppingBag,
+  Layers,
+  Bell,
+  Search,
+  Menu,
+  ChevronLeft,
+  User,
+  ExternalLink,
   Settings,
   ChevronRight,
-  Globe
+  Globe,
+  Ticket
 } from 'lucide-react';
 
 interface NavLinkItem {
@@ -44,6 +45,7 @@ const navigationGroups: NavGroup[] = [
       { to: '/admin/categories', icon: FolderTree, label: 'Danh mục' },
       { to: '/admin/collections', icon: Layers, label: 'Bộ sưu tập' },
       { to: '/admin/orders', icon: ShoppingBag, label: 'Đơn hàng' },
+      { to: '/admin/vouchers', icon: Ticket, label: 'Mã giảm giá' },
     ]
   }
 ];
@@ -60,7 +62,7 @@ export default function AdminLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isNotiOpen, setIsNotiOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  
+
   const notiRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -103,11 +105,12 @@ export default function AdminLayout() {
             categories: 'Danh mục',
             collections: 'Bộ sưu tập',
             orders: 'Đơn hàng',
+            vouchers: 'Mã giảm giá',
             create: 'Thêm mới',
             edit: 'Chỉnh sửa'
           };
           const displayLabel = labelMap[path] || path;
-          
+
           return (
             <div key={path} className="flex items-center gap-1.5">
               <ChevronRight size={12} className="text-slate-300" />
@@ -123,12 +126,11 @@ export default function AdminLayout() {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
-      
+
       {/* Sidebar */}
-      <aside 
-        className={`bg-slate-900 text-white flex flex-col shadow-xl transition-all duration-300 z-20 ${
-          isCollapsed ? 'w-20' : 'w-64'
-        }`}
+      <aside
+        className={`bg-slate-900 text-white flex flex-col shadow-xl transition-all duration-300 z-20 ${isCollapsed ? 'w-20' : 'w-64'
+          }`}
       >
         {/* Sidebar Header */}
         <div className="h-16 flex items-center justify-between px-5 border-b border-slate-800">
@@ -136,7 +138,7 @@ export default function AdminLayout() {
             <div className="flex items-center gap-2.5 animate-fadeIn">
               <span className="text-2xl">🛋️</span>
               <div>
-                <h1 className="text-base font-extrabold tracking-wider bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">NỘI THẤT MOHO</h1>
+                <h1 className="text-base font-extrabold tracking-wider bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">NỘI THẤT</h1>
                 <p className="text-[10px] text-slate-400 font-semibold tracking-widest uppercase">Quản trị hệ thống</p>
               </div>
             </div>
@@ -145,7 +147,7 @@ export default function AdminLayout() {
             <span className="text-2xl mx-auto">🛋️</span>
           )}
           {!isCollapsed && (
-            <button 
+            <button
               onClick={() => setIsCollapsed(true)}
               className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
             >
@@ -186,10 +188,9 @@ export default function AdminLayout() {
                     to={link.to}
                     end={link.end}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 group ${
-                        isActive
-                          ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                          : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
+                      `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 group ${isActive
+                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                        : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
                       }`
                     }
                   >
@@ -205,7 +206,7 @@ export default function AdminLayout() {
         {/* Sidebar Footer */}
         <div className="p-3 border-t border-slate-800">
           {isCollapsed ? (
-            <button 
+            <button
               onClick={() => setIsCollapsed(false)}
               className="flex items-center justify-center p-3 w-full rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"
               title="Mở rộng menu"
@@ -226,14 +227,14 @@ export default function AdminLayout() {
 
       {/* Main Container */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        
+
         {/* Header */}
         <header className="h-16 bg-white border-b border-slate-200/80 px-6 flex items-center justify-between shadow-sm z-10">
-          
+
           {/* Left: Collapse toggle & Breadcrumbs */}
           <div className="flex items-center gap-4">
             {isCollapsed && (
-              <button 
+              <button
                 onClick={() => setIsCollapsed(false)}
                 className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
               >
@@ -247,23 +248,12 @@ export default function AdminLayout() {
 
           {/* Right: Quick actions, notifications, profile */}
           <div className="flex items-center gap-4">
-            
-            {/* Quick Search */}
-            <div className="relative max-w-xs hidden md:block">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                <Search size={15} />
-              </span>
-              <input 
-                type="text" 
-                placeholder="Tìm kiếm..."
-                className="w-48 xl:w-64 pl-9 pr-4 py-1.5 rounded-full text-xs bg-slate-100 border-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all text-slate-700 font-medium"
-              />
-            </div>
+
 
             {/* Visit Shop Link */}
-            <a 
+            <a
               href="http://localhost:5173" // Default client URL
-              target="_blank" 
+              target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-600 font-semibold px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
             >
@@ -276,11 +266,10 @@ export default function AdminLayout() {
 
             {/* Notifications Dropdown */}
             <div className="relative" ref={notiRef}>
-              <button 
+              <button
                 onClick={() => setIsNotiOpen(!isNotiOpen)}
-                className={`p-2 rounded-full transition-all relative ${
-                  isNotiOpen ? 'bg-slate-100 text-slate-800' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
-                }`}
+                className={`p-2 rounded-full transition-all relative ${isNotiOpen ? 'bg-slate-100 text-slate-800' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+                  }`}
               >
                 <Bell size={18} />
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white animate-pulse" />
@@ -294,11 +283,10 @@ export default function AdminLayout() {
                   </div>
                   <div className="divide-y divide-slate-50 max-h-64 overflow-y-auto">
                     {mockNotifications.map((noti) => (
-                      <div 
-                        key={noti.id} 
-                        className={`p-4 hover:bg-slate-50/50 transition-colors cursor-pointer ${
-                          !noti.read ? 'bg-indigo-50/20' : ''
-                        }`}
+                      <div
+                        key={noti.id}
+                        className={`p-4 hover:bg-slate-50/50 transition-colors cursor-pointer ${!noti.read ? 'bg-indigo-50/20' : ''
+                          }`}
                       >
                         <p className="text-xs text-slate-700 leading-relaxed font-medium">{noti.text}</p>
                         <p className="text-[10px] text-slate-400 mt-1 font-semibold">{noti.time}</p>
@@ -316,7 +304,7 @@ export default function AdminLayout() {
 
             {/* Profile Dropdown */}
             <div className="relative" ref={profileRef}>
-              <button 
+              <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 className="flex items-center gap-2.5 p-1 rounded-full hover:bg-slate-100 transition-colors"
               >
@@ -336,16 +324,16 @@ export default function AdminLayout() {
                     <p className="text-[10px] font-medium text-slate-400 mt-0.5">admin@moho.vn</p>
                   </div>
                   <div className="py-1">
-                    <a 
-                      href="http://localhost:5173" 
-                      target="_blank" 
+                    <a
+                      href="http://localhost:5173"
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 px-4 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-indigo-600 font-medium transition-colors"
                     >
                       <ExternalLink size={14} />
                       Xem Cửa hàng
                     </a>
-                    <button 
+                    <button
                       onClick={() => navigate('/admin')}
                       className="w-full flex items-center gap-2 px-4 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-indigo-600 font-medium transition-colors text-left"
                     >
@@ -354,7 +342,7 @@ export default function AdminLayout() {
                     </button>
                   </div>
                   <div className="border-t border-slate-100 pt-1 mt-1">
-                    <button 
+                    <button
                       onClick={handleLogout}
                       className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-rose-600 hover:bg-rose-50 font-bold transition-colors text-left"
                     >

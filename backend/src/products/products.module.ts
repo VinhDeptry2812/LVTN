@@ -9,7 +9,15 @@ import { ProductImage } from './product-image.entity';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Product, ProductDetail, ProductVariant, ProductImage]), CloudinaryModule],
+  imports: [
+    TypeOrmModule.forFeature([
+      Product,
+      ProductDetail,
+      ProductVariant,
+      ProductImage,
+    ]),
+    CloudinaryModule,
+  ],
   providers: [ProductsService],
   controllers: [ProductsController],
   exports: [ProductsService],

@@ -11,6 +11,7 @@ import { fetchProducts, type ProductFrontend } from '@/services/product.service'
 import { getActiveCollections, type Collection } from '@/services/collection.service';
 import { useCartStore } from '@/store/useCartStore';
 import toast from 'react-hot-toast';
+import { heroBannerImage, categoryCardImage, productCardImage } from '@/utils/cloudinaryUrl';
 
 // Register GSAP plugins
 gsap.registerPlugin(useGSAP, ScrollTrigger);
@@ -25,7 +26,7 @@ export default function HomePage() {
   const promoRef = useRef<HTMLElement>(null);
   const productsRef = useRef<HTMLElement>(null);
   const testimonialsRef = useRef<HTMLElement>(null);
-  const galleryRef = useRef<HTMLElement>(null);
+
   const newsletterRef = useRef<HTMLElement>(null);
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -166,7 +167,7 @@ export default function HomePage() {
       case 'best':
         return allProducts.slice(1, 5).map((p) => ({
           ...p,
-          badge: 'Bán chạy',
+          badge: '',
           isNew: false
         }));
         
@@ -324,22 +325,7 @@ export default function HomePage() {
       }
     );
 
-    // 5.6 Gallery image entry
-    gsap.fromTo('.gallery-img-item',
-      { opacity: 0, scale: 0.9 },
-      {
-        opacity: 1,
-        scale: 1,
-        duration: 0.6,
-        stagger: 0.1,
-        ease: 'power2.out',
-        scrollTrigger: {
-          trigger: galleryRef.current,
-          start: 'top 85%',
-          toggleActions: 'play none none none'
-        }
-      }
-    );
+
 
     // 6. Newsletter box zoom & entry
     gsap.from('.newsletter-box', {
@@ -383,7 +369,7 @@ export default function HomePage() {
                     className={`w-full h-full object-cover transition-transform duration-[6000ms] ease-out ${
                       isActive ? 'scale-105' : 'scale-100'
                     }`}
-                    src={slide.image}
+                    src={heroBannerImage(slide.image)}
                   />
                   {/* Subtle Dark Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/25 to-transparent z-10"></div>
@@ -547,7 +533,7 @@ export default function HomePage() {
                   className="room-item group relative h-[450px] rounded-2xl overflow-hidden cursor-pointer"
                 >
                   <img
-                    src={col.cover_image || 'https://via.placeholder.com/600x800?text=Room'}
+                    src={heroBannerImage(col.cover_image) || 'https://via.placeholder.com/600x800?text=Room'}
                     alt={col.name}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
@@ -599,7 +585,7 @@ export default function HomePage() {
                     <img
                       alt={cat.name}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                      src={cat.image_url || 'https://via.placeholder.com/600x400?text=No+Image'}
+                      src={categoryCardImage(cat.image_url) || 'https://via.placeholder.com/600x400?text=No+Image'}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-70 group-hover:opacity-90 transition-opacity duration-500"></div>
                     <div className="absolute bottom-0 left-0 w-full p-6 md:p-8 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
@@ -717,33 +703,33 @@ export default function HomePage() {
                     to={`/product/${prod.id}`}
                     className="product-card-item group block"
                   >
-                    <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-white mb-4 shadow-sm border border-outline-variant/20 transition-all duration-300 hover:shadow-md">
+                    <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-white/30 backdrop-blur-md border border-white/20 mb-1 transition-all duration-300">
                       <img
-                        className={`absolute inset-0 w-full h-full object-contain p-4 transition-opacity duration-500 ${hoverImg ? 'opacity-100 group-hover:opacity-0' : ''}`}
-                        src={prod.image}
+                        className={`absolute inset-0 w-full h-full object-contain p-0 transition-opacity duration-500 mix-blend-multiply ${hoverImg ? 'opacity-100 group-hover:opacity-0' : ''}`}
+                        src={productCardImage(prod.image)}
                         alt={prod.name}
                         loading="lazy"
                       />
                       {hoverImg && (
                         <img
-                          className="absolute inset-0 w-full h-full object-contain p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                          src={hoverImg}
+                          className="absolute inset-0 w-full h-full object-contain p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 mix-blend-multiply"
+                          src={productCardImage(hoverImg)}
                           alt={`${prod.name} alternate view`}
                           loading="lazy"
                         />
                       )}
                       {prod.isNew && (
-                        <span className="absolute top-4 left-4 bg-primary text-on-primary px-3 py-1 rounded-full font-label-sm text-label-sm">
+                        <span className="absolute top-10 left-1 bg-primary text-on-primary px-3 py-1 rounded-full font-label-sm text-label-sm">
                           Mới
                         </span>
                       )}
                       {prod.badge && (
-                        <span className="absolute top-4 left-4 bg-primary-fixed text-primary px-3 py-1 rounded-full font-label-sm text-label-sm">
+                        <span className="absolute top-10 left-1 bg-primary-fixed text-primary px-3 py-1 rounded-full font-label-sm text-label-sm">
                           {prod.badge}
                         </span>
                       )}
                       {prod.discount && (
-                        <span className="absolute top-4 left-4 bg-error text-on-error px-3 py-1 rounded-full font-label-sm text-label-sm font-bold">
+                        <span className="absolute top-10 left-1 bg-error text-on-error px-3 py-1 rounded-full font-label-sm text-label-sm font-bold">
                           {prod.discount}
                         </span>
                       )}
@@ -754,7 +740,7 @@ export default function HomePage() {
                           toggleWishlist(prod.id, prod.name);
                         }}
                         aria-label={`Thêm ${prod.name} vào yêu thích`}
-                        className={`absolute top-4 right-4 w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-sm border transition-all duration-300 ${
+                        className={`absolute top-10 right-1 w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-sm border transition-all duration-300 ${
                           isFavorited
                             ? 'bg-red-50 text-red-500 border-red-200 opacity-100'
                             : 'bg-white/80 border-outline-variant/50 text-on-surface-variant opacity-0 group-hover:opacity-100'
@@ -765,7 +751,7 @@ export default function HomePage() {
                         </span>
                       </button>
                     </div>
-                    <h3 className="font-headline-sm font-bold text-on-surface mb-1 line-clamp-1 group-hover:text-primary transition-colors">{prod.name}</h3>
+                    <h3 className="font-headline-md text-base md:text-lg font-bold text-on-surface mb-1 line-clamp-1 group-hover:text-primary transition-colors duration-300">{prod.name}</h3>
                     <p className="font-label-md text-label-md text-primary" style={{ fontVariantNumeric: 'tabular-nums' }}>
                       {prod.price}
                       {prod.oldPrice && (
@@ -780,7 +766,7 @@ export default function HomePage() {
             <div className="mt-sp-xl text-center">
               <Link
                 to="/shop"
-                className="inline-block px-10 py-4 border-2 border-primary text-primary rounded-xl font-label-md text-label-md hover:bg-primary-container/10 transition-colors duration-300"
+                className="inline-block px-10 py-4 border border-2 border-primary text-primary font-label-md text-label-md cursor-pointer"
               >
                 Xem tất cả sản phẩm
               </Link>
@@ -844,71 +830,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Section: Góc khách hàng chia sẻ hình ảnh thực tế / Instagram Grid (MOHO Inspired) */}
-        <section ref={galleryRef} className="py-sp-xl bg-surface">
-          <div className="max-w-container-max mx-auto px-sp-md md:px-lg">
-            <div className="flex flex-col md:flex-row md:items-end justify-between mb-sp-lg gap-sp-md">
-              <div>
-                <span className="text-primary font-label-md text-label-md uppercase tracking-widest block mb-2">#FurniShopHome</span>
-                <h2 className="font-headline-lg text-headline-lg text-on-surface mb-2">Góc nhỏ ấm cúng của bạn</h2>
-                <p className="font-body-md text-body-md text-on-surface-variant">Chia sẻ không gian sống của bạn trên mạng xã hội với hashtag để nhận ngay voucher giảm 10%.</p>
-              </div>
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noreferrer"
-                className="font-label-md text-label-md text-primary flex items-center gap-2 hover:underline self-start md:self-auto"
-              >
-                <span>Xem trên Instagram</span>
-                <span className="material-symbols-outlined text-[16px]">open_in_new</span>
-              </a>
-            </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              {[
-                'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80',
-                'https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80',
-                'https://images.unsplash.com/photo-1505691938895-1758d7feb511?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80',
-                'https://images.unsplash.com/photo-1540518614846-7eded433c457?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80',
-                'https://images.unsplash.com/photo-1524758631624-e2822e304c36?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80'
-              ].map((img, idx) => (
-                <div key={idx} className="gallery-img-item group relative aspect-square rounded-2xl overflow-hidden cursor-pointer shadow-sm">
-                  <img src={img} alt={`Customer Home ${idx + 1}`} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-white text-[32px] transform scale-75 group-hover:scale-100 transition-transform duration-300">favorite</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
 
-        {/* Inspiration / Blog Section */}
-        <section className="py-sp-xl bg-surface-container-low">
-          <div className="max-w-container-max mx-auto px-sp-md md:px-lg">
-            <div className="flex items-end justify-between mb-sp-lg">
-              <div>
-                <h2 className="font-headline-lg text-headline-lg text-on-surface mb-2">Góc cảm hứng</h2>
-                <p className="font-body-md text-body-md text-on-surface-variant">Những xu hướng và mẹo trang trí nội thất mới nhất</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {[
-                { title: 'Bí quyết chọn Sofa hoàn hảo cho không gian nhỏ', img: 'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80', date: '15 Tháng 5, 2024' },
-                { title: 'Xu hướng nội thất tối giản (Minimalism) năm nay', img: 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80', date: '12 Tháng 5, 2024' },
-                { title: 'Cách phối màu sắc để phòng ngủ luôn ấm cúng', img: 'https://images.unsplash.com/photo-1540518614846-7eded433c457?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80', date: '08 Tháng 5, 2024' },
-              ].map((blog, idx) => (
-                <div key={idx} className="group cursor-pointer">
-                  <div className="relative aspect-[4/3] rounded-2xl overflow-hidden mb-4 shadow-sm">
-                    <img src={blog.img} alt={blog.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                  </div>
-                  <div className="font-label-sm text-primary mb-2 uppercase tracking-wider">{blog.date}</div>
-                  <h3 className="font-headline-sm font-bold text-on-surface group-hover:text-primary transition-colors line-clamp-2">{blog.title}</h3>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
 
         {/* Newsletter Section */}
         <section ref={newsletterRef} className="py-sp-xl bg-primary-container/10">

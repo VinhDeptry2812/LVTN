@@ -8,6 +8,8 @@ import PaymentResultPage from '@/pages/PaymentResultPage';
 import RegisterPage from '@/pages/RegisterPage';
 import CollectionListPage from '@/pages/CollectionListPage';
 import CollectionPage from '@/pages/CollectionPage';
+import SearchPage from '@/pages/SearchPage';
+import ProfilePage from '@/pages/ProfilePage';
 import { useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -52,6 +54,7 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/shop" element={<ShopPage />} />
+        <Route path="/search" element={<SearchPage />} />
         <Route path="/product/:id" element={<ProductDetailPage />} />
         <Route path="/collections" element={<CollectionListPage />} />
         <Route path="/collection/:slug" element={<CollectionPage />} />
@@ -59,6 +62,7 @@ function App() {
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/payment/result" element={<PaymentResultPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
         <Route path="/login" element={<LoginCallback />} />
         {/* Redirect default to homepage */}
         <Route path="*" element={<Navigate to="/" replace />} />

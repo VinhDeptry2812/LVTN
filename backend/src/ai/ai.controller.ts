@@ -21,7 +21,7 @@ export class AiController {
       category,
       attributes,
     );
-    
+
     return {
       message: 'Tạo mô tả thành công',
       data: description,

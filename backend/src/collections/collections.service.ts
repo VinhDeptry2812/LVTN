@@ -16,11 +16,11 @@ export class CollectionsService {
 
   async create(createCollectionDto: CreateCollectionDto): Promise<Collection> {
     const { product_ids, ...rest } = createCollectionDto;
-    
+
     const collectionData: Partial<Collection> = { ...rest };
     if (product_ids && product_ids.length > 0) {
       // Ép kiểu (any) để tránh lỗi DeepPartial yêu cầu toàn bộ thuộc tính của Product
-      collectionData.products = product_ids.map(id => ({ id } as any));
+      collectionData.products = product_ids.map((id) => ({ id }) as any);
     }
 
     const collection = this.collectionRepository.create(collectionData);
@@ -58,22 +58,33 @@ export class CollectionsService {
     return collection;
   }
 
-  async update(id: number, updateCollectionDto: UpdateCollectionDto): Promise<Collection> {
+  async update(
+    id: number,
+    updateCollectionDto: UpdateCollectionDto,
+  ): Promise<Collection> {
     const { product_ids, ...rest } = updateCollectionDto;
-    
-    const existingCollection = await this.collectionRepository.findOne({ where: { id } });
+
+    const existingCollection = await this.collectionRepository.findOne({
+      where: { id },
+    });
     if (!existingCollection) {
       throw new NotFoundException(`Collection with id ${id} not found`);
     }
 
-    if (updateCollectionDto.cover_image && existingCollection.cover_image && updateCollectionDto.cover_image !== existingCollection.cover_image) {
-      await this.cloudinaryService.deleteImageByUrl(existingCollection.cover_image);
+    if (
+      updateCollectionDto.cover_image &&
+      existingCollection.cover_image &&
+      updateCollectionDto.cover_image !== existingCollection.cover_image
+    ) {
+      await this.cloudinaryService.deleteImageByUrl(
+        existingCollection.cover_image,
+      );
     }
-    
+
     const updateData: any = { id, ...rest };
-    
+
     if (product_ids !== undefined) {
-      updateData.products = product_ids.map(productId => ({ id: productId }));
+      updateData.products = product_ids.map((productId) => ({ id: productId }));
     }
 
     const collection = await this.collectionRepository.preload(updateData);
@@ -86,15 +97,17 @@ export class CollectionsService {
   }
 
   async remove(id: number): Promise<void> {
-    const collection = await this.collectionRepository.findOne({ where: { id } });
+    const collection = await this.collectionRepository.findOne({
+      where: { id },
+    });
     if (!collection) {
       throw new NotFoundException(`Collection with id ${id} not found`);
     }
-    
+
     if (collection.cover_image) {
       await this.cloudinaryService.deleteImageByUrl(collection.cover_image);
     }
-    
+
     await this.collectionRepository.remove(collection);
   }
 }

@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TreeRepository } from 'typeorm';
 import { Category } from './category.entity';
@@ -31,38 +36,54 @@ export class CategoriesService {
     try {
       const category = this.categoriesRepository.create(createCategoryDto);
       if (createCategoryDto.parentId) {
-        const parent = await this.categoriesRepository.findOne({ where: { id: createCategoryDto.parentId } });
+        const parent = await this.categoriesRepository.findOne({
+          where: { id: createCategoryDto.parentId },
+        });
         if (!parent) {
-          throw new NotFoundException(`Không tìm thấy danh mục cha với ID ${createCategoryDto.parentId}`);
+          throw new NotFoundException(
+            `Không tìm thấy danh mục cha với ID ${createCategoryDto.parentId}`,
+          );
         }
         category.parent = parent;
       }
       return await this.categoriesRepository.save(category);
     } catch (error) {
-      if (error.code === '23505') { // Lỗi trùng lặp dữ liệu (unique constraint) trong PostgreSQL
+      if (error.code === '23505') {
+        // Lỗi trùng lặp dữ liệu (unique constraint) trong PostgreSQL
         throw new ConflictException('Tên danh mục hoặc slug đã tồn tại');
       }
       throw error;
     }
   }
 
-  async update(id: number, updateCategoryDto: UpdateCategoryDto): Promise<Category> {
+  async update(
+    id: number,
+    updateCategoryDto: UpdateCategoryDto,
+  ): Promise<Category> {
     const category = await this.findOne(id);
-    
+
     // Nếu cập nhật ảnh mới khác ảnh cũ, xóa ảnh cũ trên Cloudinary
-    if (updateCategoryDto.image_url && category.image_url && updateCategoryDto.image_url !== category.image_url) {
+    if (
+      updateCategoryDto.image_url &&
+      category.image_url &&
+      updateCategoryDto.image_url !== category.image_url
+    ) {
       await this.cloudinaryService.deleteImageByUrl(category.image_url);
     }
-    
+
     const updated = Object.assign(category, updateCategoryDto);
-    
+
     if (updateCategoryDto.parentId !== undefined) {
       if (updateCategoryDto.parentId === null) {
         updated.parent = null;
       } else {
-        const parent = await this.categoriesRepository.findOne({ where: { id: updateCategoryDto.parentId } });
+        const parent = await this.categoriesRepository.findOne({
+          where: { id: updateCategoryDto.parentId },
+        });
         if (!parent) {
-          throw new NotFoundException(`Không tìm thấy danh mục cha với ID ${updateCategoryDto.parentId}`);
+          throw new NotFoundException(
+            `Không tìm thấy danh mục cha với ID ${updateCategoryDto.parentId}`,
+          );
         }
         updated.parent = parent;
       }

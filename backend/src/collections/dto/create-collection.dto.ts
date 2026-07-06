@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsArray, IsNumber } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsBoolean,
+  IsArray,
+  IsNumber,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateCollectionDto {
@@ -7,7 +14,10 @@ export class CreateCollectionDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ description: 'Slug (Đường dẫn thân thiện)', example: 'coastal' })
+  @ApiProperty({
+    description: 'Slug (Đường dẫn thân thiện)',
+    example: 'coastal',
+  })
   @IsString()
   @IsNotEmpty()
   slug: string;
@@ -22,12 +32,20 @@ export class CreateCollectionDto {
   @IsOptional()
   cover_image?: string;
 
-  @ApiProperty({ description: 'Trạng thái hiển thị', required: false, default: true })
+  @ApiProperty({
+    description: 'Trạng thái hiển thị',
+    required: false,
+    default: true,
+  })
   @IsBoolean()
   @IsOptional()
   is_active?: boolean;
 
-  @ApiProperty({ description: 'Danh sách ID sản phẩm thuộc bộ sưu tập', required: false, type: [Number] })
+  @ApiProperty({
+    description: 'Danh sách ID sản phẩm thuộc bộ sưu tập',
+    required: false,
+    type: [Number],
+  })
   @IsArray()
   @IsNumber({}, { each: true })
   @IsOptional()

@@ -1,4 +1,12 @@
-import { IsNotEmpty, IsString, IsEnum, IsOptional, IsArray, ValidateNested, IsNumber } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+  IsNumber,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaymentMethod } from '../order.entity';
 
@@ -36,6 +44,10 @@ export class CreateOrderDto {
   @IsNotEmpty()
   @IsEnum(PaymentMethod)
   payment_method: PaymentMethod;
+
+  @IsOptional()
+  @IsString()
+  voucher_code?: string;
 
   @IsOptional()
   @IsArray()

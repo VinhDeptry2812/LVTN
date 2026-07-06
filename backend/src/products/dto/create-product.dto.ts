@@ -1,11 +1,25 @@
-import { IsNotEmpty, IsString, IsOptional, IsNumber, IsBoolean, ValidateNested, IsArray, IsObject } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsBoolean,
+  ValidateNested,
+  IsArray,
+  IsObject,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 export class CreateProductDetailDto {
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Thông số kỹ thuật dạng key-value',
-    example: { 'Kích thước': '220 x 90 x 85 cm', 'Chất liệu': 'Da bò thật', 'Cân nặng': '45 kg', 'Bảo hành': '24 tháng' }
+    example: {
+      'Kích thước': '220 x 90 x 85 cm',
+      'Chất liệu': 'Da bò thật',
+      'Cân nặng': '45 kg',
+      'Bảo hành': '24 tháng',
+    },
   })
   @IsOptional()
   @IsObject()
@@ -13,7 +27,9 @@ export class CreateProductDetailDto {
 }
 
 export class CreateProductVariantDto {
-  @ApiPropertyOptional({ description: 'ID của biến thể (chỉ dùng khi cập nhật)' })
+  @ApiPropertyOptional({
+    description: 'ID của biến thể (chỉ dùng khi cập nhật)',
+  })
   @IsOptional()
   @IsNumber()
   id?: number;
@@ -25,7 +41,7 @@ export class CreateProductVariantDto {
 
   @ApiPropertyOptional({
     description: 'Thuộc tính biến thể dạng key-value',
-    example: { 'Màu sắc': 'Đen', 'Kích thước': 'L' }
+    example: { 'Màu sắc': 'Đen', 'Kích thước': 'L' },
   })
   @IsOptional()
   @IsObject()
@@ -63,7 +79,9 @@ export class CreateProductImageDto {
   @IsBoolean()
   is_hover?: boolean;
 
-  @ApiPropertyOptional({ description: 'Chỉ mục của biến thể trong mảng variants (khi tạo mới)' })
+  @ApiPropertyOptional({
+    description: 'Chỉ mục của biến thể trong mảng variants (khi tạo mới)',
+  })
   @IsOptional()
   @IsNumber()
   variant_index?: number;
@@ -85,12 +103,18 @@ export class CreateProductDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ example: 'sofa-da-cao-cap', description: 'Đường dẫn chuẩn SEO' })
+  @ApiProperty({
+    example: 'sofa-da-cao-cap',
+    description: 'Đường dẫn chuẩn SEO',
+  })
   @IsNotEmpty({ message: 'Slug không được để trống' })
   @IsString()
   slug: string;
 
-  @ApiPropertyOptional({ example: 'Mô tả chi tiết sản phẩm...', description: 'Mô tả sản phẩm' })
+  @ApiPropertyOptional({
+    example: 'Mô tả chi tiết sản phẩm...',
+    description: 'Mô tả sản phẩm',
+  })
   @IsOptional()
   @IsString()
   description?: string;
@@ -115,7 +139,10 @@ export class CreateProductDto {
   @IsBoolean()
   is_active?: boolean;
 
-  @ApiPropertyOptional({ type: [Number], description: 'Danh sách ID bộ sưu tập' })
+  @ApiPropertyOptional({
+    type: [Number],
+    description: 'Danh sách ID bộ sưu tập',
+  })
   @IsOptional()
   @IsArray()
   @IsNumber({}, { each: true })

@@ -10,9 +10,11 @@ async function bootstrap() {
   app.enableCors();
 
   // Bật ValidationPipe để tự động kiểm tra dữ liệu đầu vào theo DTO
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+    }),
+  );
 
   // Cấu hình Swagger
   const config = new DocumentBuilder()

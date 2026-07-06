@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Pencil, X, Layers, Loader2, Upload } from 'lucide-react';
+import { Plus, Trash2, Pencil, X, Layers, Loader2, Upload, Quote, Image as ImageIcon, FileText } from 'lucide-react';
 
 interface Collection {
   id: number;
@@ -25,8 +25,8 @@ const compressImage = (file: File): Promise<File> => {
       img.src = event.target?.result as string;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 1200;
-        const MAX_HEIGHT = 1200;
+        const MAX_WIDTH = 2400;
+        const MAX_HEIGHT = 1600;
         let width = img.width;
         let height = img.height;
 
@@ -58,7 +58,7 @@ const compressImage = (file: File): Promise<File> => {
             resolve(compressedFile);
           },
           'image/jpeg',
-          0.8
+          0.85
         );
       };
       img.onerror = () => resolve(file);
@@ -306,7 +306,7 @@ export default function CollectionListPage() {
       {/* Modal Thêm/Sửa */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 relative my-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl p-6 relative my-auto transition-all duration-300">
             <button
               onClick={() => setShowModal(false)}
               className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
@@ -318,95 +318,222 @@ export default function CollectionListPage() {
               {editingId ? 'Sửa bộ sưu tập' : 'Thêm bộ sưu tập mới'}
             </h2>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1.5">Tên BST *</label>
-                <input
-                  name="name"
-                  value={form.name}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm"
-                  placeholder="VD: Bộ sưu tập Mùa Thu"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1.5">Slug (tự động)</label>
-                <input
-                  name="slug"
-                  value={form.slug}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 text-sm"
-                  readOnly
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1.5">Mô tả</label>
-                <textarea
-                  name="description"
-                  value={form.description}
-                  onChange={handleChange}
-                  rows={3}
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm"
-                  placeholder="Nhập mô tả bộ sưu tập..."
-                ></textarea>
-              </div>
-
-              {/* Upload ảnh bìa */}
-              <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1.5">Ảnh bìa</label>
-                <div className="flex items-start gap-4">
-                  <label className="flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed border-slate-300 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-all cursor-pointer shrink-0">
-                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                    {uploadingImage ? (
-                      <Loader2 size={20} className="text-blue-500 animate-spin" />
-                    ) : (
-                      <>
-                        <Upload size={18} className="text-slate-400 mb-1" />
-                        <span className="text-[10px] text-slate-400">Chọn ảnh</span>
-                      </>
-                    )}
-                  </label>
-                  {form.cover_image && (
-                    <div className="relative group">
-                      <img
-                        src={form.cover_image}
-                        alt="Preview"
-                        className="h-24 object-cover rounded-xl border border-slate-200 shadow-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (form.cover_image.startsWith('blob:')) {
-                            URL.revokeObjectURL(form.cover_image);
-                          }
-                          setLocalImageFile(null);
-                          setForm((prev) => ({ ...prev, cover_image: '' }));
-                        }}
-                        className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                      >
-                        ✕
-                      </button>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* CỐT TRÁI: FORM NHẬP LIỆU */}
+                <div className="lg:col-span-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-600 mb-1.5">Tên BST *</label>
+                    <input
+                      name="name"
+                      value={form.name}
+                      onChange={handleChange}
+                      required
+                      className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm"
+                      placeholder="VD: Bộ sưu tập Mùa Thu"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-600 mb-1.5">Slug (tự động)</label>
+                    <input
+                      name="slug"
+                      value={form.slug}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 text-sm"
+                      readOnly
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-sm font-medium text-slate-600">Mô tả</label>
+                      <span className="text-[10px] text-slate-400 italic">Nhấn Enter để ngắt đoạn</span>
                     </div>
-                  )}
+                    <textarea
+                      name="description"
+                      value={form.description}
+                      onChange={handleChange}
+                      rows={5}
+                      className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm font-sans"
+                      placeholder="Nhập mô tả bộ sưu tập..."
+                    ></textarea>
+                  </div>
+
+                  {/* Upload ảnh bìa */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-600 mb-1.5">Ảnh bìa</label>
+                    <div className="flex items-start gap-4">
+                      <label className="flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed border-slate-300 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-all cursor-pointer shrink-0">
+                        <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                        {uploadingImage ? (
+                          <Loader2 size={20} className="text-blue-500 animate-spin" />
+                        ) : (
+                          <>
+                            <Upload size={18} className="text-slate-400 mb-1" />
+                            <span className="text-[10px] text-slate-400">Chọn ảnh</span>
+                          </>
+                        )}
+                      </label>
+                      {form.cover_image && (
+                        <div className="relative group">
+                          <img
+                            src={form.cover_image}
+                            alt="Preview"
+                            className="h-24 object-cover rounded-xl border border-slate-200 shadow-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (form.cover_image.startsWith('blob:')) {
+                                URL.revokeObjectURL(form.cover_image);
+                              }
+                              setLocalImageFile(null);
+                              setForm((prev) => ({ ...prev, cover_image: '' }));
+                            }}
+                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center pt-2">
+                    <input
+                      type="checkbox"
+                      id="is_active"
+                      name="is_active"
+                      checked={form.is_active}
+                      onChange={handleChange}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="is_active" className="ml-2 text-sm font-medium text-gray-900">
+                      Hiển thị bộ sưu tập
+                    </label>
+                  </div>
+                </div>
+
+                {/* CỘT PHẢI: BẢN XEM TRƯỚC (LIVE PREVIEW) */}
+                <div className="lg:col-span-6 border-t lg:border-t-0 lg:border-l border-slate-200 pt-6 lg:pt-0 lg:pl-8 flex flex-col justify-start space-y-5">
+                  <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 inline-block self-start">
+                    Bản xem trước giao diện User (Live Preview)
+                  </h3>
+
+                  {/* 1. Xem trước Banner */}
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                      1. Ảnh bìa & Tiêu đề (Hero Banner)
+                    </span>
+                    <div className="relative w-full h-32 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-inner">
+                      {form.cover_image ? (
+                        <img
+                          src={form.cover_image}
+                          alt="Hero preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-1">
+                          <ImageIcon size={24} className="opacity-40" />
+                          <span className="text-[10px]">Chưa có ảnh bìa bộ sưu tập</span>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center p-3 text-center">
+                        <span className="text-[9px] text-white/60 uppercase tracking-[0.25em] font-light mb-1">
+                          BỘ SƯU TẬP
+                        </span>
+                        <h4 className="text-white font-bold text-base tracking-wider truncate max-w-full px-4">
+                          {form.name || 'Tên bộ sưu tập'}
+                        </h4>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. Xem trước Bố cục mô tả */}
+                  <div className="space-y-1.5 flex-1 flex flex-col">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                        2. Câu chuyện cảm hứng (Inspiration Grid)
+                      </span>
+                      {form.description.split('\n').filter(p => p.trim() !== '').length < 3 && (
+                        <span className="text-[9px] font-medium bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-200/50">
+                          Nhập ≥ 3 đoạn để tạo Quote Card
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 flex-1 flex flex-col justify-start min-h-[220px]">
+                      <div className="text-left mb-3.5 scale-90 origin-left">
+                        <span className="text-blue-600 text-[9px] font-bold tracking-[0.2em] uppercase block mb-1">
+                          Ý tưởng & Câu chuyện
+                        </span>
+                        <h5 className="text-slate-800 text-sm font-semibold">Cảm hứng thiết kế</h5>
+                        <div className="w-6 h-[1.5px] bg-blue-600 mt-1"></div>
+                      </div>
+
+                      {(() => {
+                        const paragraphs = form.description.split('\n').filter(p => p.trim() !== '');
+                        if (paragraphs.length === 0) {
+                          return (
+                            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 py-8 text-center italic text-xs gap-1.5">
+                              <FileText size={20} className="opacity-40" />
+                              <span>Hãy gõ mô tả ở ô bên trái để xem bố cục giả lập...</span>
+                            </div>
+                          );
+                        }
+
+                        if (paragraphs.length >= 3) {
+                          const quoteText = paragraphs[paragraphs.length - 1];
+                          const details = paragraphs.slice(0, -1);
+                          return (
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 text-[10.5px] leading-relaxed">
+                              {/* Quote Card (Cột trái) */}
+                              <div className="md:col-span-5 bg-white border border-slate-200 rounded-xl p-3 relative overflow-hidden shadow-sm flex flex-col justify-between min-h-[130px]">
+                                <div className="absolute top-0 left-0 w-full h-[3px] bg-blue-600"></div>
+                                <Quote size={20} className="text-blue-600/10 absolute right-2 top-2 pointer-events-none select-none rotate-180" />
+                                <p className="text-blue-700 italic font-medium leading-relaxed pt-1.5 line-clamp-4">
+                                  "{quoteText}"
+                                </p>
+                                <div className="mt-2.5">
+                                  <div className="w-4 h-[1px] bg-slate-300 mb-0.5"></div>
+                                  <span className="text-[8px] uppercase tracking-wider text-slate-400 block font-bold">
+                                    TRIẾT LÝ KHÔNG GIAN
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Chi tiết (Cột phải) */}
+                              <div className="md:col-span-7 space-y-2 pl-3 border-l border-slate-200 max-h-[140px] overflow-y-auto pr-1">
+                                <p className="text-slate-800 font-semibold mb-1 line-clamp-2">
+                                  {details[0]}
+                                </p>
+                                {details.slice(1).map((p, idx) => (
+                                  <p key={idx} className="text-slate-500 line-clamp-3">
+                                    {p}
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Dưới 3 đoạn văn
+                        return (
+                          <div className="space-y-1.5 text-[10.5px] leading-relaxed text-center max-w-sm mx-auto py-2">
+                            {paragraphs.map((p, idx) => (
+                              <p key={idx} className={`${idx === 0 ? 'text-slate-800 font-semibold' : 'text-slate-500'}`}>
+                                {p}
+                              </p>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center pt-2">
-                <input
-                  type="checkbox"
-                  id="is_active"
-                  name="is_active"
-                  checked={form.is_active}
-                  onChange={handleChange}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <label htmlFor="is_active" className="ml-2 text-sm font-medium text-gray-900">
-                  Hiển thị bộ sưu tập
-                </label>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4">
+              {/* NÚT THAO TÁC */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}

@@ -58,9 +58,14 @@
   --color-on-primary-fixed-variant: #3b4a40;
 
   /* Border Radius */
-  --radius-DEFAULT: 0.25rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 1rem;
+  --radius-DEFAULT: 0px;
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
 
   /* Spacing — prefixed with sp- to avoid conflicts with Tailwind v4 built-ins */
   --spacing-sp-xl: 80px;
@@ -74,6 +79,7 @@
 
   /* Ken Burns Carousel Animations */
   --animate-kenburns: kenburns 6s ease-out forwards;
+  --animate-fadeIn: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 
   @keyframes kenburns {
     0% {
@@ -81,6 +87,17 @@
     }
     100% {
       transform: scale(1);
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
   }
 }
@@ -127,7 +144,7 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: #536257;
-  border-radius: 3px;
+  border-radius: 0px;
 }
 
 /* Selection highlight color */
@@ -235,4 +252,83 @@ body {
 
 @utility animate-slide-down {
   animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ==========================================================================
+   PREMIUM BUTTON HOVER EFFECTS (SLIDE-IN FROM LEFT) & SHARP EDGES
+   ========================================================================== */
+
+/* 1. Reset border radius for non-circular buttons and action links */
+button:not(.rounded-full),
+a.bg-primary:not(.rounded-full),
+a.border:not(.rounded-full),
+.btn-slide-dark,
+.btn-slide-light {
+  border-radius: 0px !important;
+}
+
+/* 2. Primary Buttons hover effect (Slide-in high-contrast sand color) */
+:is(button, a).bg-primary:is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]),
+.btn-slide-dark {
+  position: relative !important;
+  overflow: hidden !important;
+  z-index: 1 !important;
+  transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease !important;
+}
+
+:is(button, a).bg-primary:is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"])::before,
+.btn-slide-dark::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background-color: var(--color-surface-container-highest, #e4e2dd) !important;
+  z-index: -1 !important;
+  transform: scaleX(0) !important;
+  transform-origin: left !important;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+:is(button, a).bg-primary:is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(:disabled):hover,
+.btn-slide-dark:not(:disabled):hover {
+  color: var(--color-primary, #536257) !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+:is(button, a).bg-primary:is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(:disabled):hover::before,
+.btn-slide-dark:not(:disabled):hover::before {
+  transform: scaleX(1) !important;
+}
+
+/* 3. Outline/Secondary/Border Buttons hover effect (Slide-in primary brand color) */
+:is(button, a).border:not(.bg-primary):is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]),
+.btn-slide-light {
+  position: relative !important;
+  overflow: hidden !important;
+  z-index: 1 !important;
+  transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease !important;
+}
+
+:is(button, a).border:not(.bg-primary):is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"])::before,
+.btn-slide-light::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background-color: var(--color-primary, #536257) !important;
+  z-index: -1 !important;
+  transform: scaleX(0) !important;
+  transform-origin: left !important;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+:is(button, a).border:not(.bg-primary):is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(:disabled):hover,
+.btn-slide-light:not(:disabled):hover {
+  color: var(--color-on-primary, #ffffff) !important;
+  border-color: var(--color-primary, #536257) !important;
+  background-color: transparent !important;
+}
+
+:is(button, a).border:not(.bg-primary):is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(:disabled):hover::before,
+.btn-slide-light:not(:disabled):hover::before {
+  transform: scaleX(1) !important;
 }

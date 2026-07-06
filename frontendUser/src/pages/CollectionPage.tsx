@@ -7,6 +7,7 @@ import { mapBackendProductToFrontend } from '@/services/product.service';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { heroBannerImage, productCardImage } from '@/utils/cloudinaryUrl';
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
@@ -50,7 +51,7 @@ const CollectionPage: React.FC = () => {
     });
 
     // Fade up cho text ở Hero
-    gsap.fromTo('.hero-text-anim', 
+    gsap.fromTo('.hero-text-anim',
       { opacity: 0, y: 30 },
       { opacity: 1, y: 0, duration: 1, stagger: 0.2, ease: 'power3.out', delay: 0.2 }
     );
@@ -58,8 +59,8 @@ const CollectionPage: React.FC = () => {
     // Animation cho phần text cảm hứng (Inspiration)
     gsap.fromTo('.inspiration-text',
       { opacity: 0, y: 40 },
-      { 
-        opacity: 1, y: 0, duration: 1, 
+      {
+        opacity: 1, y: 0, duration: 1,
         scrollTrigger: {
           trigger: '.inspiration-section',
           start: 'top 80%',
@@ -99,11 +100,11 @@ const CollectionPage: React.FC = () => {
           <img
             alt={collection.name}
             className="hero-parallax-img absolute top-[-15%] left-0 w-full h-[130%] object-cover"
-            src={collection.cover_image || 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?q=80&w=2000&auto=format&fit=crop'}
+            src={heroBannerImage(collection.cover_image) || 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?q=80&w=2000&auto=format&fit=crop'}
           />
           {/* Lớp phủ mờ nhẹ giúp chữ dễ đọc hơn */}
           <div className="absolute inset-0 bg-black/30"></div>
-          
+
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 z-10">
             <span className="hero-text-anim text-white/90 font-label-md tracking-[0.2em] uppercase mb-4 block">
               {collection.name?.toLowerCase().includes('phòng') ? 'Không gian' : 'Bộ sưu tập'}
@@ -117,16 +118,85 @@ const CollectionPage: React.FC = () => {
 
         {/* INSPIRATION SECTION - Cảm hứng thiết kế */}
         {descParagraphs.length > 0 && (
-          <section className="inspiration-section py-16 md:py-24 bg-surface relative">
-            <div className="max-w-3xl mx-auto px-6 text-center">
-              <h2 className="inspiration-text font-headline-md text-2xl md:text-3xl text-on-surface mb-8 font-medium">
-                Cảm hứng thiết kế
-              </h2>
-              <div className="space-y-6 text-on-surface-variant font-body-md text-base leading-relaxed md:text-lg md:leading-loose">
-                {descParagraphs.map((para, idx) => (
-                  <p key={idx} className="inspiration-text">{para}</p>
-                ))}
+          <section className="inspiration-section py-20 md:py-28 bg-surface-container-low/40 relative overflow-hidden">
+            {/* Trang trí các vòng tròn mờ nghệ thuật phía sau */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-primary-fixed/10 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-secondary-fixed/15 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+
+            <div className="max-w-container-max mx-auto px-sp-md md:px-lg">
+              <div className="text-center md:text-left mb-12 md:mb-16">
+                <span className="text-primary font-label-md tracking-[0.2em] uppercase mb-3 block">Ý tưởng & Câu chuyện</span>
+                <h2 className="inspiration-text font-headline-lg text-3xl md:text-4xl text-on-surface font-medium">
+                  Cảm hứng thiết kế
+                </h2>
+                <div className="w-12 h-[2px] bg-primary mt-4 md:mx-0 mx-auto"></div>
               </div>
+
+              {descParagraphs.length >= 3 ? (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-stretch">
+                  {/* Cột trái: Trích dẫn nổi bật (Lấy đoạn cuối cùng của mô tả) */}
+                  <div className="lg:col-span-5 flex">
+                    <div className="inspiration-text w-full bg-surface border border-outline-variant/30 rounded-2xl p-8 md:p-10 shadow-[0_4px_20px_rgba(0,0,0,0.02)] flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:border-primary/20 group">
+                      <div className="absolute top-0 left-0 w-full h-[4px] bg-primary"></div>
+                      <span className="material-symbols-outlined text-primary/15 text-7xl absolute right-4 top-4 select-none pointer-events-none">
+                        format_quote
+                      </span>
+                      <div className="relative z-10 pt-4">
+                        <p className="font-headline-md text-xl md:text-2xl text-primary font-normal leading-relaxed italic mb-8">
+                          "{descParagraphs[descParagraphs.length - 1]}"
+                        </p>
+                      </div>
+                      <div className="border-t border-outline-variant/30 pt-6">
+                        <p className="text-label-sm font-label-sm uppercase tracking-wider text-on-surface-variant/80">
+                          Triết lý không gian
+                        </p>
+                        <p className="text-body-sm font-medium text-primary mt-1">
+                          {collection.name}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cột phải: Các đoạn mô tả chi tiết */}
+                  <div className="lg:col-span-7 flex flex-col justify-center">
+                    {/* Đoạn mở đầu lớn hơn */}
+                    <p className="inspiration-text font-body-lg text-lg md:text-xl text-on-surface/90 font-medium leading-relaxed mb-6">
+                      {descParagraphs[0]}
+                    </p>
+
+                    {/* Các đoạn tiếp theo dạng grid 2 cột trên desktop */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+                      {descParagraphs.slice(1, descParagraphs.length - 1).map((para, idx) => (
+                        <div key={idx} className="inspiration-text border-l-2 border-primary/20 pl-4 py-1">
+                          <p className="text-body-md text-on-surface-variant leading-relaxed">
+                            {para}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Layout thu gọn căn giữa sang trọng dành cho mô tả ngắn */
+                <div className="max-w-7xl mx-auto bg-surface border border-outline-variant/30 rounded-2xl p-8 md:p-12 shadow-[0_4px_20px_rgba(0,0,0,0.02)] relative overflow-hidden text-left">
+                  <span className="material-symbols-outlined text-primary/5 text-9xl absolute -left-6 -top-6 select-none font-light">
+                    format_quote
+                  </span>
+                  <div className="relative z-10 space-y-6">
+                    {descParagraphs.map((para, idx) => (
+                      <p
+                        key={idx}
+                        className={`inspiration-text text-on-surface-variant leading-relaxed ${idx === 0
+                          ? 'text-lg md:text-xl text-on-surface font-medium md:leading-loose'
+                          : 'text-base md:text-lg md:leading-loose'
+                          }`}
+                      >
+                        {para}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         )}
@@ -158,24 +228,24 @@ const CollectionPage: React.FC = () => {
                       to={`/product/${product.id}`}
                       className="product-card group block"
                     >
-                      <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-white mb-4">
+                      <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-white/30 backdrop-blur-md border border-white/20 mb-1">
                         <img
-                          className={`absolute inset-0 w-full h-full object-contain p-4 transition-opacity duration-500 ${product.hoverImage ? 'opacity-100 group-hover:opacity-0' : ''}`}
-                          src={product.image}
+                          className={`absolute inset-0 w-full h-full object-contain p-0 transition-opacity duration-500 mix-blend-multiply ${product.hoverImage ? 'opacity-100 group-hover:opacity-0' : ''}`}
+                          src={productCardImage(product.image)}
                           alt={product.name}
                           loading="lazy"
                         />
                         {product.hoverImage && (
                           <img
-                            className="absolute inset-0 w-full h-full object-contain p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                            src={product.hoverImage}
+                            className="absolute inset-0 w-full h-full object-contain p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 mix-blend-multiply"
+                            src={productCardImage(product.hoverImage)}
                             alt={`${product.name} alternate view`}
                             loading="lazy"
                           />
                         )}
-                        
+
                         {product.discount && (
-                          <div className="absolute top-4 left-4 px-2.5 py-1 text-[11px] font-bold bg-rose-600 text-white rounded shadow-sm z-10 uppercase tracking-wide">
+                          <div className="absolute top-10 left-1 bg-error text-on-error px-3 py-1 rounded-full font-label-sm text-label-sm font-bold shadow-sm z-10">
                             Giảm {product.discount.replace('-', '')}
                           </div>
                         )}
@@ -186,14 +256,14 @@ const CollectionPage: React.FC = () => {
                             e.preventDefault();
                           }}
                           aria-label={`Thêm ${product.name} vào yêu thích`}
-                          className="absolute top-4 right-4 w-11 h-11 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-primary opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                          className="absolute top-10 right-1 w-11 h-11 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-primary opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                         >
                           <span className="material-symbols-outlined" aria-hidden="true">favorite</span>
                         </button>
                       </div>
-                      
+
                       <div className="text-left">
-                        <h2 className="font-headline-md text-headline-md text-on-surface mb-1 line-clamp-1">{product.name}</h2>
+                        <h2 className="font-headline-md text-base md:text-lg font-bold text-on-surface mb-1 line-clamp-1 group-hover:text-primary transition-colors duration-300">{product.name}</h2>
                         <div className="flex items-baseline space-x-2">
                           <p className="font-label-md text-label-md text-primary font-semibold" style={{ fontVariantNumeric: 'tabular-nums' }}>
                             {product.price}
