@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '@/services/api';
+import ConfirmModal from '@/components/ConfirmModal';
 import { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, Pencil, X, Ticket, Loader2, Calendar, Tag, ShieldCheck, HelpCircle } from 'lucide-react';
@@ -30,6 +31,19 @@ const formatForInput = (dateStr: string) => {
 export default function VoucherListPage() {
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title?: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    type?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    message: '',
+    onConfirm: () => {},
+  });
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -69,10 +83,26 @@ export default function VoucherListPage() {
     const { name, value, type } = e.target;
     const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
 
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+    setForm((prev) => {
+      const newValue = type === 'checkbox' ? checked : value;
+      const updated = {
+        ...prev,
+        [name]: newValue,
+      };
+
+      // Tự động điều chỉnh khi thay đổi loại giảm giá để tránh hiển thị sai lệch
+      if (name === 'discount_type') {
+        if (value === 'percentage') {
+          if (Number(prev.discount_value) > 100) {
+            updated.discount_value = 10;
+          }
+        } else if (value === 'fixed_amount') {
+          updated.max_discount_amount = '';
+        }
+      }
+
+      return updated;
+    });
   };
 
   const openCreateModal = () => {
@@ -162,23 +192,32 @@ export default function VoucherListPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Bạn chắc chắn muốn xóa mã giảm giá này?')) return;
-    try {
-      await api.delete(`/vouchers/${id}`);
-      toast.success('Đã xóa mã giảm giá');
-      fetchVouchers();
-    } catch (err) {
-      const axiosError = err as AxiosError<{ message?: string }>;
-      const errMsg = axiosError.response?.data?.message || 'Xóa thất bại';
-      toast.error(errMsg);
-    }
+  const handleDelete = (id: number) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Xóa mã giảm giá',
+      message: 'Bạn có chắc chắn muốn xóa mã giảm giá này? Hành động này không thể hoàn tác.',
+      confirmText: 'Xóa mã',
+      type: 'danger',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        try {
+          await api.delete(`/vouchers/${id}`);
+          toast.success('Đã xóa mã giảm giá');
+          fetchVouchers();
+        } catch (err) {
+          const axiosError = err as AxiosError<{ message?: string }>;
+          const errMsg = axiosError.response?.data?.message || 'Xóa thất bại';
+          toast.error(errMsg);
+        }
+      }
+    });
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-none animate-spin" />
+        <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -189,7 +228,7 @@ export default function VoucherListPage() {
         <h1 className="text-2xl font-bold text-slate-800">Quản lý Mã giảm giá (Voucher)</h1>
         <button
           onClick={openCreateModal}
-          className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-none text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer"
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-none text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer"
         >
           <Plus size={18} />
           Thêm mã giảm giá
@@ -329,7 +368,9 @@ export default function VoucherListPage() {
 
                   <div className="flex gap-4">
                     <div className="w-1/2">
-                      <label className="block text-sm font-medium text-slate-600 mb-1.5">Giá trị giảm *</label>
+                      <label className="block text-sm font-medium text-slate-600 mb-1.5">
+                        {form.discount_type === 'percentage' ? 'Phần trăm giảm (%) *' : 'Giá trị giảm (₫) *'}
+                      </label>
                       <input
                         type="number"
                         name="discount_value"
@@ -337,8 +378,9 @@ export default function VoucherListPage() {
                         onChange={handleChange}
                         required
                         min="1"
+                        max={form.discount_type === 'percentage' ? 100 : undefined}
                         className="w-full px-4 py-2.5 rounded-none border border-slate-300 focus:border-slate-900 outline-none transition-all text-sm"
-                        placeholder="VD: 30000 hoặc 10"
+                        placeholder={form.discount_type === 'percentage' ? 'VD: 10, 20, 50' : 'VD: 30000, 50000'}
                       />
                     </div>
                     <div className="w-1/2">
@@ -443,7 +485,7 @@ export default function VoucherListPage() {
                         <div>
                           <div className="flex items-center gap-1.5 text-slate-900 font-bold tracking-wider text-xs">
                             <Tag size={12} />
-                            FURNISHOP VOUCHER
+                            VOUCHER
                           </div>
                           <h4 className="text-2xl font-extrabold text-slate-900 mt-2 tracking-wide font-mono">
                             {form.code.trim().toUpperCase() || 'CODE_PREVIEW'}
@@ -518,6 +560,16 @@ export default function VoucherListPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        type={confirmModal.type}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

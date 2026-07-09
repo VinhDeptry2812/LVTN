@@ -690,7 +690,7 @@ export default function ProductEditPage() {
         onDragStart={() => handleDragStart(idx)}
         onDragOver={handleDragOver}
         onDrop={() => handleDrop(idx)}
-        className={`group relative flex flex-col rounded-xl border bg-slate-50 overflow-hidden transition-all shadow-sm hover:shadow-md cursor-move ${
+        className={`group relative flex flex-col rounded-none border bg-slate-50 overflow-hidden transition-all shadow-sm hover:shadow-md cursor-move ${
           img.is_primary ? 'border-blue-500 ring-2 ring-blue-100 bg-blue-50/5' : 'border-slate-200 hover:border-slate-350'
         } ${draggedImageIndex === idx ? 'opacity-40' : ''}`}
       >
@@ -699,13 +699,13 @@ export default function ProductEditPage() {
           
           <div className="absolute top-1.5 left-1.5 flex flex-col gap-1 pointer-events-none z-10">
             {img.is_primary && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-600/90 backdrop-blur-sm text-white text-[8px] font-bold rounded shadow-sm">
+              <span className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-600/90 backdrop-blur-sm text-white text-[8px] font-bold rounded-none shadow-sm">
                 <Star size={8} className="fill-white" />
                 Ảnh chính
               </span>
             )}
             {img.is_hover && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/90 backdrop-blur-sm text-white text-[8px] font-bold rounded shadow-sm">
+              <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/90 backdrop-blur-sm text-white text-[8px] font-bold rounded-none shadow-sm">
                 <Eye size={8} className="fill-white" />
                 Hover
               </span>
@@ -716,7 +716,7 @@ export default function ProductEditPage() {
             <button
               type="button"
               onClick={() => setPrimaryImage(idx)}
-              className={`p-1.5 rounded-full transition-all duration-200 shadow-sm cursor-pointer border ${
+              className={`p-1.5 rounded-none transition-all duration-200 shadow-sm cursor-pointer border ${
                 img.is_primary 
                   ? 'bg-amber-500 text-white border-amber-400 hover:bg-amber-600' 
                   : 'bg-white/90 text-slate-700 border-slate-200 hover:bg-white hover:text-amber-500 hover:scale-110'
@@ -729,7 +729,7 @@ export default function ProductEditPage() {
             <button
               type="button"
               onClick={() => setHoverImage(idx)}
-              className={`p-1.5 rounded-full transition-all duration-200 shadow-sm cursor-pointer border ${
+              className={`p-1.5 rounded-none transition-all duration-200 shadow-sm cursor-pointer border ${
                 img.is_hover 
                   ? 'bg-blue-600 text-white border-blue-500 hover:bg-blue-700' 
                   : 'bg-white/90 text-slate-700 border-slate-200 hover:bg-white hover:text-blue-600 hover:scale-110'
@@ -742,7 +742,7 @@ export default function ProductEditPage() {
             <button
               type="button"
               onClick={() => removeImage(idx)}
-              className="p-1.5 bg-white/90 text-slate-700 border border-slate-200 hover:bg-red-50 hover:text-red-600 rounded-full transition-all duration-200 hover:scale-110 shadow-sm cursor-pointer"
+              className="p-1.5 bg-white/90 text-slate-700 border border-slate-200 hover:bg-red-50 hover:text-red-650 rounded-none transition-all duration-200 hover:scale-110 shadow-sm cursor-pointer"
               title="Xóa ảnh"
             >
               <Trash2 size={12} />
@@ -755,7 +755,7 @@ export default function ProductEditPage() {
           <select
             value={img.variant_index !== undefined ? img.variant_index : (img.variant_id ? variants.findIndex(v => v.id === img.variant_id) : '')}
             onChange={e => handleImageVariantSelect(idx, e.target.value)}
-            className="w-full text-[9px] py-0.5 px-1 rounded border border-slate-200 text-slate-600 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 cursor-pointer outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
+            className="w-full text-[9px] py-0.5 px-1 rounded-none border border-slate-200 text-slate-600 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 cursor-pointer outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
             title="Chọn biến thể cho ảnh này"
           >
             <option value="">-- Dùng chung --</option>
@@ -779,8 +779,8 @@ export default function ProductEditPage() {
     );
   }
 
-  const inputCls = 'w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm';
-  const smallInputCls = 'w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm';
+  const inputCls = 'w-full px-4 py-2.5 rounded-none border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm';
+  const smallInputCls = 'w-full px-3 py-2 rounded-none border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm';
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -796,7 +796,7 @@ export default function ProductEditPage() {
 
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* THÔNG TIN CƠ BẢN */}
-        <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <section className="bg-white rounded-none shadow-sm border border-slate-200 p-6">
           <h2 className="text-lg font-semibold text-slate-700 mb-5 pb-3 border-b border-slate-100">Thông tin cơ bản</h2>
           <div className="grid grid-cols-2 gap-5">
             <div>
@@ -845,10 +845,10 @@ export default function ProductEditPage() {
             <label className="block text-sm font-medium text-slate-600 mb-2">Bộ sưu tập</label>
             <div className="flex flex-wrap gap-3">
               {collections.map(col => (
-                <label key={col.id} className="flex items-center gap-2 cursor-pointer bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors">
+                <label key={col.id} className="flex items-center gap-2 cursor-pointer bg-slate-50 border border-slate-200 px-3 py-2 rounded-none hover:bg-slate-100 transition-colors">
                   <input
                     type="checkbox"
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className="rounded-none border-slate-300 text-blue-600 focus:ring-blue-500"
                     checked={selectedCollectionIds.includes(col.id)}
                     onChange={() => handleCollectionToggle(col.id)}
                   />
@@ -861,27 +861,27 @@ export default function ProductEditPage() {
         </section>
 
         {/* MÔ TẢ + AI */}
-        <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <section className="bg-white rounded-none shadow-sm border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
             <h2 className="text-lg font-semibold text-slate-700">Mô tả sản phẩm</h2>
             <div className="flex items-center gap-2">
               {/* Tab Toggle */}
-              <div className="flex items-center bg-slate-100 rounded-lg p-1 mr-2">
+              <div className="flex items-center bg-slate-100 rounded-none p-1 mr-2">
                 <button type="button" onClick={() => setDescTab('edit')}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-none transition-all ${
                     descTab === 'edit' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}>
                   ✏️ Soạn thảo
                 </button>
                 <button type="button" onClick={() => setDescTab('preview')}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-none transition-all ${
                     descTab === 'preview' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}>
                   👁️ Xem trước
                 </button>
               </div>
               <button type="button" onClick={handleAiGenerate} disabled={aiLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer">
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 text-white rounded-none text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer">
                 {aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
                 {aiLoading ? 'AI đang viết...' : '✨ Sinh mô tả bằng AI'}
               </button>
@@ -894,7 +894,7 @@ export default function ProductEditPage() {
               placeholder="Nhập mô tả sản phẩm (hỗ trợ chèn ảnh, in đậm, list...)"
             />
           ) : (
-            <div className="min-h-[300px] border border-slate-200 rounded-xl p-6 bg-slate-50">
+            <div className="min-h-[300px] border border-slate-200 rounded-none p-6 bg-slate-50">
               {form.description && form.description !== '<p><br></p>' ? (
                 <div className="tiptap">
                   <style>{`
@@ -906,16 +906,16 @@ export default function ProductEditPage() {
                     .tiptap ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.75rem; }
                     .tiptap ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.75rem; }
                     .tiptap blockquote { border-left: 4px solid #cbd5e1; padding-left: 1rem; font-style: italic; color: #475569; margin: 0.75rem 0; }
-                    .tiptap code { background-color: #f1f5f9; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.875em; }
-                    .tiptap img { max-width: 100%; height: auto; display: block; margin: 1.5rem auto; border-radius: 8px; }
+                    .tiptap code { background-color: #f1f5f9; padding: 2px 4px; border-radius: 0; font-family: monospace; font-size: 0.875em; }
+                    .tiptap img { max-width: 100%; height: auto; display: block; margin: 1.5rem auto; border-radius: 0; }
                     
                     /* Table styles */
                     .tiptap table { border-collapse: collapse; margin: 1.5rem 0; width: 100%; overflow: hidden; }
                     .tiptap th, .tiptap td { border: 1px solid #cbd5e1; padding: 0.5rem; text-align: left; }
                     .tiptap th { background-color: #f1f5f9; font-weight: 600; }
-                    .tiptap mark { background-color: #fef08a; padding: 0.1rem 0.25rem; border-radius: 4px; color: #1e293b; }
+                    .tiptap mark { background-color: #fef08a; padding: 0.1rem 0.25rem; border-radius: 0; color: #1e293b; }
                     .tiptap hr { border: none; border-top: 2px solid #e2e8f0; margin: 1.5rem 0; }
-                    .tiptap pre { background-color: #0f172a; color: #f8fafc; padding: 1rem; border-radius: 8px; font-family: monospace; overflow-x: auto; margin: 1rem 0; }
+                    .tiptap pre { background-color: #0f172a; color: #f8fafc; padding: 1rem; border-radius: 0; font-family: monospace; overflow-x: auto; margin: 1rem 0; }
                   `}</style>
                   <div dangerouslySetInnerHTML={{ __html: form.description }} />
                 </div>
@@ -931,11 +931,11 @@ export default function ProductEditPage() {
         </section>
 
         {/* CHI TIẾT KỸ THUẬT - ĐỘNG */}
-        <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <section className="bg-white rounded-none shadow-sm border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100">
             <h2 className="text-lg font-semibold text-slate-700">Thông số kỹ thuật</h2>
             <button type="button" onClick={addSpec}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer">
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-none text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer">
               <Plus size={16} /> Thêm thông số
             </button>
           </div>
@@ -968,7 +968,7 @@ export default function ProductEditPage() {
                     placeholder={"Giá trị (VD:\n- Dài 120cm\n- Rộng 80cm)"}
                   />
                   <button type="button" onClick={() => removeSpec(i)}
-                    className="flex-shrink-0 p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer mt-0.5">
+                    className="flex-shrink-0 p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-none transition-all cursor-pointer mt-0.5">
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -983,16 +983,16 @@ export default function ProductEditPage() {
         </section>
 
         {/* BIẾN THỂ - ĐỘNG */}
-        <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <section className="bg-white rounded-none shadow-sm border border-slate-200 p-6">
           <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100">
             <h2 className="text-lg font-semibold text-slate-700">Biến thể sản phẩm</h2>
             <div className="flex gap-2">
               <button type="button" onClick={addVariantAttrKey}
-                className="flex items-center gap-1 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-sm font-medium transition-all cursor-pointer border border-blue-200">
+                className="flex items-center gap-1 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-none text-sm font-medium transition-all cursor-pointer border border-blue-200">
                 <Plus size={14} /> Thêm thuộc tính
               </button>
               <button type="button" onClick={addVariant}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer">
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-none text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer">
                 <Plus size={16} /> Thêm biến thể
               </button>
             </div>
@@ -1001,7 +1001,7 @@ export default function ProductEditPage() {
           {variantAttrKeys.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-4">
               {variantAttrKeys.map(key => (
-                <span key={key} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium border border-blue-200">
+                <span key={key} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-none text-xs font-medium border border-blue-200">
                   {key}
                   <button type="button" onClick={() => removeVariantAttrKey(key)}
                     className="hover:text-red-600 transition-colors cursor-pointer">✕</button>
@@ -1011,26 +1011,26 @@ export default function ProductEditPage() {
           )}
 
           {variants.length === 0 ? (
-            <div className="text-center py-10 text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 p-6">
+            <div className="text-center py-10 text-slate-400 bg-slate-50/50 rounded-none border border-dashed border-slate-200 p-6">
               <p className="text-sm font-bold text-slate-600">Sản phẩm này hiện tại là sản phẩm đơn giản</p>
               <p className="text-xs text-slate-400 mt-1.5 max-w-md mx-auto leading-relaxed">Bạn có thể chỉnh sửa trực tiếp số lượng tồn kho của sản phẩm ở phần "Thông tin cơ bản" phía trên, hoặc bấm "Thêm biến thể" để nâng cấp thành sản phẩm có thuộc tính.</p>
             </div>
           ) : (
             <div className="space-y-4">
               {variants.map((v, idx) => (
-                <div key={idx} className="relative p-4 bg-slate-50 rounded-lg border border-slate-200 hover:border-blue-300 transition-colors">
+                <div key={idx} className="relative p-4 bg-slate-50 rounded-none border border-slate-200 hover:border-blue-300 transition-colors">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xs font-semibold text-slate-500">Biến thể #{idx + 1}</span>
                     <div className="flex items-center gap-1.5">
                       <button type="button" onClick={() => duplicateVariant(idx)}
                         title="Nhân bản biến thể"
-                        className="flex items-center gap-1 px-2 py-1 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer text-xs">
+                        className="flex items-center gap-1 px-2 py-1 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-none transition-all cursor-pointer text-xs">
                         <Copy size={13} />
                         <span className="text-[10px] font-semibold">Nhân bản</span>
                       </button>
                       <button type="button" onClick={() => removeVariant(idx)}
                         title="Xóa biến thể"
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer">
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-none transition-all cursor-pointer">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -1040,7 +1040,7 @@ export default function ProductEditPage() {
                     {/* Cột ảnh biến thể */}
                     <div className="flex-shrink-0">
                       <label className="block text-xs font-medium text-slate-500 mb-1">Ảnh</label>
-                      <div className="relative w-16 h-16 border border-slate-200 rounded-lg bg-white overflow-hidden flex items-center justify-center group/var-img shadow-sm">
+                      <div className="relative w-16 h-16 border border-slate-200 rounded-none bg-white overflow-hidden flex items-center justify-center group/var-img shadow-sm">
                         {v.preview_url || v.image_url ? (
                           <>
                             <img src={v.preview_url || v.image_url} alt="Variant" className="w-full h-full object-cover" />
@@ -1084,7 +1084,7 @@ export default function ProductEditPage() {
                                     value={colorVal} 
                                     list="preset-colors"
                                     onChange={e => handleVariantAttrChange(idx, attrKey, `${textVal}|${e.target.value}`)}
-                                    className="w-8 h-8 p-0 border border-slate-300 rounded-full cursor-pointer flex-shrink-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded-full overflow-hidden" 
+                                    className="w-8 h-8 p-0 border border-slate-300 rounded-none cursor-pointer flex-shrink-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded-none overflow-hidden" 
                                     title="Chọn mã màu"
                                   />
                                 </div>
@@ -1122,10 +1122,10 @@ export default function ProductEditPage() {
         </section>
 
         {/* HÌNH ẢNH */}
-        <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <section className="bg-white rounded-none shadow-sm border border-slate-200 p-6">
           <div className="flex justify-between items-center mb-5 pb-3 border-b border-slate-100">
             <h2 className="text-lg font-semibold text-slate-700">Hình ảnh sản phẩm</h2>
-            <label className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer text-sm font-medium">
+            <label className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-none hover:bg-blue-100 transition-colors cursor-pointer text-sm font-medium">
               <input type="file" accept="image/*" multiple onChange={handleImagesUpload} className="hidden" />
               {uploadingImage ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
               Tải thêm ảnh
@@ -1141,14 +1141,14 @@ export default function ProductEditPage() {
                   {groupedImages['common']?.map(({ img, originalIndex }) => renderImageCard(img, originalIndex))}
                   
                   {productImages.length === 0 && !uploadingImage && (
-                    <div className="col-span-full text-center py-8 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                    <div className="col-span-full text-center py-8 bg-slate-50 rounded-none border-2 border-dashed border-slate-200">
                       <Upload size={32} className="text-slate-300 mx-auto mb-2" />
                       <p className="text-slate-500 font-medium">Chưa có hình ảnh nào</p>
                       <p className="text-slate-400 text-xs mt-1">Nhấn "Tải thêm ảnh" ở góc trên</p>
                     </div>
                   )}
                   {uploadingImage && productImages.length === 0 && (
-                    <div className="col-span-full text-center py-8 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                    <div className="col-span-full text-center py-8 bg-slate-50 rounded-none border-2 border-dashed border-slate-200">
                       <Loader2 size={32} className="text-blue-500 animate-spin mx-auto mb-2" />
                       <p className="text-slate-500 font-medium">Đang tải ảnh lên...</p>
                     </div>
@@ -1182,11 +1182,11 @@ export default function ProductEditPage() {
         <div className="flex items-center justify-end gap-4 pt-4">
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" name="is_active" checked={form.is_active} onChange={handleChange}
-              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+              className="w-4 h-4 rounded-none border-slate-300 text-blue-600 focus:ring-blue-500" />
             <span className="text-sm text-slate-600">Hiển thị bán ngay</span>
           </label>
           <button type="submit" disabled={submitting}
-            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer">
+            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-none transition-all shadow-md hover:shadow-lg cursor-pointer">
             {submitting ? 'Đang lưu...' : 'Cập nhật sản phẩm'}
           </button>
         </div>

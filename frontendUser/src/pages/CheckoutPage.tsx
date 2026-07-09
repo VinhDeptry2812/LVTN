@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { createOrder } from '@/services/order.service';
 import toast from 'react-hot-toast';
 import api from '@/services/api';
+import { getAddresses, type AddressData } from '@/services/address.service';
 
 const formatAttributes = (attributes: Record<string, any> | undefined) => {
   if (!attributes || Object.keys(attributes).length === 0) return '';
@@ -45,12 +46,94 @@ export default function CheckoutPage() {
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedWard, setSelectedWard] = useState('');
 
+  // Saved Addresses State
+  const [savedAddresses, setSavedAddresses] = useState<AddressData[]>([]);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
+  const [hasAutoFilled, setHasAutoFilled] = useState(false);
+
   useEffect(() => {
     fetch('https://provinces.open-api.vn/api/?depth=3')
       .then(res => res.json())
       .then(data => setProvinces(data))
       .catch(err => console.error("Failed to fetch provinces", err));
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      setIsLoadingAddresses(true);
+      getAddresses()
+        .then((data) => {
+          setSavedAddresses(data);
+        })
+        .catch((err) => console.error('Failed to fetch addresses', err))
+        .finally(() => setIsLoadingAddresses(false));
+    }
+  }, [user]);
+
+  // Pre-fill basic info if fields are empty and user is logged in
+  useEffect(() => {
+    if (user) {
+      if (!fullName && user.name) setFullName(user.name);
+      if (!email && user.email) setEmail(user.email);
+      if (!phone && user.phone) setPhone(user.phone);
+    }
+  }, [user]);
+
+  const applySavedAddressToForm = (addr: AddressData) => {
+    setFullName(addr.name);
+    setPhone(addr.phone);
+    setAddress(addr.detail || '');
+
+    const pCode = addr.province_code || '';
+    const dCode = addr.district_code || '';
+    const wCode = addr.ward_code || '';
+
+    setSelectedProvince(pCode);
+    setCity(addr.province_name || '');
+
+    const province = provinces.find(p => p.code.toString() === pCode.toString());
+    if (province) {
+      const pDistricts = province.districts || [];
+      setDistricts(pDistricts);
+      setSelectedDistrict(dCode);
+      setDistrict(addr.district_name || '');
+
+      const districtObj = pDistricts.find((d: any) => d.code.toString() === dCode.toString());
+      if (districtObj) {
+        setWards(districtObj.wards || []);
+        setSelectedWard(wCode);
+        setWard(addr.ward_name || '');
+      } else {
+        setWards([]);
+        setSelectedWard('');
+        setWard('');
+      }
+    } else {
+      setDistricts([]);
+      setWards([]);
+      setSelectedDistrict('');
+      setDistrict('');
+      setSelectedWard('');
+      setWard('');
+    }
+  };
+
+  useEffect(() => {
+    if (user && provinces.length > 0 && savedAddresses.length > 0 && !hasAutoFilled) {
+      const defaultAddr = savedAddresses.find(addr => addr.is_default);
+      if (defaultAddr) {
+        applySavedAddressToForm(defaultAddr);
+        setHasAutoFilled(true);
+      }
+    }
+  }, [user, provinces, savedAddresses, hasAutoFilled]);
+
+  const handleSelectSavedAddress = (addr: AddressData) => {
+    applySavedAddressToForm(addr);
+    setShowAddressModal(false);
+    toast.success('Đã áp dụng địa chỉ giao hàng.');
+  };
 
   const handleProvinceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const provinceCode = e.target.value;
@@ -397,7 +480,7 @@ export default function CheckoutPage() {
                 type="button"
                 onClick={handleApplyVoucher}
                 disabled={isValidatingVoucher}
-                className="bg-primary hover:brightness-110 text-white px-6 py-3 rounded-md font-medium text-sm transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center min-w-[100px]"
+                className="bg-primary hover:brightness-110 text-white px-6 py-3 border border-primary rounded-md font-medium text-sm transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center min-w-[100px]"
               >
                 {isValidatingVoucher ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -458,9 +541,22 @@ export default function CheckoutPage() {
             <div className="mb-8">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-medium">Thông tin giao hàng</h2>
-                <span className="text-sm text-[#737373]">
-                  Bạn đã có tài khoản? <Link to="/login" className="text-primary hover:underline">Đăng nhập</Link>
-                </span>
+                {user ? (
+                  savedAddresses.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAddressModal(true)}
+                      className="text-sm text-primary hover:underline font-medium flex items-center gap-1 cursor-pointer bg-transparent border-none"
+                    >
+                      <span className="material-symbols-outlined text-base">local_shipping</span>
+                      Chọn địa chỉ đã lưu
+                    </button>
+                  )
+                ) : (
+                  <span className="text-sm text-[#737373]">
+                    Bạn đã có tài khoản? <Link to="/login" className="text-primary hover:underline">Đăng nhập</Link>
+                  </span>
+                )}
               </div>
               <input
                 type="email"
@@ -624,13 +720,14 @@ export default function CheckoutPage() {
 
             {/* Actions */}
             <div className="flex flex-col-reverse sm:flex-row items-center justify-between pt-4 gap-4 sm:gap-0">
-              <Link to="/cart" className="text-primary text-sm hover:underline flex items-center gap-1 transition-colors">
-                <span className="material-symbols-outlined text-sm">chevron_left</span> Giỏ hàng
+              <Link to="/cart" className="group text-primary text-sm flex items-center gap-1 transition-colors">
+                <span className="material-symbols-outlined text-sm transition-transform duration-300 group-hover:-translate-x-1">chevron_left</span>
+                <span className="group-hover:underline">Giỏ hàng</span>
               </Link>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full sm:w-auto bg-primary text-white px-8 py-4 rounded-md font-medium hover:bg-primary-container hover:text-on-primary-container transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-md"
+                className="w-full sm:w-auto bg-primary text-white px-8 py-4 border border-primary rounded-md font-medium hover:bg-primary-container hover:text-on-primary-container transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-md"
               >
                 {isSubmitting ? 'Đang xử lý...' : 'Đặt hàng'}
               </button>
@@ -662,7 +759,7 @@ export default function CheckoutPage() {
                   setShowSuccessModal(false);
                   navigate('/shop');
                 }}
-                className="w-full bg-primary text-on-primary py-3 rounded-md hover:brightness-110 active:scale-95 transition-all cursor-pointer font-medium shadow-md"
+                className="w-full bg-primary text-on-primary py-3 border border-primary rounded-md hover:brightness-110 active:scale-95 transition-all cursor-pointer font-medium shadow-md"
               >
                 QUAY LẠI CỬA HÀNG
               </button>
@@ -747,7 +844,7 @@ export default function CheckoutPage() {
                     setSelectedItemForVariant(null);
                     toast.success('Đã cập nhật phân loại sản phẩm.');
                   }}
-                  className="w-full bg-primary text-white py-4 rounded-lg font-bold hover:brightness-110 active:scale-[0.98] transition-all shadow-md cursor-pointer uppercase tracking-wider text-sm"
+                  className="w-full bg-primary text-white py-4 border border-primary rounded-lg font-bold hover:brightness-110 active:scale-[0.98] transition-all shadow-md cursor-pointer uppercase tracking-wider text-sm"
                 >
                   Xác nhận
                 </button>
@@ -756,6 +853,88 @@ export default function CheckoutPage() {
           </div>
         );
       })()}
+
+      {/* Saved Address Selection Modal */}
+      {showAddressModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-outline-variant/30 flex flex-col max-h-[80vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#e1e1e1]">
+              <h3 className="font-bold text-lg text-[#333333]">Địa chỉ đã lưu</h3>
+              <button 
+                type="button" 
+                onClick={() => setShowAddressModal(false)} 
+                className="w-8 h-8 rounded-full bg-[#f5f5f5] hover:bg-[#eaeaea] flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 overflow-y-auto space-y-4 flex-grow">
+              {isLoadingAddresses ? (
+                <div className="flex flex-col items-center justify-center py-10 space-y-2">
+                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                  <p className="text-sm text-[#737373]">Đang tải địa chỉ...</p>
+                </div>
+              ) : savedAddresses.length === 0 ? (
+                <div className="text-center py-10 text-[#737373]">
+                  <span className="material-symbols-outlined text-4xl mb-2 block text-[#d9d9d9]">local_shipping</span>
+                  <p className="text-sm">Bạn chưa lưu địa chỉ nào.</p>
+                </div>
+              ) : (
+                savedAddresses.map((addr) => (
+                  <div 
+                    key={addr.id}
+                    className="border border-[#e1e1e1] hover:border-primary/50 rounded-xl p-4 transition-all duration-200 text-left relative cursor-pointer group bg-[#fafafa] hover:bg-primary/[0.01]"
+                    onClick={() => handleSelectSavedAddress(addr)}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm text-[#333333]">{addr.name}</span>
+                        {addr.is_default && (
+                          <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                            Mặc định
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="text-xs text-primary font-medium hover:underline opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        Chọn địa chỉ
+                      </button>
+                    </div>
+                    
+                    <p className="text-xs text-[#737373] mb-1 flex items-center gap-1.5 font-sans">
+                      <span className="material-symbols-outlined text-sm">phone</span>
+                      {addr.phone}
+                    </p>
+                    <p className="text-xs text-[#555555] flex items-start gap-1.5 leading-relaxed mt-1 font-sans">
+                      <span className="material-symbols-outlined text-sm mt-0.5">location_on</span>
+                      <span>
+                        {addr.detail ? `${addr.detail}, ` : ''}
+                        {addr.ward_name}, {addr.district_name}, {addr.province_name}
+                      </span>
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-[#e1e1e1] bg-[#fafafa] flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowAddressModal(false)}
+                className="px-6 py-2.5 border border-[#d9d9d9] hover:bg-[#eaeaea] text-[#555555] rounded-lg font-semibold text-sm transition-all cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

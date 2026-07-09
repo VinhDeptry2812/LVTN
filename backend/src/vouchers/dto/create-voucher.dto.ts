@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsBoolean,
   IsDateString,
+  Min,
 } from 'class-validator';
 import { DiscountType } from '../voucher.entity';
 
@@ -20,14 +21,17 @@ export class CreateVoucherDto {
 
   @IsNotEmpty()
   @IsNumber()
+  @Min(0)
   discount_value: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   max_discount_amount?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   min_order_value?: number;
 
   @IsNotEmpty()
@@ -40,6 +44,7 @@ export class CreateVoucherDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(1)
   usage_limit?: number;
 
   @IsOptional()

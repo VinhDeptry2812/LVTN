@@ -90,17 +90,17 @@ export default function DashboardPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />Chờ xử lý</span>;
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-none text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"><span className="w-1.5 h-1.5 rounded-none bg-amber-500" />Chờ xử lý</span>;
       case 'confirmed':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200"><span className="w-1.5 h-1.5 rounded-full bg-blue-500" />Xác nhận</span>;
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-none text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200"><span className="w-1.5 h-1.5 rounded-none bg-blue-500" />Xác nhận</span>;
       case 'shipping':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200"><span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />Đang giao</span>;
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-none text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200"><span className="w-1.5 h-1.5 rounded-none bg-indigo-500" />Đang giao</span>;
       case 'delivered':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />Đã giao</span>;
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-none text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"><span className="w-1.5 h-1.5 rounded-none bg-emerald-500 animate-pulse" />Đã giao</span>;
       case 'cancelled':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200"><span className="w-1.5 h-1.5 rounded-full bg-rose-500" />Đã hủy</span>;
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-none text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200"><span className="w-1.5 h-1.5 rounded-none bg-rose-500" />Đã hủy</span>;
       default:
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-50 text-slate-700 border border-slate-200">{status}</span>;
+        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-none text-xs font-semibold bg-slate-50 text-slate-700 border border-slate-200">{status}</span>;
     }
   };
 
@@ -175,7 +175,7 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-none animate-spin" />
           <p className="text-xs font-semibold text-slate-500">Đang tải dữ liệu tổng quan...</p>
         </div>
       </div>
@@ -186,12 +186,12 @@ export default function DashboardPage() {
     <div className="space-y-8 animate-fadeIn">
       
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 md:p-8 text-white relative overflow-hidden shadow-xl shadow-slate-900/10">
-        <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-96 h-96 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute left-1/3 bottom-0 w-64 h-64 rounded-full bg-emerald-500/5 blur-3xl pointer-events-none" />
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-none p-6 md:p-8 text-white relative overflow-hidden shadow-xl shadow-slate-900/10">
+        <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-96 h-96 rounded-none bg-indigo-500/10 blur-3xl pointer-events-none" />
+        <div className="absolute left-1/3 bottom-0 w-64 h-64 rounded-none bg-emerald-500/5 blur-3xl pointer-events-none" />
         
         <div className="relative z-10 max-w-xl space-y-2">
-          <div className="inline-flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/50 rounded-full px-3 py-1 text-xs text-indigo-300 font-semibold shadow-inner">
+          <div className="inline-flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/50 rounded-none px-3 py-1 text-xs text-indigo-300 font-semibold shadow-inner">
             <Sparkles size={12} className="text-amber-400" />
             Nội thất Moho Admin Portal v2.0
           </div>
@@ -207,7 +207,7 @@ export default function DashboardPage() {
         {statCards.map((stat) => (
           <div
             key={stat.label}
-            className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden"
+            className="bg-white rounded-none border border-slate-200/60 shadow-sm p-6 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 relative overflow-hidden"
           >
             <div className="flex items-start justify-between">
               <div className="space-y-3">
@@ -216,7 +216,7 @@ export default function DashboardPage() {
                 
                 {/* Trend indicator */}
                 <div className="flex items-center gap-1.5">
-                  <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-none text-[10px] font-bold ${
                     stat.trendUp ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
                   }`}>
                     {stat.trendUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
@@ -226,7 +226,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${stat.color} flex items-center justify-center text-white shadow-lg ${stat.shadowColor}`}>
+              <div className={`w-12 h-12 rounded-none bg-gradient-to-br ${stat.color} flex items-center justify-center text-white shadow-lg ${stat.shadowColor}`}>
                 <stat.icon size={20} />
               </div>
             </div>
@@ -238,13 +238,13 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* SVG Sales Trend Chart */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/60 p-6 shadow-sm flex flex-col space-y-4">
+        <div className="lg:col-span-2 bg-white rounded-none border border-slate-200/60 p-6 shadow-sm flex flex-col space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div>
               <h2 className="text-base font-extrabold text-slate-800">Biểu đồ doanh thu</h2>
               <p className="text-xs text-slate-400 font-medium">Xu hướng doanh thu các tháng gần đây</p>
             </div>
-            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full flex items-center gap-1">
+            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-none flex items-center gap-1">
               Năm 2026 <ArrowUpRight size={12} />
             </span>
           </div>
@@ -305,7 +305,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Quick actions panel */}
-        <div className="bg-white rounded-2xl border border-slate-200/60 p-6 shadow-sm flex flex-col space-y-4">
+        <div className="bg-white rounded-none border border-slate-200/60 p-6 shadow-sm flex flex-col space-y-4">
           <div className="border-b border-slate-100 pb-3">
             <h2 className="text-base font-extrabold text-slate-800">Thao tác nhanh</h2>
             <p className="text-xs text-slate-400 font-medium">Lối tắt tác vụ hành chính nhanh chóng</p>
@@ -315,12 +315,12 @@ export default function DashboardPage() {
               <Link
                 key={action.label}
                 to={action.to}
-                className={`bg-gradient-to-r ${action.color} text-white rounded-2xl p-4.5 shadow-md hover:shadow-lg transition-all duration-300 group flex items-start gap-4 relative overflow-hidden`}
+                className={`bg-gradient-to-r ${action.color} text-white rounded-none p-4.5 shadow-md hover:shadow-lg transition-all duration-300 group flex items-start gap-4 relative overflow-hidden`}
               >
                 <div className="absolute right-0 top-0 translate-x-2 -translate-y-2 opacity-10 group-hover:scale-110 transition-transform">
                   <action.icon size={96} />
                 </div>
-                <div className="p-2 rounded-xl bg-white/10 shrink-0">
+                <div className="p-2 rounded-none bg-white/10 shrink-0">
                   <action.icon size={20} className="text-white" />
                 </div>
                 <div className="flex-1 space-y-0.5">
@@ -349,13 +349,13 @@ export default function DashboardPage() {
             </div>
             <Link
               to="/admin/products"
-              className="text-xs text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-xl transition-all"
+              className="text-xs text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-none transition-all"
             >
               Tất cả <ArrowRight size={13} />
             </Link>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-none border border-slate-200/60 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -404,13 +404,13 @@ export default function DashboardPage() {
             </div>
             <Link
               to="/admin/orders"
-              className="text-xs text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-xl transition-all"
+              className="text-xs text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-none transition-all"
             >
               Tất cả <ArrowRight size={13} />
             </Link>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-none border border-slate-200/60 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

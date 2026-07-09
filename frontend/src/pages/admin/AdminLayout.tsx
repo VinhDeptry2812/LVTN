@@ -36,6 +36,7 @@ const navigationGroups: NavGroup[] = [
     title: 'HỆ THỐNG',
     links: [
       { to: '/admin', icon: LayoutDashboard, label: 'Bảng tổng quan', end: true },
+      { to: '/admin/users', icon: User, label: 'Tài khoản' },
     ]
   },
   {
@@ -106,6 +107,7 @@ export default function AdminLayout() {
             collections: 'Bộ sưu tập',
             orders: 'Đơn hàng',
             vouchers: 'Mã giảm giá',
+            users: 'Tài khoản',
             create: 'Thêm mới',
             edit: 'Chỉnh sửa'
           };
@@ -149,7 +151,7 @@ export default function AdminLayout() {
           {!isCollapsed && (
             <button
               onClick={() => setIsCollapsed(true)}
-              className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+              className="p-1.5 rounded-none text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
             >
               <ChevronLeft size={16} />
             </button>
@@ -158,8 +160,8 @@ export default function AdminLayout() {
 
         {/* Sidebar Profile Card */}
         {!isCollapsed && (
-          <div className="p-4 mx-3 my-4 bg-slate-800/50 rounded-xl border border-slate-800/80 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white shadow-inner">
+          <div className="p-4 mx-3 my-4 bg-slate-800/50 rounded-none border border-slate-800/80 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-none bg-indigo-600 flex items-center justify-center font-bold text-white shadow-inner">
               AD
             </div>
             <div className="flex-1 min-w-0">
@@ -188,8 +190,8 @@ export default function AdminLayout() {
                     to={link.to}
                     end={link.end}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 group ${isActive
-                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                      `flex items-center gap-3 px-4 py-3 rounded-none text-sm font-medium transition-all duration-200 group ${isActive
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                         : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
                       }`
                     }
@@ -208,7 +210,7 @@ export default function AdminLayout() {
           {isCollapsed ? (
             <button
               onClick={() => setIsCollapsed(false)}
-              className="flex items-center justify-center p-3 w-full rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all"
+              className="flex items-center justify-center p-3 w-full rounded-none text-slate-400 hover:bg-slate-800 hover:text-white transition-all"
               title="Mở rộng menu"
             >
               <Menu size={18} />
@@ -216,7 +218,7 @@ export default function AdminLayout() {
           ) : (
             <button
               onClick={handleLogout}
-              className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-slate-400 hover:bg-rose-950/40 hover:text-rose-400 transition-all duration-200 cursor-pointer"
+              className="flex items-center gap-3 w-full px-4 py-3 rounded-none text-sm font-medium text-slate-400 hover:bg-rose-950/40 hover:text-rose-400 transition-all duration-200 cursor-pointer"
             >
               <LogOut size={18} />
               <span>Đăng xuất</span>
@@ -236,7 +238,7 @@ export default function AdminLayout() {
             {isCollapsed && (
               <button
                 onClick={() => setIsCollapsed(false)}
-                className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+                className="p-1.5 rounded-none text-slate-500 hover:bg-slate-100 transition-colors"
               >
                 <Menu size={20} />
               </button>
@@ -255,7 +257,7 @@ export default function AdminLayout() {
               href="http://localhost:5173" // Default client URL
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-600 font-semibold px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-600 font-semibold px-3 py-1.5 rounded-none hover:bg-slate-50 transition-colors"
             >
               <Globe size={14} />
               <span className="hidden sm:inline">Xem Cửa Hàng</span>
@@ -268,18 +270,18 @@ export default function AdminLayout() {
             <div className="relative" ref={notiRef}>
               <button
                 onClick={() => setIsNotiOpen(!isNotiOpen)}
-                className={`p-2 rounded-full transition-all relative ${isNotiOpen ? 'bg-slate-100 text-slate-800' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+                className={`p-2 rounded-none transition-all relative ${isNotiOpen ? 'bg-slate-100 text-slate-800' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
                   }`}
               >
                 <Bell size={18} />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white animate-pulse" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-none bg-rose-500 ring-2 ring-white animate-pulse" />
               </button>
 
               {isNotiOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200/80 py-2 z-50 animate-slideUp">
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-none shadow-xl border border-slate-200/80 py-2 z-50 animate-slideUp">
                   <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
                     <span className="font-bold text-sm text-slate-800">Thông báo mới</span>
-                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">3 tin mới</span>
+                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-none">3 tin mới</span>
                   </div>
                   <div className="divide-y divide-slate-50 max-h-64 overflow-y-auto">
                     {mockNotifications.map((noti) => (
@@ -306,9 +308,9 @@ export default function AdminLayout() {
             <div className="relative" ref={profileRef}>
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className="flex items-center gap-2.5 p-1 rounded-full hover:bg-slate-100 transition-colors"
+                className="flex items-center gap-2.5 p-1 rounded-none hover:bg-slate-100 transition-colors"
               >
-                <div className="w-8 h-8 rounded-full bg-indigo-600 font-bold text-white flex items-center justify-center text-xs shadow">
+                <div className="w-8 h-8 rounded-none bg-indigo-600 font-bold text-white flex items-center justify-center text-xs shadow">
                   AD
                 </div>
                 <div className="hidden lg:block text-left pr-2">
@@ -318,7 +320,7 @@ export default function AdminLayout() {
               </button>
 
               {isProfileOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200/80 py-1.5 z-50 animate-slideUp">
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-none shadow-xl border border-slate-200/80 py-1.5 z-50 animate-slideUp">
                   <div className="px-4 py-2.5 border-b border-slate-100">
                     <p className="text-xs font-bold text-slate-800">Admin Moho</p>
                     <p className="text-[10px] font-medium text-slate-400 mt-0.5">admin@moho.vn</p>
@@ -359,7 +361,7 @@ export default function AdminLayout() {
 
         {/* Content Outlet */}
         <main className="flex-1 overflow-y-auto bg-slate-50/70 p-6 md:p-8">
-          <div className="max-w-7xl mx-auto animate-fadeIn">
+          <div className="max-w-full mx-auto animate-fadeIn">
             <Outlet />
           </div>
         </main>

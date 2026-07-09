@@ -33,6 +33,12 @@ export class User {
   @Column({ nullable: true })
   phone: string;
 
+  @Column({ nullable: true })
+  gender: string;
+
+  @Column({ type: 'date', nullable: true })
+  birthday: string;
+
   @Column({
     type: 'enum',
     enum: UserRole,

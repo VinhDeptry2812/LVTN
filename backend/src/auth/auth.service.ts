@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { RegisterDto, LoginDto } from './dto/auth.dto';
+import { UserStatus } from '../users/user.entity';
 
 @Injectable()
 export class AuthService {
@@ -50,7 +51,10 @@ export class AuthService {
         id: newUser.id,
         email: newUser.email,
         name: newUser.name,
+        phone: newUser.phone,
         role: newUser.role,
+        gender: newUser.gender,
+        birthday: newUser.birthday,
       },
     };
   }
@@ -62,6 +66,12 @@ export class AuthService {
     const user = await this.usersService.findByEmail(normalizedEmail);
     if (!user) {
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+    }
+
+    if (user.status === UserStatus.INACTIVE) {
+      throw new UnauthorizedException(
+        'Tài khoản của bạn đã bị khóa hoặc tạm ngưng hoạt động',
+      );
     }
 
     const isMatch = await bcrypt.compare(password, user.password_hash);
@@ -82,7 +92,10 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
+        phone: user.phone,
         role: user.role,
+        gender: user.gender,
+        birthday: user.birthday,
       },
     };
   }
@@ -111,6 +124,12 @@ export class AuthService {
       });
     }
 
+    if (user.status === UserStatus.INACTIVE) {
+      throw new UnauthorizedException(
+        'Tài khoản của bạn đã bị khóa hoặc tạm ngưng hoạt động',
+      );
+    }
+
     const payload = {
       sub: user.id,
       email: user.email,
@@ -124,7 +143,10 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
+        phone: user.phone,
         role: user.role,
+        gender: user.gender,
+        birthday: user.birthday,
       },
     };
   }

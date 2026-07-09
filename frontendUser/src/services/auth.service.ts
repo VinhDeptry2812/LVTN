@@ -25,6 +25,8 @@ export interface AuthResponse {
 export interface UpdateProfileData {
   name?: string;
   phone?: string;
+  gender?: string;
+  birthday?: string;
 }
 
 export interface ChangePasswordData {

@@ -37,17 +37,24 @@ export class MomoController {
     const orderId = parseInt(ipnData.orderId, 10);
     const resultCode = parseInt(ipnData.resultCode, 10);
     const transId = ipnData.transId;
+    const paidAmount = Number(ipnData.amount);
 
     // 2. Cập nhật trạng thái thanh toán đơn hàng
     // resultCode = 0 là thanh toán thành công
     const isSuccess = resultCode === 0;
 
-    await this.ordersService.updatePaymentStatus(
-      orderId,
-      isSuccess,
-      transId || 'MOMO_PAYMENT',
-      'momo',
-    );
+    try {
+      await this.ordersService.updatePaymentStatus(
+        orderId,
+        isSuccess,
+        transId || 'MOMO_PAYMENT',
+        'momo',
+        paidAmount,
+      );
+    } catch (error) {
+      console.error('Lỗi khi cập nhật trạng thái đơn hàng từ MoMo IPN:', error);
+      return { status: 'error', message: error.message || 'Payment update failed' };
+    }
 
     // 3. Trả về đúng định dạng MoMo yêu cầu để xác nhận đã nhận IPN thành công
     // Nếu không trả về, MoMo sẽ gọi lại nhiều lần gây trùng lặp
@@ -74,22 +81,31 @@ export class MomoController {
     const orderId = parseInt(query.orderId, 10);
     const resultCode = parseInt(query.resultCode, 10);
     const isSuccess = resultCode === 0;
+    const paidAmount = Number(query.amount);
 
     // Cập nhật trạng thái trong database
-    const order = await this.ordersService.updatePaymentStatus(
-      orderId,
-      isSuccess,
-      query.transId || 'MOMO_PAYMENT',
-      'momo',
-    );
+    try {
+      const order = await this.ordersService.updatePaymentStatus(
+        orderId,
+        isSuccess,
+        query.transId || 'MOMO_PAYMENT',
+        'momo',
+        paidAmount,
+      );
 
-    return {
-      success: isSuccess,
-      orderId,
-      transId: query.transId,
-      transactionNo: query.transId,
-      message: query.message,
-      order,
-    };
+      return {
+        success: isSuccess,
+        orderId,
+        transId: query.transId,
+        transactionNo: query.transId,
+        message: query.message,
+        order,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Xác thực thanh toán thất bại.',
+      };
+    }
   }
 }

@@ -27,6 +27,10 @@ export default function ShopPage() {
   const [priceRange, setPriceRange] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('default');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null); // 'price' | 'sort' | null
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 12;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const priceDropdownRef = useRef<HTMLDivElement>(null);
@@ -80,6 +84,9 @@ export default function ShopPage() {
     } else {
       setSearchQuery('');
     }
+    
+    // Reset page when URL query changes
+    setCurrentPage(1);
   }, [searchParams]);
 
   // Filter & Sort Logic
@@ -138,16 +145,63 @@ export default function ShopPage() {
       });
     } else if (sortBy === 'popular') {
       result.sort((a, b) => b.rating - a.rating);
-    } else if (sortBy === 'featured') {
-      result = result.filter((p) => p.isFeatured || p.discount);
-    } else if (sortBy === 'best-seller') {
-      result = result.filter((p) => (p.soldCount || 0) > 0 || p.rating >= 4.5);
-    } else if (sortBy === 'only-new') {
-      result = result.filter((p) => p.isNew);
     }
 
     return result;
   }, [products, searchQuery, selectedCategories, maxPrice, priceRange, sortBy, categories]);
+
+  // Paginated Products
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredProducts, currentPage]);
+
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({
+      top: 250,
+      behavior: 'smooth'
+    });
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+
+      let start = Math.max(2, currentPage - 1);
+      let end = Math.min(totalPages - 1, currentPage + 1);
+
+      if (currentPage <= 2) {
+        end = 4;
+      } else if (currentPage >= totalPages - 1) {
+        start = totalPages - 3;
+      }
+
+      if (start > 2) {
+        pages.push('...');
+      }
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      if (end < totalPages - 1) {
+        pages.push('...');
+      }
+
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   // GSAP animation for product grid entries
   useGSAP(() => {
@@ -162,9 +216,10 @@ export default function ShopPage() {
         overwrite: 'auto'
       }
     );
-  }, { dependencies: [filteredProducts], scope: containerRef });
+  }, { dependencies: [paginatedProducts], scope: containerRef });
 
   const toggleCategory = (category: string) => {
+    setCurrentPage(1);
     setSelectedCategories((prev) => {
       const isSelected = prev.includes(category);
       let updated;
@@ -280,7 +335,7 @@ export default function ShopPage() {
                     ].map((option) => (
                       <button
                         key={option.value}
-                        onClick={() => { setPriceRange(option.value); setOpenDropdown(null); }}
+                        onClick={() => { setPriceRange(option.value); setOpenDropdown(null); setCurrentPage(1); }}
                         className={`w-full flex items-center justify-between px-4 py-2.5 text-left font-body-sm text-[13px] transition-colors duration-150 cursor-pointer ${
                           priceRange === option.value
                             ? 'bg-primary-fixed/20 text-primary font-semibold'
@@ -308,15 +363,11 @@ export default function ShopPage() {
                       : 'bg-surface border-outline-variant/40 text-on-surface hover:border-primary/30 hover:bg-surface-container'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-[16px] text-primary/70"></span>
                   <span>{sortBy === 'default' ? 'Sắp xếp theo' : [
                     { value: 'price-low', label: 'Giá: Thấp → Cao' },
                     { value: 'price-high', label: 'Giá: Cao → Thấp' },
                     { value: 'newest', label: 'Mới nhất' },
                     { value: 'popular', label: 'Phổ biến nhất' },
-                    { value: 'featured', label: 'Nổi bật' },
-                    { value: 'best-seller', label: 'Bán chạy' },
-                    { value: 'only-new', label: 'Hàng mới về' },
                   ].find(o => o.value === sortBy)?.label}</span>
                   <span className={`material-symbols-outlined text-[16px] text-on-surface-variant/50 transition-transform duration-200 ${openDropdown === 'sort' ? 'rotate-180' : ''}`}>expand_more</span>
                 </button>
@@ -333,7 +384,7 @@ export default function ShopPage() {
                     ].map((option) => (
                       <button
                         key={option.value}
-                        onClick={() => { setSortBy(option.value); setOpenDropdown(null); }}
+                        onClick={() => { setSortBy(option.value); setOpenDropdown(null); setCurrentPage(1); }}
                         className={`w-full flex items-center justify-between px-4 py-2.5 text-left font-body-sm text-[13px] transition-colors duration-150 cursor-pointer ${
                           sortBy === option.value
                             ? 'bg-primary-fixed/20 text-primary font-semibold'
@@ -341,32 +392,6 @@ export default function ShopPage() {
                         }`}
                       >
                         {option.label}
-                        {sortBy === option.value && (
-                          <span className="material-symbols-outlined text-[16px] text-primary">check</span>
-                        )}
-                      </button>
-                    ))}
-                    {/* Separator */}
-                    <div className="border-t border-outline-variant/20 my-1.5 mx-3"></div>
-                    {/* Filter options */}
-                    {[
-                      { value: 'featured', label: 'Nổi bật', icon: 'auto_awesome' },
-                      { value: 'best-seller', label: 'Bán chạy', icon: 'local_fire_department' },
-                      { value: 'only-new', label: 'Hàng mới về', icon: 'schedule' },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => { setSortBy(option.value); setOpenDropdown(null); }}
-                        className={`w-full flex items-center justify-between px-4 py-2.5 text-left font-body-sm text-[13px] transition-colors duration-150 cursor-pointer ${
-                          sortBy === option.value
-                            ? 'bg-primary-fixed/20 text-primary font-semibold'
-                            : 'text-on-surface hover:bg-surface-container-high/50'
-                        }`}
-                      >
-                        <span className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-[15px]">{option.icon}</span>
-                          {option.label}
-                        </span>
                         {sortBy === option.value && (
                           <span className="material-symbols-outlined text-[16px] text-primary">check</span>
                         )}
@@ -409,68 +434,118 @@ export default function ShopPage() {
                 <p className="font-body-lg">Không tìm thấy sản phẩm phù hợp với bộ lọc.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-gutter">
-                {filteredProducts.map((prod) => {
-                  const hoverImg = prod.hoverImage || prod.gallery?.find(img => img.url !== prod.image)?.url;
-                  return (
-                    <Link
-                      key={prod.id}
-                      to={`/product/${prod.id}`}
-                      className="shop-product-item group block"
-                    >
-                      <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-white/30 backdrop-blur-md border border-white/20 mb-1">
-                        <img
-                          className={`absolute inset-0 w-full h-full object-contain p-0 transition-opacity duration-500 mix-blend-multiply ${hoverImg ? 'opacity-100 group-hover:opacity-0' : ''}`}
-                          src={productCardImage(prod.image)}
-                          alt={prod.name}
-                          loading="lazy"
-                        />
-                        {hoverImg && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-gutter">
+                  {paginatedProducts.map((prod) => {
+                    const hoverImg = prod.hoverImage || prod.gallery?.find(img => img.url !== prod.image)?.url;
+                    return (
+                      <Link
+                        key={prod.id}
+                        to={`/product/${prod.id}`}
+                        className="shop-product-item group block"
+                      >
+                        <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-white/30 backdrop-blur-md border border-white/20 mb-1">
                           <img
-                            className="absolute inset-0 w-full h-full object-contain p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 mix-blend-multiply"
-                            src={productCardImage(hoverImg)}
-                            alt={`${prod.name} alternate view`}
+                            className={`absolute inset-0 w-full h-full object-contain p-0 transition-opacity duration-500 mix-blend-multiply ${hoverImg ? 'opacity-100 group-hover:opacity-0' : ''}`}
+                            src={productCardImage(prod.image)}
+                            alt={prod.name}
                             loading="lazy"
                           />
-                        )}
-                        {prod.isNew && (
-                          <span className="absolute top-10 left-1 bg-primary text-on-primary px-3 py-1 rounded-full font-label-sm text-label-sm">
-                            Mới
-                          </span>
-                        )}
-                        {prod.badge && (
-                          <span className="absolute top-10 left-1 bg-primary-fixed text-primary px-3 py-1 rounded-full font-label-sm text-label-sm">
-                            {prod.badge}
-                          </span>
-                        )}
-                        {prod.discount && (
-                          <span className="absolute top-10 left-1 bg-error text-on-error px-3 py-1 rounded-full font-label-sm text-label-sm font-bold">
-                            {prod.discount}
-                          </span>
-                        )}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                          }}
-                          aria-label={`Thêm ${prod.name} vào yêu thích`}
-                          className="absolute top-10 right-1 w-11 h-11 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-primary opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <span className="material-symbols-outlined" aria-hidden="true">favorite</span>
-                        </button>
-                      </div>
-                      <h2 className="font-headline-md text-base md:text-lg font-bold text-on-surface mb-1 line-clamp-1 group-hover:text-primary transition-colors duration-300">{prod.name}</h2>
+                          {hoverImg && (
+                            <img
+                              className="absolute inset-0 w-full h-full object-contain p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 mix-blend-multiply"
+                              src={productCardImage(hoverImg)}
+                              alt={`${prod.name} alternate view`}
+                              loading="lazy"
+                            />
+                          )}
+                          {prod.isNew && (
+                            <span className="absolute top-10 left-1 bg-primary text-on-primary px-3 py-1 rounded-full font-label-sm text-label-sm">
+                              Mới
+                            </span>
+                          )}
+                          {prod.badge && (
+                            <span className="absolute top-10 left-1 bg-primary-fixed text-primary px-3 py-1 rounded-full font-label-sm text-label-sm">
+                              {prod.badge}
+                            </span>
+                          )}
+                          {prod.discount && (
+                            <span className="absolute top-10 left-1 bg-error text-on-error px-3 py-1 rounded-full font-label-sm text-label-sm font-bold">
+                              {prod.discount}
+                            </span>
+                          )}
+                        </div>
+                        <h2 className="font-headline-md text-base md:text-lg font-bold text-on-surface mb-1 line-clamp-1 group-hover:text-primary transition-colors duration-300">{prod.name}</h2>
 
-                      <p className="font-label-md text-label-md text-primary" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                        {prod.price}
-                        {prod.oldPrice && (
-                          <span className="text-on-surface-variant line-through ml-2 font-normal">{prod.oldPrice}</span>
-                        )}
-                      </p>
-                    </Link>
-                  );
-                })}
-              </div>
+                        <p className="font-label-md text-label-md text-primary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {prod.price}
+                          {prod.oldPrice && (
+                            <span className="text-on-surface-variant line-through ml-2 font-normal">{prod.oldPrice}</span>
+                          )}
+                        </p>
+                      </Link>
+                    );
+                  })}
+                </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center items-center gap-2 mt-12 pb-6">
+                    <button
+                      onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className={`inline-flex items-center justify-center w-10 h-10 rounded-xl border transition-all duration-200 cursor-pointer ${
+                        currentPage === 1
+                          ? 'border-outline-variant/20 text-on-surface-variant/30 cursor-not-allowed bg-surface-container-low'
+                          : 'border-outline-variant/40 text-on-surface hover:border-primary/50 hover:bg-surface-container hover:text-primary'
+                      }`}
+                      aria-label="Trang trước"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+                    </button>
+
+                    {getPageNumbers().map((page, index) => {
+                      if (page === '...') {
+                        return (
+                          <span key={`ellipsis-${index}`} className="w-10 h-10 flex items-center justify-center text-on-surface-variant/60 font-body-md">
+                            ...
+                          </span>
+                        );
+                      }
+
+                      const pageNum = page as number;
+                      const isActive = pageNum === currentPage;
+
+                      return (
+                        <button
+                          key={`page-${pageNum}`}
+                          onClick={() => handlePageChange(pageNum)}
+                          className={`w-10 h-10 rounded-xl font-label-md text-[14px] font-semibold transition-all duration-200 cursor-pointer ${
+                            isActive
+                              ? 'bg-primary text-on-primary shadow-[0_4px_12px_rgba(var(--color-primary-rgb),0.2)]'
+                              : 'border border-outline-variant/40 text-on-surface hover:border-primary/50 hover:bg-surface-container hover:text-primary'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+
+                    <button
+                      onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className={`inline-flex items-center justify-center w-10 h-10 rounded-xl border transition-all duration-200 cursor-pointer ${
+                        currentPage === totalPages
+                          ? 'border-outline-variant/20 text-on-surface-variant/30 cursor-not-allowed bg-surface-container-low'
+                          : 'border-outline-variant/40 text-on-surface hover:border-primary/50 hover:bg-surface-container hover:text-primary'
+                      }`}
+                      aria-label="Trang sau"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

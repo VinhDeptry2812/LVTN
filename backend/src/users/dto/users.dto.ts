@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MinLength, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, MinLength, IsOptional, IsDateString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class UpdateProfileDto {
@@ -19,6 +19,24 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString({ message: 'Số điện thoại phải là chuỗi ký tự' })
   phone?: string;
+
+  @ApiProperty({
+    example: 'Nam',
+    description: 'Giới tính (Nam/Nữ)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: 'Giới tính phải là chuỗi ký tự' })
+  gender?: string;
+
+  @ApiProperty({
+    example: '2000-01-15',
+    description: 'Ngày sinh (YYYY-MM-DD)',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString({}, { message: 'Ngày sinh không hợp lệ' })
+  birthday?: string;
 }
 
 export class ChangePasswordDto {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '@/services/api';
+import ConfirmModal from '@/components/ConfirmModal';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, Pencil, X, Layers, Loader2, Upload, Quote, Image as ImageIcon, FileText } from 'lucide-react';
 
@@ -70,6 +71,19 @@ const compressImage = (file: File): Promise<File> => {
 export default function CollectionListPage() {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title?: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    type?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    message: '',
+    onConfirm: () => {},
+  });
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -209,16 +223,25 @@ export default function CollectionListPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Bạn chắc chắn muốn xóa bộ sưu tập này?')) return;
-    try {
-      await api.delete(`/collections/${id}`);
-      toast.success('Đã xóa bộ sưu tập');
-      fetchCollections();
-    } catch (err: any) {
-      const errMsg = err.response?.data?.message || 'Xóa thất bại';
-      toast.error(errMsg);
-    }
+  const handleDelete = (id: number) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Xóa bộ sưu tập',
+      message: 'Bạn có chắc chắn muốn xóa bộ sưu tập này? Hành động này không thể hoàn tác.',
+      confirmText: 'Xóa bộ sưu tập',
+      type: 'danger',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        try {
+          await api.delete(`/collections/${id}`);
+          toast.success('Đã xóa bộ sưu tập');
+          fetchCollections();
+        } catch (err: any) {
+          const errMsg = err.response?.data?.message || 'Xóa thất bại';
+          toast.error(errMsg);
+        }
+      }
+    });
   };
 
   if (loading) {
@@ -235,14 +258,14 @@ export default function CollectionListPage() {
         <h1 className="text-2xl font-bold text-slate-800">Quản lý Bộ sưu tập</h1>
         <button
           onClick={openCreateModal}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer"
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-none text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer"
         >
           <Plus size={18} />
           Thêm bộ sưu tập
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-none shadow-sm border border-slate-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
@@ -267,16 +290,16 @@ export default function CollectionListPage() {
                   <td className="px-6 py-4 text-slate-500 font-mono text-xs">{col.id}</td>
                   <td className="px-6 py-4">
                     {col.cover_image ? (
-                      <img src={col.cover_image} alt={col.name} className="w-16 h-10 object-cover rounded border border-slate-200" />
+                      <img src={col.cover_image} alt={col.name} className="w-16 h-10 object-cover rounded-none border border-slate-200" />
                     ) : (
-                      <div className="w-16 h-10 bg-slate-100 rounded flex items-center justify-center">
+                      <div className="w-16 h-10 bg-slate-100 rounded-none flex items-center justify-center">
                         <Layers size={16} className="text-slate-300" />
                       </div>
                     )}
                   </td>
                   <td className="px-6 py-4 font-medium text-slate-800">{col.name}</td>
                   <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${col.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
+                    <span className={`px-2.5 py-1 rounded-none text-xs font-medium ${col.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
                       {col.is_active ? 'Hiển thị' : 'Đã ẩn'}
                     </span>
                   </td>
@@ -284,13 +307,13 @@ export default function CollectionListPage() {
                     <div className="flex items-center justify-center gap-2">
                       <button
                         onClick={() => openEditModal(col)}
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer"
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-none transition-all cursor-pointer"
                       >
                         <Pencil size={16} />
                       </button>
                       <button
                         onClick={() => handleDelete(col.id)}
-                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-none transition-all cursor-pointer"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -306,7 +329,7 @@ export default function CollectionListPage() {
       {/* Modal Thêm/Sửa */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl p-6 relative my-auto transition-all duration-300">
+          <div className="bg-white rounded-none shadow-2xl w-full max-w-5xl p-6 relative my-auto transition-all duration-300">
             <button
               onClick={() => setShowModal(false)}
               className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
@@ -329,7 +352,7 @@ export default function CollectionListPage() {
                       value={form.name}
                       onChange={handleChange}
                       required
-                      className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm"
+                      className="w-full px-4 py-2.5 rounded-none border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm"
                       placeholder="VD: Bộ sưu tập Mùa Thu"
                     />
                   </div>
@@ -339,7 +362,7 @@ export default function CollectionListPage() {
                       name="slug"
                       value={form.slug}
                       onChange={handleChange}
-                      className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 text-sm"
+                      className="w-full px-4 py-2.5 rounded-none border border-slate-200 bg-slate-50 text-slate-500 text-sm"
                       readOnly
                     />
                   </div>
@@ -353,7 +376,7 @@ export default function CollectionListPage() {
                       value={form.description}
                       onChange={handleChange}
                       rows={5}
-                      className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm font-sans"
+                      className="w-full px-4 py-2.5 rounded-none border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm font-sans"
                       placeholder="Nhập mô tả bộ sưu tập..."
                     ></textarea>
                   </div>
@@ -362,7 +385,7 @@ export default function CollectionListPage() {
                   <div>
                     <label className="block text-sm font-medium text-slate-600 mb-1.5">Ảnh bìa</label>
                     <div className="flex items-start gap-4">
-                      <label className="flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed border-slate-300 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-all cursor-pointer shrink-0">
+                      <label className="flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed border-slate-300 rounded-none hover:border-blue-400 hover:bg-blue-50/50 transition-all cursor-pointer shrink-0">
                         <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                         {uploadingImage ? (
                           <Loader2 size={20} className="text-blue-500 animate-spin" />
@@ -378,7 +401,7 @@ export default function CollectionListPage() {
                           <img
                             src={form.cover_image}
                             alt="Preview"
-                            className="h-24 object-cover rounded-xl border border-slate-200 shadow-sm"
+                            className="h-24 object-cover rounded-none border border-slate-200 shadow-sm"
                           />
                           <button
                             type="button"
@@ -389,7 +412,7 @@ export default function CollectionListPage() {
                               setLocalImageFile(null);
                               setForm((prev) => ({ ...prev, cover_image: '' }));
                             }}
-                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-none text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                           >
                             ✕
                           </button>
@@ -405,7 +428,7 @@ export default function CollectionListPage() {
                       name="is_active"
                       checked={form.is_active}
                       onChange={handleChange}
-                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded-none focus:ring-blue-500"
                     />
                     <label htmlFor="is_active" className="ml-2 text-sm font-medium text-gray-900">
                       Hiển thị bộ sưu tập
@@ -415,7 +438,7 @@ export default function CollectionListPage() {
 
                 {/* CỘT PHẢI: BẢN XEM TRƯỚC (LIVE PREVIEW) */}
                 <div className="lg:col-span-6 border-t lg:border-t-0 lg:border-l border-slate-200 pt-6 lg:pt-0 lg:pl-8 flex flex-col justify-start space-y-5">
-                  <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 inline-block self-start">
+                  <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1.5 rounded-none border border-blue-100 inline-block self-start">
                     Bản xem trước giao diện User (Live Preview)
                   </h3>
 
@@ -424,7 +447,7 @@ export default function CollectionListPage() {
                     <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
                       1. Ảnh bìa & Tiêu đề (Hero Banner)
                     </span>
-                    <div className="relative w-full h-32 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-inner">
+                    <div className="relative w-full h-32 rounded-none overflow-hidden bg-slate-100 border border-slate-200 shadow-inner">
                       {form.cover_image ? (
                         <img
                           src={form.cover_image}
@@ -455,13 +478,13 @@ export default function CollectionListPage() {
                         2. Câu chuyện cảm hứng (Inspiration Grid)
                       </span>
                       {form.description.split('\n').filter(p => p.trim() !== '').length < 3 && (
-                        <span className="text-[9px] font-medium bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-200/50">
+                        <span className="text-[9px] font-medium bg-amber-50 text-amber-700 px-2 py-0.5 rounded-none border border-amber-200/50">
                           Nhập ≥ 3 đoạn để tạo Quote Card
                         </span>
                       )}
                     </div>
 
-                    <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 flex-1 flex flex-col justify-start min-h-[220px]">
+                    <div className="bg-slate-50 border border-slate-200/60 rounded-none p-4 flex-1 flex flex-col justify-start min-h-[220px]">
                       <div className="text-left mb-3.5 scale-90 origin-left">
                         <span className="text-blue-600 text-[9px] font-bold tracking-[0.2em] uppercase block mb-1">
                           Ý tưởng & Câu chuyện
@@ -487,7 +510,7 @@ export default function CollectionListPage() {
                           return (
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 text-[10.5px] leading-relaxed">
                               {/* Quote Card (Cột trái) */}
-                              <div className="md:col-span-5 bg-white border border-slate-200 rounded-xl p-3 relative overflow-hidden shadow-sm flex flex-col justify-between min-h-[130px]">
+                              <div className="md:col-span-5 bg-white border border-slate-200 rounded-none p-3 relative overflow-hidden shadow-sm flex flex-col justify-between min-h-[130px]">
                                 <div className="absolute top-0 left-0 w-full h-[3px] bg-blue-600"></div>
                                 <Quote size={20} className="text-blue-600/10 absolute right-2 top-2 pointer-events-none select-none rotate-180" />
                                 <p className="text-blue-700 italic font-medium leading-relaxed pt-1.5 line-clamp-4">
@@ -537,14 +560,14 @@ export default function CollectionListPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all cursor-pointer"
+                  className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-none transition-all cursor-pointer"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-all cursor-pointer"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-none transition-all cursor-pointer"
                 >
                   {submitting && <Loader2 size={16} className="animate-spin" />}
                   {editingId ? 'Cập nhật' : 'Thêm mới'}
@@ -554,6 +577,16 @@ export default function CollectionListPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        type={confirmModal.type}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

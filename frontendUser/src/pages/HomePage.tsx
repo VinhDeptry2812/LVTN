@@ -34,7 +34,6 @@ export default function HomePage() {
   const [products, setProducts] = useState<ProductFrontend[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [activeTab, setActiveTab] = useState<'new' | 'best' | 'sale'>('new');
-  const [wishlist, setWishlist] = useState<Record<string, boolean>>({});
   const [timeLeft, setTimeLeft] = useState({ days: 7, hours: 0, minutes: 0, seconds: 0 });
   const addItem = useCartStore((state) => state.addItem);
 
@@ -42,6 +41,12 @@ export default function HomePage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [progress, setProgress] = useState(0);
+
+  // Product Carousel States
+  const [carouselIndex, setCarouselIndex] = useState(4);
+  const [isCarouselTransitioning, setIsCarouselTransitioning] = useState(true);
+  const [itemsToShow, setItemsToShow] = useState(4);
+  const [isAutoplayPaused, setIsAutoplayPaused] = useState(false);
 
   const HERO_SLIDES = [
     {
@@ -140,19 +145,6 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Toggle wishlist function
-  const toggleWishlist = (id: string, name: string) => {
-    setWishlist(prev => {
-      const next = { ...prev, [id]: !prev[id] };
-      if (next[id]) {
-        toast.success(`Đã thêm "${name}" vào danh sách yêu thích!`);
-      } else {
-        toast.success(`Đã xóa "${name}" khỏi danh sách yêu thích!`);
-      }
-      return next;
-    });
-  };
-
   // Get products based on active tab
   const getTabProducts = () => {
     if (allProducts.length === 0) return [];
@@ -161,11 +153,11 @@ export default function HomePage() {
       case 'new':
         return [...allProducts]
           .sort((a, b) => Number(b.id) - Number(a.id))
-          .slice(0, 4)
+          .slice(0, 12)
           .map(p => ({ ...p, isNew: true }));
           
       case 'best':
-        return allProducts.slice(1, 5).map((p) => ({
+        return allProducts.slice(0, 12).map((p) => ({
           ...p,
           badge: '',
           isNew: false
@@ -173,12 +165,12 @@ export default function HomePage() {
         
       case 'sale': {
         const realSales = allProducts.filter(p => p.discount);
-        if (realSales.length >= 4) {
-          return realSales.slice(0, 4);
+        if (realSales.length >= 12) {
+          return realSales.slice(0, 12);
         }
         const mockSales = allProducts
           .filter(p => !p.discount)
-          .slice(0, 4 - realSales.length)
+          .slice(0, 12 - realSales.length)
           .map((p, idx) => {
             const discountPct = idx % 2 === 0 ? 15 : 20;
             const oldPriceVal = Math.round(p.rawPrice * (1 + discountPct / 100));
@@ -192,9 +184,77 @@ export default function HomePage() {
         return [...realSales, ...mockSales];
       }
       default:
-        return allProducts.slice(0, 4);
+        return allProducts.slice(0, 12);
     }
   };
+
+
+
+  // Listen to window size to update visible slide count
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setItemsToShow(4);
+      } else if (window.innerWidth >= 640) {
+        setItemsToShow(2);
+      } else {
+        setItemsToShow(1);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const displayProducts = getTabProducts();
+  const clonedProducts = displayProducts.length > 0 ? [
+    ...displayProducts.slice(-itemsToShow),
+    ...displayProducts,
+    ...displayProducts.slice(0, itemsToShow)
+  ] : [];
+
+  // Reset carousel index when visible count or active tab changes
+  useEffect(() => {
+    setIsCarouselTransitioning(false);
+    setCarouselIndex(itemsToShow);
+  }, [itemsToShow, activeTab]);
+
+  const handleNext = () => {
+    if (!isCarouselTransitioning) return;
+    setCarouselIndex(prev => prev + 1);
+  };
+
+  const handlePrev = () => {
+    if (!isCarouselTransitioning) return;
+    setCarouselIndex(prev => prev - 1);
+  };
+
+  const handleTransitionEnd = () => {
+    if (carouselIndex >= displayProducts.length + itemsToShow) {
+      setIsCarouselTransitioning(false);
+      setCarouselIndex(itemsToShow);
+    } else if (carouselIndex < itemsToShow) {
+      setIsCarouselTransitioning(false);
+      setCarouselIndex(displayProducts.length + carouselIndex);
+    }
+  };
+
+  useEffect(() => {
+    if (!isCarouselTransitioning) {
+      const raf = requestAnimationFrame(() => {
+        setIsCarouselTransitioning(true);
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [isCarouselTransitioning]);
+
+  useEffect(() => {
+    if (isAutoplayPaused || displayProducts.length === 0) return;
+    const timer = setInterval(() => {
+      handleNext();
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [carouselIndex, isCarouselTransitioning, isAutoplayPaused, displayProducts.length]);
 
   // 1. Hero Text Entry Animations (Runs every time currentSlide changes)
   useGSAP(() => {
@@ -467,48 +527,70 @@ export default function HomePage() {
         </section>
 
         {/* Section: Cam kết chất lượng & Chứng nhận CARB-P2 (MOHO Inspired) */}
-        <section ref={aboutRef} className="py-sp-xl bg-surface border-b border-outline-variant/20 overflow-hidden">
+        <section ref={aboutRef} className="py-20 bg-gradient-to-b from-surface via-surface-container-lowest/30 to-surface border-b border-outline-variant/20 overflow-hidden">
           <div className="max-w-container-max mx-auto px-sp-md md:px-lg">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              {/* Left Column: Image with badges */}
-              <div className="relative about-animate">
-                <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-md">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+              {/* Left Column: Image with artistic border & floating glass badge */}
+              <div className="relative about-animate group">
+                {/* Decorative background border */}
+                <div className="absolute -inset-3 border-2 border-primary/15 rounded-3xl -z-10 translate-x-2 translate-y-2 pointer-events-none transition-transform duration-500 group-hover:translate-x-3 group-hover:translate-y-3"></div>
+                
+                <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-xl border border-outline-variant/20">
                   <img
                     src="https://images.unsplash.com/photo-1541123437800-1bb1317badc2?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80"
                     alt="Nhà máy FurniShop"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-black/10"></div>
+                  <div className="absolute inset-0 bg-black/5 transition-opacity duration-500 group-hover:opacity-10"></div>
                 </div>
-                {/* Badges floating on image */}
-                <div className="absolute -bottom-6 -right-6 bg-primary text-on-primary p-6 rounded-2xl shadow-lg hidden md:block max-w-[240px]">
-                  <span className="material-symbols-outlined text-[36px] text-on-primary mb-2">workspace_premium</span>
-                  <h4 className="font-bold text-headline-sm mb-1">Chuẩn Gỗ CARB-P2</h4>
-                  <p className="text-[12px] opacity-90 leading-relaxed">Nồng độ phát thải Formaldehyde gần như bằng 0, tuyệt đối an toàn cho sức khỏe gia đình bạn.</p>
+                {/* Floating Glassmorphism Badge */}
+                <div className="absolute -bottom-6 -right-4 lg:-right-8 bg-white/90 backdrop-blur-md p-6 rounded-2xl shadow-2xl border border-white/40 hidden md:block max-w-[260px] transition-all duration-500 hover:scale-105">
+                  <div className="bg-primary/10 text-primary w-12 h-12 rounded-xl flex items-center justify-center mb-3">
+                    <span className="material-symbols-outlined text-[28px]">workspace_premium</span>
+                  </div>
+                  <h4 className="font-bold text-headline-sm text-neutral-800 mb-1.5">Chuẩn Gỗ CARB-P2</h4>
+                  <p className="text-[12px] text-neutral-600 leading-relaxed">Nồng độ phát thải Formaldehyde gần như bằng 0, tuyệt đối an toàn cho sức khỏe gia đình bạn.</p>
                 </div>
               </div>
 
-              {/* Right Column: Narrative */}
+              {/* Right Column: Premium Narrative */}
               <div className="flex flex-col justify-center about-animate">
-                <span className="text-primary font-label-md text-label-md uppercase tracking-widest block mb-3">Về chúng tôi</span>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-primary font-semibold tracking-widest uppercase text-xs">Về chúng tôi</span>
+                  <div className="h-[1px] w-12 bg-primary/30"></div>
+                </div>
                 <h2 className="font-headline-lg text-headline-lg text-on-surface mb-6 leading-tight">
-                  Nội thất Xanh cho gia đình Việt
+                  Nội thất <span className="text-primary">Xanh</span> cho gia đình Việt
                 </h2>
-                <p className="font-body-md text-body-md text-on-surface-variant mb-6 leading-relaxed">
-                  Là thương hiệu nội thất bán lẻ trực thuộc nhà máy liên doanh xuất khẩu quy mô lớn, FurniShop tự hại sở hữu quy trình sản xuất khép kín đạt chứng chỉ bảo vệ rừng quốc tế <strong>FSC</strong>.
+                <p className="font-body-md text-body-md text-on-surface-variant/90 mb-5 leading-relaxed">
+                  Là thương hiệu nội thất bán lẻ trực thuộc nhà máy liên doanh xuất khẩu quy mô lớn, FurniShop tự hào sở hữu quy trình sản xuất khép kín đạt chứng chỉ bảo vệ rừng quốc tế <strong>FSC</strong>.
                 </p>
-                <p className="font-body-md text-body-md text-on-surface-variant mb-8 leading-relaxed">
+                <p className="font-body-md text-body-md text-on-surface-variant/90 mb-8 leading-relaxed">
                   Từng thớ gỗ, từng lớp sơn phủ đều vượt qua kiểm định khắt khe của chứng chỉ <strong>CARB-P2</strong> (California Air Resources Board) - tiêu chuẩn an toàn không khí cao cấp nhất dành cho vật liệu gỗ công nghiệp, đảm bảo sức khỏe hô hấp lâu dài cho trẻ nhỏ và người cao tuổi.
                 </p>
                 
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="border-l-2 border-primary pl-4">
-                    <h4 className="font-headline-sm font-bold text-on-surface mb-1">100% FSC Certified</h4>
-                    <p className="text-[12px] text-on-surface-variant">Gỗ có nguồn gốc minh bạch từ rừng trồng bền vững.</p>
+                {/* Certifications Feature Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {/* FSC Card */}
+                  <div className="group/card flex items-start gap-4 p-5 rounded-2xl bg-primary/[0.02] border border-primary/5 hover:border-primary/15 hover:bg-primary/[0.04] transition-all duration-300">
+                    <div className="bg-primary/10 text-primary w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover/card:scale-110">
+                      <span className="material-symbols-outlined text-[22px]">forest</span>
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-neutral-800 text-sm mb-1 group-hover/card:text-primary transition-colors">100% FSC Certified</h4>
+                      <p className="text-[12px] text-on-surface-variant leading-relaxed">Gỗ có nguồn gốc minh bạch từ rừng trồng bền vững.</p>
+                    </div>
                   </div>
-                  <div className="border-l-2 border-primary pl-4">
-                    <h4 className="font-headline-sm font-bold text-on-surface mb-1">Eco-friendly Coated</h4>
-                    <p className="text-[12px] text-on-surface-variant">Sử dụng sơn phủ thân thiện môi trường, không mùi độc hại.</p>
+
+                  {/* Eco Card */}
+                  <div className="group/card flex items-start gap-4 p-5 rounded-2xl bg-primary/[0.02] border border-primary/5 hover:border-primary/15 hover:bg-primary/[0.04] transition-all duration-300">
+                    <div className="bg-primary/10 text-primary w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover/card:scale-110">
+                      <span className="material-symbols-outlined text-[22px]">eco</span>
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-neutral-800 text-sm mb-1 group-hover/card:text-primary transition-colors">Eco-friendly Coated</h4>
+                      <p className="text-[12px] text-on-surface-variant leading-relaxed">Sử dụng sơn phủ thân thiện môi trường, không mùi độc hại.</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -691,76 +773,94 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Tabbed Product Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
-              {getTabProducts().map((prod) => {
-                const hoverImg = prod.hoverImage || prod.gallery?.find(img => img.url !== prod.image)?.url;
-                const isFavorited = wishlist[prod.id];
-                
-                return (
-                  <Link
-                    key={`${activeTab}-${prod.id}`}
-                    to={`/product/${prod.id}`}
-                    className="product-card-item group block"
-                  >
-                    <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-white/30 backdrop-blur-md border border-white/20 mb-1 transition-all duration-300">
-                      <img
-                        className={`absolute inset-0 w-full h-full object-contain p-0 transition-opacity duration-500 mix-blend-multiply ${hoverImg ? 'opacity-100 group-hover:opacity-0' : ''}`}
-                        src={productCardImage(prod.image)}
-                        alt={prod.name}
-                        loading="lazy"
-                      />
-                      {hoverImg && (
-                        <img
-                          className="absolute inset-0 w-full h-full object-contain p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 mix-blend-multiply"
-                          src={productCardImage(hoverImg)}
-                          alt={`${prod.name} alternate view`}
-                          loading="lazy"
-                        />
-                      )}
-                      {prod.isNew && (
-                        <span className="absolute top-10 left-1 bg-primary text-on-primary px-3 py-1 rounded-full font-label-sm text-label-sm">
-                          Mới
-                        </span>
-                      )}
-                      {prod.badge && (
-                        <span className="absolute top-10 left-1 bg-primary-fixed text-primary px-3 py-1 rounded-full font-label-sm text-label-sm">
-                          {prod.badge}
-                        </span>
-                      )}
-                      {prod.discount && (
-                        <span className="absolute top-10 left-1 bg-error text-on-error px-3 py-1 rounded-full font-label-sm text-label-sm font-bold">
-                          {prod.discount}
-                        </span>
-                      )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          toggleWishlist(prod.id, prod.name);
-                        }}
-                        aria-label={`Thêm ${prod.name} vào yêu thích`}
-                        className={`absolute top-10 right-1 w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-sm border transition-all duration-300 ${
-                          isFavorited
-                            ? 'bg-red-50 text-red-500 border-red-200 opacity-100'
-                            : 'bg-white/80 border-outline-variant/50 text-on-surface-variant opacity-0 group-hover:opacity-100'
-                        }`}
+            {/* Tabbed Product Carousel with Loop */}
+            <div 
+              className="relative -mx-3 px-3"
+              onMouseEnter={() => setIsAutoplayPaused(true)}
+              onMouseLeave={() => setIsAutoplayPaused(false)}
+            >
+              {/* Outer Wrapper */}
+              <div className="overflow-hidden">
+                <div
+                  className={`flex -mx-2 ${isCarouselTransitioning ? 'transition-transform duration-500 ease-out' : ''}`}
+                  style={{
+                    transform: `translateX(-${(carouselIndex * 100) / itemsToShow}%)`,
+                  }}
+                  onTransitionEnd={handleTransitionEnd}
+                >
+                  {clonedProducts.map((prod, idx) => {
+                    const hoverImg = prod.hoverImage || prod.gallery?.find(img => img.url !== prod.image)?.url;
+                    
+                    return (
+                      <div
+                        key={`${idx}-${prod.id}`}
+                        className="shrink-0 px-2 animate-slide-item"
+                        style={{ width: `${100 / itemsToShow}%` }}
                       >
-                        <span className="material-symbols-outlined" style={isFavorited ? { fontVariationSettings: "'FILL' 1" } : {}} aria-hidden="true">
-                          favorite
-                        </span>
-                      </button>
-                    </div>
-                    <h3 className="font-headline-md text-base md:text-lg font-bold text-on-surface mb-1 line-clamp-1 group-hover:text-primary transition-colors duration-300">{prod.name}</h3>
-                    <p className="font-label-md text-label-md text-primary" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                      {prod.price}
-                      {prod.oldPrice && (
-                        <span className="text-on-surface-variant line-through ml-2 font-normal text-body-sm">{prod.oldPrice}</span>
-                      )}
-                    </p>
-                  </Link>
-                );
-              })}
+                        <Link
+                          to={`/product/${prod.id}`}
+                          className="product-card-item group block"
+                        >
+                          <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-white/30 backdrop-blur-md border border-white/20 mb-1 transition-all duration-300">
+                            <img
+                              className={`absolute inset-0 w-full h-full object-contain p-0 transition-opacity duration-500 mix-blend-multiply ${hoverImg ? 'opacity-100 group-hover:opacity-0' : ''}`}
+                              src={productCardImage(prod.image)}
+                              alt={prod.name}
+                              loading="lazy"
+                            />
+                            {hoverImg && (
+                              <img
+                                className="absolute inset-0 w-full h-full object-contain p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 mix-blend-multiply"
+                                src={productCardImage(hoverImg)}
+                                alt={`${prod.name} alternate view`}
+                                loading="lazy"
+                              />
+                            )}
+                            {prod.isNew && (
+                              <span className="absolute top-10 left-1 bg-primary text-on-primary px-3 py-1 rounded-full font-label-sm text-label-sm">
+                                Mới
+                              </span>
+                            )}
+                            {prod.badge && (
+                              <span className="absolute top-10 left-1 bg-primary-fixed text-primary px-3 py-1 rounded-full font-label-sm text-label-sm">
+                                {prod.badge}
+                              </span>
+                            )}
+                            {prod.discount && (
+                              <span className="absolute top-10 left-1 bg-error text-on-error px-3 py-1 rounded-full font-label-sm text-label-sm font-bold">
+                                {prod.discount}
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="font-headline-md text-base md:text-lg font-bold text-on-surface mb-1 line-clamp-1 group-hover:text-primary transition-colors duration-300">{prod.name}</h3>
+                          <p className="font-label-md text-label-md text-primary" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                            {prod.price}
+                            {prod.oldPrice && (
+                              <span className="text-on-surface-variant line-through ml-2 font-normal text-body-sm">{prod.oldPrice}</span>
+                            )}
+                          </p>
+                        </Link>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Navigation Controls */}
+              <button
+                onClick={handlePrev}
+                aria-label="Slide trước"
+                className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-30 w-12 h-12 rounded-full bg-white/95 border border-outline-variant/30 text-on-surface hover:bg-primary hover:text-on-primary shadow-lg flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 group/btn"
+              >
+                <ChevronLeft size={24} className="group-hover/btn:-translate-x-0.5 transition-transform" />
+              </button>
+              <button
+                onClick={handleNext}
+                aria-label="Slide tiếp theo"
+                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-30 w-12 h-12 rounded-full bg-white/95 border border-outline-variant/30 text-on-surface hover:bg-primary hover:text-on-primary shadow-lg flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 group/btn"
+              >
+                <ChevronRight size={24} className="group-hover/btn:translate-x-0.5 transition-transform" />
+              </button>
             </div>
             
             <div className="mt-sp-xl text-center">
@@ -779,7 +879,7 @@ export default function HomePage() {
           <div className="max-w-container-max mx-auto px-sp-md md:px-lg">
             <div className="text-center max-w-2xl mx-auto mb-sp-xl">
               <span className="text-primary font-label-md text-label-md uppercase tracking-widest block mb-3">Đánh giá thực tế</span>
-              <h2 className="font-headline-lg text-headline-lg text-on-surface">Khách hàng nói gì về FurniShop</h2>
+              <h2 className="font-headline-lg text-headline-lg text-on-surface">Khách hàng nói gì về Nội thất</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -789,14 +889,14 @@ export default function HomePage() {
                   location: 'Quận 2, TP. Hồ Chí Minh',
                   avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
                   rating: 5,
-                  comment: 'Bộ bàn ăn gỗ sồi của FurniShop đẹp vượt mong đợi. Bề mặt gỗ láng mịn, chuẩn CARB-P2 nên mở hộp không hề nghe mùi hóa chất độc hại. Giao hàng và lắp đặt rất nhanh chóng.',
+                  comment: 'Bộ bàn ăn gỗ sồi của Nội thất đẹp vượt mong đợi. Bề mặt gỗ láng mịn, chuẩn CARB-P2 nên mở hộp không hề nghe mùi hóa chất độc hại. Giao hàng và lắp đặt rất nhanh chóng.',
                 },
                 {
                   name: 'Anh Minh Trí',
                   location: 'Quận Cầu Giấy, Hà Nội',
                   avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
                   rating: 5,
-                  comment: 'Sofa giường Coastal thực sự êm ái và tiện lợi. Nhà tôi có trẻ nhỏ nên rất chú trọng vật liệu an toàn, và FurniShop đã làm tốt điều đó. Sẽ tiếp tục ủng hộ thương hiệu.',
+                  comment: 'Sofa giường Coastal thực sự êm ái và tiện lợi. Nhà tôi có trẻ nhỏ nên rất chú trọng vật liệu an toàn, và Nội thất đã làm tốt điều đó. Sẽ tiếp tục ủng hộ thương hiệu.',
                 },
                 {
                   name: 'Chị Thu Trang',

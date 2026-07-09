@@ -16,6 +16,7 @@ export enum OrderStatus {
   CONFIRMED = 'confirmed',
   SHIPPING = 'shipping',
   DELIVERED = 'delivered',
+  COMPLETED = 'completed',
   CANCELLED = 'cancelled',
 }
 
@@ -87,6 +88,21 @@ export class Order {
 
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
   items: OrderItem[];
+
+  @Column({ type: 'timestamp', nullable: true })
+  confirmed_at: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  shipping_at: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  delivered_at: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  completed_at: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  cancelled_at: Date | null;
 
   @CreateDateColumn()
   created_at: Date;

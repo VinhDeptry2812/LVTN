@@ -10,6 +10,7 @@ import {
   UseGuards,
   ParseIntPipe,
   DefaultValuePipe,
+  BadRequestException,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { OrdersService } from './orders.service';
@@ -26,7 +27,6 @@ import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrderStatus, PaymentMethod, PaymentStatus } from './order.entity';
 
 @Controller('orders')
-@UseGuards(JwtAuthGuard)
 export class OrdersController {
   constructor(
     private readonly ordersService: OrdersService,
@@ -38,6 +38,7 @@ export class OrdersController {
   // 1. APIs cho Khách hàng
 
   @Post()
+  @UseGuards(JwtAuthGuard)
   async createOrder(
     @GetUser('id') userId: number,
     @Body() createOrderDto: CreateOrderDto,
@@ -84,7 +85,6 @@ export class OrdersController {
 
   // Guest order endpoint without JwtAuthGuard
   @Post('guest')
-  @UseGuards() // Override class-level JwtAuthGuard by setting empty guards if possible, or we need to remove class-level guard.
   async createGuestOrder(
     @Body() createOrderDto: CreateOrderDto,
     @Req() req: Request,
@@ -126,11 +126,13 @@ export class OrdersController {
   }
 
   @Get('my-orders')
+  @UseGuards(JwtAuthGuard)
   async getMyOrders(@GetUser('id') userId: number) {
     return this.ordersService.getMyOrders(userId);
   }
 
   @Get('my-orders/:id')
+  @UseGuards(JwtAuthGuard)
   async getMyOrderDetails(
     @GetUser('id') userId: number,
     @GetUser('role') role: UserRole,
@@ -140,6 +142,7 @@ export class OrdersController {
   }
 
   @Post('my-orders/:id/cancel')
+  @UseGuards(JwtAuthGuard)
   async cancelMyOrder(
     @GetUser('id') userId: number,
     @Param('id', ParseIntPipe) orderId: number,
@@ -147,28 +150,85 @@ export class OrdersController {
     return this.ordersService.cancelOrder(userId, orderId);
   }
 
+  @Post('my-orders/:id/complete')
+  @UseGuards(JwtAuthGuard)
+  async completeMyOrder(
+    @GetUser('id') userId: number,
+    @Param('id', ParseIntPipe) orderId: number,
+  ) {
+    return this.ordersService.completeOrder(userId, orderId);
+  }
+
+  @Post('my-orders/:id/repay')
+  @UseGuards(JwtAuthGuard)
+  async repayOrder(
+    @GetUser('id') userId: number,
+    @Param('id', ParseIntPipe) orderId: number,
+    @Req() req: Request,
+  ) {
+    const order = await this.ordersService.getOrderDetails(userId, orderId, UserRole.CUSTOMER);
+
+    if (order.status === OrderStatus.CANCELLED) {
+      throw new BadRequestException('Đơn hàng đã bị hủy, không thể thanh toán.');
+    }
+
+    if (order.payment_status === PaymentStatus.PAID) {
+      throw new BadRequestException('Đơn hàng này đã được thanh toán.');
+    }
+
+    if (order.payment_method === PaymentMethod.VNPAY) {
+      const ipAddr =
+        (req.headers['x-forwarded-for'] as string) ||
+        req.socket.remoteAddress ||
+        '127.0.0.1';
+
+      const paymentUrl = this.vnpayService.createPaymentUrl(
+        order.id,
+        Number(order.total_amount),
+        `Thanh toan don hang #${order.id} - FurniShop`,
+        ipAddr,
+      );
+
+      return { paymentUrl };
+    }
+
+    if (order.payment_method === PaymentMethod.MOMO) {
+      const paymentUrl = await this.momoService.createPaymentUrl(
+        order.id,
+        Number(order.total_amount),
+      );
+
+      return { paymentUrl };
+    }
+
+    throw new BadRequestException('Phương thức thanh toán không hỗ trợ thanh toán trực tuyến.');
+  }
+
   // 2. APIs cho Admin
 
   @Get('admin')
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   async getAllOrdersAdmin(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query('status') status?: OrderStatus,
+    @Query('search') search?: string,
+    @Query('paymentMethod') paymentMethod?: string,
+    @Query('dateRange') dateRange?: string,
   ) {
-    return this.ordersService.getAllOrdersAdmin(page, limit, status);
+    return this.ordersService.getAllOrdersAdmin(page, limit, status, search, paymentMethod, dateRange);
   }
 
   @Get('admin/stats')
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   async getDashboardStatsAdmin() {
     return this.ordersService.getDashboardStatsAdmin();
   }
 
   @Patch('admin/:id/status')
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   async updateOrderStatusAdmin(
     @Param('id', ParseIntPipe) orderId: number,

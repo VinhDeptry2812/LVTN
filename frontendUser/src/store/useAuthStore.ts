@@ -7,6 +7,8 @@ interface User {
   name: string;
   role: string;
   phone?: string;
+  gender?: string;
+  birthday?: string;
 }
 
 interface AuthState {

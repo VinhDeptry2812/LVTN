@@ -3,9 +3,10 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, LessThan, In } from 'typeorm';
 import { Order, OrderStatus, PaymentStatus } from './order.entity';
 import { OrderItem } from './order-item.entity';
 import { CartService } from '../cart/cart.service';
@@ -18,7 +19,7 @@ import { VouchersService } from '../vouchers/vouchers.service';
 import { Voucher, DiscountType } from '../vouchers/voucher.entity';
 
 @Injectable()
-export class OrdersService {
+export class OrdersService implements OnModuleInit {
   constructor(
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
@@ -30,6 +31,22 @@ export class OrdersService {
     private readonly dataSource: DataSource,
     private readonly vouchersService: VouchersService,
   ) {}
+
+  onModuleInit() {
+    // Chạy dọn dẹp đơn hàng chưa thanh toán định kỳ mỗi 5 phút
+    setInterval(() => {
+      this.cleanupUnpaidOrders().catch((err) => {
+        console.error('Lỗi khi chạy dọn dẹp đơn hàng chưa thanh toán:', err);
+      });
+    }, 5 * 60 * 1000);
+  }
+
+  async findOne(orderId: number): Promise<Order | null> {
+    return this.orderRepository.findOne({
+      where: { id: orderId },
+      relations: { items: { variant: true } },
+    });
+  }
 
   async createGuestOrder(dto: CreateOrderDto): Promise<Order> {
     if (!dto.items || dto.items.length === 0) {
@@ -89,12 +106,6 @@ export class OrdersService {
       }
 
       if (dto.voucher_code) {
-        // Validate voucher outside transaction checks first
-        await this.vouchersService.validateVoucher(
-          dto.voucher_code,
-          totalAmount,
-        );
-
         // Fetch and lock inside transaction to avoid race conditions
         const cleanCode = dto.voucher_code.trim().toUpperCase();
         const voucher = await queryRunner.manager.findOne(Voucher, {
@@ -106,33 +117,13 @@ export class OrdersService {
           throw new BadRequestException('Mã giảm giá không tồn tại.');
         }
 
-        if (!voucher.is_active) {
-          throw new BadRequestException('Mã giảm giá này đã bị vô hiệu hóa.');
-        }
-
-        if (
-          voucher.usage_limit !== null &&
-          voucher.used_count >= voucher.usage_limit
-        ) {
-          throw new BadRequestException('Mã giảm giá đã hết lượt sử dụng.');
-        }
-
-        let discountAmount = 0;
-        if (voucher.discount_type === DiscountType.FIXED_AMOUNT) {
-          discountAmount = Number(voucher.discount_value);
-        } else {
-          discountAmount = totalAmount * (Number(voucher.discount_value) / 100);
-          if (voucher.max_discount_amount !== null) {
-            const maxDiscount = Number(voucher.max_discount_amount);
-            if (discountAmount > maxDiscount) {
-              discountAmount = maxDiscount;
-            }
-          }
-        }
-
-        if (discountAmount > totalAmount) {
-          discountAmount = totalAmount;
-        }
+        // Validate voucher inside transaction under the lock
+        const { discountAmount } = await this.vouchersService.validateVoucher(
+          dto.voucher_code,
+          totalAmount,
+          undefined,
+          queryRunner.manager,
+        );
 
         voucher.used_count += 1;
         await queryRunner.manager.save(voucher);
@@ -223,13 +214,6 @@ export class OrdersService {
       }
 
       if (dto.voucher_code) {
-        // Validate voucher outside transaction checks first
-        await this.vouchersService.validateVoucher(
-          dto.voucher_code,
-          totalAmount,
-          userId,
-        );
-
         // Fetch and lock inside transaction to avoid race conditions
         const cleanCode = dto.voucher_code.trim().toUpperCase();
         const voucher = await queryRunner.manager.findOne(Voucher, {
@@ -241,33 +225,13 @@ export class OrdersService {
           throw new BadRequestException('Mã giảm giá không tồn tại.');
         }
 
-        if (!voucher.is_active) {
-          throw new BadRequestException('Mã giảm giá này đã bị vô hiệu hóa.');
-        }
-
-        if (
-          voucher.usage_limit !== null &&
-          voucher.used_count >= voucher.usage_limit
-        ) {
-          throw new BadRequestException('Mã giảm giá đã hết lượt sử dụng.');
-        }
-
-        let discountAmount = 0;
-        if (voucher.discount_type === DiscountType.FIXED_AMOUNT) {
-          discountAmount = Number(voucher.discount_value);
-        } else {
-          discountAmount = totalAmount * (Number(voucher.discount_value) / 100);
-          if (voucher.max_discount_amount !== null) {
-            const maxDiscount = Number(voucher.max_discount_amount);
-            if (discountAmount > maxDiscount) {
-              discountAmount = maxDiscount;
-            }
-          }
-        }
-
-        if (discountAmount > totalAmount) {
-          discountAmount = totalAmount;
-        }
+        // Validate voucher inside transaction under the lock
+        const { discountAmount } = await this.vouchersService.validateVoucher(
+          dto.voucher_code,
+          totalAmount,
+          userId,
+          queryRunner.manager,
+        );
 
         voucher.used_count += 1;
         await queryRunner.manager.save(voucher);
@@ -384,7 +348,20 @@ export class OrdersService {
         }
       }
 
+      // Hoàn lại lượt dùng voucher nếu có
+      if (order.voucher_code) {
+        const voucher = await queryRunner.manager.findOne(Voucher, {
+          where: { code: order.voucher_code.trim().toUpperCase() },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (voucher && voucher.used_count > 0) {
+          voucher.used_count -= 1;
+          await queryRunner.manager.save(voucher);
+        }
+      }
+
       order.status = OrderStatus.CANCELLED;
+      order.cancelled_at = new Date();
       const updatedOrder = await queryRunner.manager.save(order);
 
       await queryRunner.commitTransaction();
@@ -397,21 +374,82 @@ export class OrdersService {
     }
   }
 
+  async completeOrder(userId: number, orderId: number): Promise<Order> {
+    const order = await this.orderRepository.findOne({
+      where: { id: orderId, user: { id: userId } },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Không tìm thấy đơn hàng.');
+    }
+
+    if (order.status !== OrderStatus.DELIVERED) {
+      throw new BadRequestException(
+        'Đơn hàng chưa được giao thành công, không thể xác nhận hoàn thành.',
+      );
+    }
+
+    order.status = OrderStatus.COMPLETED;
+    order.completed_at = new Date();
+    
+    // Nếu là COD và chưa thanh toán, tự động chuyển sang PAID
+    if (order.payment_status !== PaymentStatus.PAID) {
+      order.payment_status = PaymentStatus.PAID;
+    }
+
+    return this.orderRepository.save(order);
+  }
+
   async getAllOrdersAdmin(
     page = 1,
     limit = 10,
     status?: OrderStatus,
+    search?: string,
+    paymentMethod?: string,
+    dateRange?: string,
   ): Promise<{ data: Order[]; total: number; page: number; limit: number }> {
     const queryBuilder = this.orderRepository
       .createQueryBuilder('order')
       .leftJoinAndSelect('order.user', 'user')
       .leftJoinAndSelect('order.items', 'items')
       .leftJoinAndSelect('items.product', 'product')
+      .leftJoinAndSelect('product.images', 'images')
       .leftJoinAndSelect('items.variant', 'variant')
       .orderBy('order.created_at', 'DESC');
 
+    queryBuilder.where('1=1');
+
     if (status) {
-      queryBuilder.where('order.status = :status', { status });
+      queryBuilder.andWhere('order.status = :status', { status });
+    }
+
+    if (paymentMethod) {
+      queryBuilder.andWhere('order.payment_method = :paymentMethod', { paymentMethod });
+    }
+
+    if (dateRange) {
+      const now = new Date();
+      let startDate: Date;
+      if (dateRange === 'today') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        queryBuilder.andWhere('order.created_at >= :startDate', { startDate });
+      } else if (dateRange === '7days') {
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        queryBuilder.andWhere('order.created_at >= :startDate', { startDate });
+      } else if (dateRange === '30days') {
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        queryBuilder.andWhere('order.created_at >= :startDate', { startDate });
+      }
+    }
+
+    if (search) {
+      const isNumeric = /^\d+$/.test(search);
+      const searchId = isNumeric ? Number(search) : -1;
+      
+      queryBuilder.andWhere(
+        '(order.id = :searchId OR user.name LIKE :searchKeyword OR user.email LIKE :searchKeyword OR order.phone LIKE :searchKeyword)',
+        { searchId, searchKeyword: `%${search}%` },
+      );
     }
 
     const [data, total] = await queryBuilder
@@ -461,9 +499,34 @@ export class OrdersService {
             }
           }
         }
+
+        // Hoàn lại lượt dùng voucher nếu có
+        if (order.voucher_code) {
+          const voucher = await queryRunner.manager.findOne(Voucher, {
+            where: { code: order.voucher_code.trim().toUpperCase() },
+            lock: { mode: 'pessimistic_write' },
+          });
+          if (voucher && voucher.used_count > 0) {
+            voucher.used_count -= 1;
+            await queryRunner.manager.save(voucher);
+          }
+        }
       }
 
-      if (dto.status) order.status = dto.status;
+      if (dto.status) {
+        order.status = dto.status;
+        if (dto.status === OrderStatus.CONFIRMED) {
+          order.confirmed_at = new Date();
+        } else if (dto.status === OrderStatus.SHIPPING) {
+          order.shipping_at = new Date();
+        } else if (dto.status === OrderStatus.DELIVERED) {
+          order.delivered_at = new Date();
+        } else if (dto.status === OrderStatus.COMPLETED) {
+          order.completed_at = new Date();
+        } else if (dto.status === OrderStatus.CANCELLED) {
+          order.cancelled_at = new Date();
+        }
+      }
       if (dto.payment_status) order.payment_status = dto.payment_status;
 
       const updatedOrder = await queryRunner.manager.save(order);
@@ -490,7 +553,7 @@ export class OrdersService {
     ).length;
 
     const revenue = orders
-      .filter((o) => o.status !== OrderStatus.CANCELLED)
+      .filter((o) => o.status === OrderStatus.COMPLETED)
       .reduce((sum, o) => sum + Number(o.total_amount), 0);
 
     const recentOrders = orders.slice(0, 5);
@@ -513,6 +576,7 @@ export class OrdersService {
     isSuccess: boolean,
     transactionNo: string,
     paymentMethod: 'vnpay' | 'momo' = 'vnpay',
+    paidAmount?: number,
   ): Promise<Order> {
     const order = await this.orderRepository.findOne({
       where: { id: orderId },
@@ -527,6 +591,22 @@ export class OrdersService {
       throw new NotFoundException(
         'Không tìm thấy đơn hàng cần cập nhật thanh toán',
       );
+    }
+
+    // Nếu đơn hàng đã thanh toán trước đó hoặc đã ở trạng thái hủy/thất bại, không xử lý lại để tránh trùng lặp/hoàn kho nhiều lần
+    if (
+      order.payment_status === PaymentStatus.PAID ||
+      order.payment_status === PaymentStatus.FAILED ||
+      order.status === OrderStatus.CANCELLED
+    ) {
+      return order;
+    }
+
+    // Xác thực số tiền thanh toán thực tế nếu thành công
+    if (isSuccess && paidAmount !== undefined) {
+      if (Math.abs(Number(order.total_amount) - paidAmount) > 1) {
+        throw new BadRequestException('Số tiền thanh toán không khớp với đơn hàng.');
+      }
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -548,6 +628,7 @@ export class OrdersService {
       if (isSuccess) {
         // Thanh toán thành công → tự động xác nhận đơn hàng
         order.status = OrderStatus.CONFIRMED;
+        order.confirmed_at = new Date();
       } else {
         // Thanh toán thất bại → hoàn lại kho và hủy đơn hàng
         for (const item of order.items) {
@@ -562,7 +643,21 @@ export class OrdersService {
             }
           }
         }
+
+        // Hoàn lại lượt dùng voucher nếu có
+        if (order.voucher_code) {
+          const voucher = await queryRunner.manager.findOne(Voucher, {
+            where: { code: order.voucher_code.trim().toUpperCase() },
+            lock: { mode: 'pessimistic_write' },
+          });
+          if (voucher && voucher.used_count > 0) {
+            voucher.used_count -= 1;
+            await queryRunner.manager.save(voucher);
+          }
+        }
+
         order.status = OrderStatus.CANCELLED;
+        order.cancelled_at = new Date();
       }
 
       const savedOrder = await queryRunner.manager.save(order);
@@ -573,6 +668,80 @@ export class OrdersService {
       throw error;
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  /**
+   * Tự động quét và hủy các đơn hàng online chưa thanh toán quá 15 phút
+   */
+  async cleanupUnpaidOrders(): Promise<void> {
+    const expirationTime = new Date(Date.now() - 15 * 60 * 1000); // 15 phút trước
+    const unpaidOrders = await this.orderRepository.find({
+      where: {
+        status: OrderStatus.PENDING,
+        payment_status: PaymentStatus.PENDING,
+        payment_method: In(['vnpay', 'momo']),
+        created_at: LessThan(expirationTime),
+      },
+      relations: {
+        items: {
+          variant: true,
+        },
+      },
+    });
+
+    if (unpaidOrders.length === 0) {
+      return;
+    }
+
+    console.log(`[Order Cleanup] Phát hiện ${unpaidOrders.length} đơn hàng quá hạn thanh toán.`);
+
+    for (const order of unpaidOrders) {
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      try {
+        // Hoàn lại kho cho sản phẩm
+        for (const item of order.items) {
+          if (item.variant) {
+            const variant = await queryRunner.manager.findOne(ProductVariant, {
+              where: { id: item.variant.id },
+              lock: { mode: 'pessimistic_write' },
+            });
+            if (variant) {
+              variant.stock += item.quantity;
+              await queryRunner.manager.save(variant);
+            }
+          }
+        }
+
+        // Hoàn lại lượt dùng voucher
+        if (order.voucher_code) {
+          const voucher = await queryRunner.manager.findOne(Voucher, {
+            where: { code: order.voucher_code.trim().toUpperCase() },
+            lock: { mode: 'pessimistic_write' },
+          });
+          if (voucher && voucher.used_count > 0) {
+            voucher.used_count -= 1;
+            await queryRunner.manager.save(voucher);
+          }
+        }
+
+        // Hủy đơn hàng
+        order.status = OrderStatus.CANCELLED;
+        order.payment_status = PaymentStatus.FAILED;
+        order.cancelled_at = new Date();
+        await queryRunner.manager.save(order);
+
+        await queryRunner.commitTransaction();
+        console.log(`[Order Cleanup] Hủy thành công đơn hàng ID ${order.id} do quá hạn thanh toán.`);
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        console.error(`[Order Cleanup] Lỗi khi hủy đơn hàng ID ${order.id}:`, error);
+      } finally {
+        await queryRunner.release();
+      }
     }
   }
 }

@@ -6,6 +6,10 @@ import {
   Request,
   BadRequestException,
   NotFoundException,
+  Get,
+  Param,
+  Query,
+  ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,6 +20,9 @@ import {
 import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from './user.entity';
 import { UpdateProfileDto, ChangePasswordDto } from './dto/users.dto';
 
 @ApiTags('Users')
@@ -44,6 +51,8 @@ export class UsersController {
         email: updatedUser.email,
         name: updatedUser.name,
         phone: updatedUser.phone,
+        gender: updatedUser.gender,
+        birthday: updatedUser.birthday,
       },
     };
   }
@@ -85,5 +94,46 @@ export class UsersController {
     await this.usersService.updatePassword(userId, password_hash);
 
     return { message: 'Đổi mật khẩu thành công' };
+  }
+
+  @Get('admin/list')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Admin: Lấy danh sách toàn bộ người dùng (Có phân trang & Tìm kiếm)' })
+  @ApiResponse({ status: 200, description: 'Trả về danh sách người dùng.' })
+  async getUsers(
+    @Query('page', new ParseIntPipe({ optional: true })) page?: number,
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+    @Query('search') search?: string,
+  ) {
+    return this.usersService.findAll(page || 1, limit || 10, search);
+  }
+
+  @Patch('admin/:id/status')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Admin: Khóa/Mở khóa tài khoản' })
+  @ApiResponse({ status: 200, description: 'Cập nhật trạng thái thành công.' })
+  async updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('status') status: string,
+  ) {
+    if (!['active', 'inactive'].includes(status)) {
+      throw new BadRequestException('Trạng thái không hợp lệ. Chỉ chấp nhận active hoặc inactive');
+    }
+    const updatedUser = await this.usersService.updateStatus(id, status);
+    if (!updatedUser) {
+      throw new NotFoundException('Người dùng không tồn tại');
+    }
+    return {
+      message: 'Cập nhật trạng thái tài khoản thành công',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        role: updatedUser.role,
+        status: updatedUser.status,
+      },
+    };
   }
 }

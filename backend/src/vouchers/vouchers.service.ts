@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not } from 'typeorm';
+import { Repository, Not, EntityManager } from 'typeorm';
 import { Voucher, DiscountType } from './voucher.entity';
 import { Order, OrderStatus } from '../orders/order.entity';
 import { CreateVoucherDto } from './dto/create-voucher.dto';
@@ -20,6 +20,10 @@ export class VouchersService {
   ) {}
 
   async create(createVoucherDto: CreateVoucherDto): Promise<Voucher> {
+    if (new Date(createVoucherDto.end_date) <= new Date(createVoucherDto.start_date)) {
+      throw new BadRequestException('Ngày kết thúc phải sau ngày bắt đầu.');
+    }
+
     const code = createVoucherDto.code.trim().toUpperCase();
     const existing = await this.voucherRepository.findOne({ where: { code } });
     if (existing) {
@@ -50,6 +54,13 @@ export class VouchersService {
     updateVoucherDto: UpdateVoucherDto,
   ): Promise<Voucher> {
     const voucher = await this.findOne(id);
+
+    const startDate = updateVoucherDto.start_date ? new Date(updateVoucherDto.start_date) : voucher.start_date;
+    const endDate = updateVoucherDto.end_date ? new Date(updateVoucherDto.end_date) : voucher.end_date;
+    if (new Date(endDate) <= new Date(startDate)) {
+      throw new BadRequestException('Ngày kết thúc phải sau ngày bắt đầu.');
+    }
+
     if (updateVoucherDto.code) {
       const code = updateVoucherDto.code.trim().toUpperCase();
       if (code !== voucher.code) {
@@ -75,9 +86,13 @@ export class VouchersService {
     code: string,
     orderValue: number,
     userId?: number,
+    manager?: EntityManager,
   ): Promise<{ voucher: Voucher; discountAmount: number }> {
     const cleanCode = code.trim().toUpperCase();
-    const voucher = await this.voucherRepository.findOne({
+    const voucherRepo = manager ? manager.getRepository(Voucher) : this.voucherRepository;
+    const orderRepo = manager ? manager.getRepository(Order) : this.orderRepository;
+
+    const voucher = await voucherRepo.findOne({
       where: { code: cleanCode },
     });
 
@@ -113,7 +128,7 @@ export class VouchersService {
     }
 
     if (userId) {
-      const orderCount = await this.orderRepository.count({
+      const orderCount = await orderRepo.count({
         where: {
           user: { id: userId },
           voucher_code: voucher.code,

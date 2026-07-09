@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -17,7 +17,12 @@ const CollectionPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 12;
+
   const containerRef = useRef<HTMLDivElement>(null);
+  const productsSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!slug) return;
@@ -26,6 +31,7 @@ const CollectionPage: React.FC = () => {
     getCollectionBySlug(slug)
       .then((data) => {
         setCollection(data);
+        setCurrentPage(1);
         setLoading(false);
       })
       .catch((err) => {
@@ -69,6 +75,81 @@ const CollectionPage: React.FC = () => {
     );
 
   }, { dependencies: [loading, collection], scope: containerRef });
+
+  // Paginated Products
+  const paginatedProducts = useMemo(() => {
+    if (!collection || !collection.products) return [];
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return collection.products.slice(startIndex, startIndex + itemsPerPage);
+  }, [collection, currentPage]);
+
+  const totalPages = useMemo(() => {
+    if (!collection || !collection.products) return 0;
+    return Math.ceil(collection.products.length / itemsPerPage);
+  }, [collection]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    if (productsSectionRef.current) {
+      const yOffset = -100; // Offset for sticky header
+      const y = productsSectionRef.current.getBoundingClientRect().top + window.scrollY + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+
+      let start = Math.max(2, currentPage - 1);
+      let end = Math.min(totalPages - 1, currentPage + 1);
+
+      if (currentPage <= 2) {
+        end = 4;
+      } else if (currentPage >= totalPages - 1) {
+        start = totalPages - 3;
+      }
+
+      if (start > 2) {
+        pages.push('...');
+      }
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      if (end < totalPages - 1) {
+        pages.push('...');
+      }
+
+      pages.push(totalPages);
+    }
+    return pages;
+  };
+
+  // GSAP animation for product grid entries
+  useGSAP(() => {
+    if (paginatedProducts.length > 0) {
+      gsap.fromTo('.product-card',
+        { opacity: 0, y: 30 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.6,
+          stagger: 0.1,
+          ease: 'power2.out',
+          overwrite: 'auto'
+        }
+      );
+    }
+  }, { dependencies: [paginatedProducts], scope: containerRef });
 
   if (loading) {
     return (
@@ -250,16 +331,7 @@ const CollectionPage: React.FC = () => {
                           </div>
                         )}
 
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                          }}
-                          aria-label={`Thêm ${product.name} vào yêu thích`}
-                          className="absolute top-10 right-1 w-11 h-11 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-primary opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                        >
-                          <span className="material-symbols-outlined" aria-hidden="true">favorite</span>
-                        </button>
+
                       </div>
 
                       <div className="text-left">

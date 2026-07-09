@@ -36,3 +36,13 @@ export const cancelOrder = async (orderId: number) => {
   return response.data;
 };
 
+export const repayOrder = async (orderId: number) => {
+  const response = await api.post(`/orders/my-orders/${orderId}/repay`);
+  return response.data;
+};
+
+export const completeOrder = async (orderId: number) => {
+  const response = await api.post(`/orders/my-orders/${orderId}/complete`);
+  return response.data;
+};
+

@@ -9,6 +9,7 @@ import CategoryListPage from '@/pages/admin/CategoryListPage';
 import CollectionListPage from '@/pages/admin/CollectionListPage';
 import OrderListPage from '@/pages/admin/OrderListPage';
 import VoucherListPage from '@/pages/admin/VoucherListPage';
+import UserListPage from '@/pages/admin/UserListPage';
 import PaymentResultPage from '@/pages/PaymentResultPage';
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
         <Route path="collections" element={<CollectionListPage />} />
         <Route path="orders" element={<OrderListPage />} />
         <Route path="vouchers" element={<VoucherListPage />} />
+        <Route path="users" element={<UserListPage />} />
       </Route>
 
       {/* Redirect mặc định */}

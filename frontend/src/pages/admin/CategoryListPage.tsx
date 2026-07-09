@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '@/services/api';
+import ConfirmModal from '@/components/ConfirmModal';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, Pencil, X, FolderTree, Loader2, Upload, ChevronRight, ChevronDown } from 'lucide-react';
 
@@ -85,6 +86,19 @@ export default function CategoryListPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title?: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    type?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    message: '',
+    onConfirm: () => {},
+  });
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -240,16 +254,25 @@ export default function CategoryListPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Bạn chắc chắn muốn xóa danh mục này?')) return;
-    try {
-      await api.delete(`/categories/${id}`);
-      toast.success('Đã xóa danh mục');
-      fetchCategories();
-    } catch (err: any) {
-      const errMsg = err.response?.data?.message || 'Xóa thất bại';
-      toast.error(errMsg);
-    }
+  const handleDelete = (id: number) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Xóa danh mục',
+      message: 'Bạn có chắc chắn muốn xóa danh mục này? Tất cả danh mục con phụ thuộc có thể bị ảnh hưởng. Hành động này không thể hoàn tác.',
+      confirmText: 'Xóa danh mục',
+      type: 'danger',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        try {
+          await api.delete(`/categories/${id}`);
+          toast.success('Đã xóa danh mục');
+          fetchCategories();
+        } catch (err: any) {
+          const errMsg = err.response?.data?.message || 'Xóa thất bại';
+          toast.error(errMsg);
+        }
+      }
+    });
   };
 
   if (loading) {
@@ -283,14 +306,14 @@ export default function CategoryListPage() {
         <h1 className="text-2xl font-bold text-slate-800">Quản lý Danh mục</h1>
         <button
           onClick={openCreateModal}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer"
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-none text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer"
         >
           <Plus size={18} />
           Thêm danh mục
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-none shadow-sm border border-slate-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
@@ -320,9 +343,9 @@ export default function CategoryListPage() {
                     <td className="px-6 py-4 text-slate-500 font-mono text-xs">{cat.id}</td>
                     <td className="px-6 py-4">
                       {cat.image_url ? (
-                        <img src={cat.image_url} alt={cat.name} className="w-10 h-10 object-cover rounded-lg border border-slate-200" />
+                        <img src={cat.image_url} alt={cat.name} className="w-10 h-10 object-cover rounded-none border border-slate-200" />
                       ) : (
-                        <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                        <div className="w-10 h-10 bg-slate-100 rounded-none flex items-center justify-center">
                           <FolderTree size={16} className="text-slate-300" />
                         </div>
                       )}
@@ -332,7 +355,7 @@ export default function CategoryListPage() {
                         {hasChildren ? (
                           <button
                             onClick={() => toggleExpand(cat.id)}
-                            className="mr-2 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded transition-colors"
+                            className="mr-2 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-none transition-colors"
                           >
                             {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                           </button>
@@ -351,13 +374,13 @@ export default function CategoryListPage() {
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => openEditModal(cat)}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer"
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-none transition-all cursor-pointer"
                         >
                           <Pencil size={16} />
                         </button>
                         <button
                           onClick={() => handleDelete(cat.id)}
-                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-none transition-all cursor-pointer"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -374,7 +397,7 @@ export default function CategoryListPage() {
       {/* Modal Thêm/Sửa */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 relative">
+          <div className="bg-white rounded-none shadow-2xl w-full max-w-lg p-6 relative">
             <button
               onClick={() => setShowModal(false)}
               className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
@@ -394,7 +417,7 @@ export default function CategoryListPage() {
                   value={form.name}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm"
+                  className="w-full px-4 py-2.5 rounded-none border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm"
                   placeholder="VD: Sofa Phòng Khách"
                 />
               </div>
@@ -404,7 +427,7 @@ export default function CategoryListPage() {
                   name="slug"
                   value={form.slug}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-500 text-sm"
+                  className="w-full px-4 py-2.5 rounded-none border border-slate-200 bg-slate-50 text-slate-500 text-sm"
                   readOnly
                 />
               </div>
@@ -414,7 +437,7 @@ export default function CategoryListPage() {
                   name="parentId"
                   value={form.parentId}
                   onChange={(e) => setForm((prev) => ({ ...prev, parentId: e.target.value }))}
-                  className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm bg-white cursor-pointer"
+                  className="w-full px-4 py-2.5 rounded-none border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm bg-white cursor-pointer"
                 >
                   <option value="">Không có (Danh mục gốc)</option>
                   {parentOptions.map((parent) => (
@@ -431,7 +454,7 @@ export default function CategoryListPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-600 mb-1.5">Ảnh đại diện</label>
                 <div className="flex items-start gap-4">
-                  <label className="flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed border-slate-300 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-all cursor-pointer shrink-0">
+                  <label className="flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed border-slate-300 rounded-none hover:border-blue-400 hover:bg-blue-50/50 transition-all cursor-pointer shrink-0">
                     <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                     {uploadingImage ? (
                       <Loader2 size={20} className="text-blue-500 animate-spin" />
@@ -447,7 +470,7 @@ export default function CategoryListPage() {
                       <img
                         src={form.image_url}
                         alt="Preview"
-                        className="w-24 h-24 object-cover rounded-xl border border-slate-200 shadow-sm"
+                        className="w-24 h-24 object-cover rounded-none border border-slate-200 shadow-sm"
                       />
                       <button
                         type="button"
@@ -458,7 +481,7 @@ export default function CategoryListPage() {
                           setLocalImageFile(null);
                           setForm((prev) => ({ ...prev, image_url: '' }));
                         }}
-                        className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-none text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                       >
                         ✕
                       </button>
@@ -471,14 +494,14 @@ export default function CategoryListPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all cursor-pointer"
+                  className="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-none transition-all cursor-pointer"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-all cursor-pointer"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold rounded-none transition-all cursor-pointer"
                 >
                   {submitting && <Loader2 size={16} className="animate-spin" />}
                   {editingId ? 'Cập nhật' : 'Thêm mới'}
@@ -488,6 +511,16 @@ export default function CategoryListPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        type={confirmModal.type}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

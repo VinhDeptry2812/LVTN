@@ -105,11 +105,19 @@ export default function ProductDetailPage() {
             setSelectedAttributes({});
             setActiveImage(data.gallery?.[0]?.url || data.image);
           }
-          return fetchProducts();
-        })
-        .then(all => {
-          setRecommendedProducts(all.filter(p => p.id !== id).slice(0, 4));
-          setLoading(false);
+          return fetchProducts().then(all => {
+            const otherProducts = all.filter(p => p.id !== id);
+            const sameCategory = otherProducts.filter(p => p.category === data.category);
+            
+            let recommended = [...sameCategory];
+            if (recommended.length < 4) {
+              const diffCategory = otherProducts.filter(p => p.category !== data.category);
+              recommended = [...recommended, ...diffCategory];
+            }
+            
+            setRecommendedProducts(recommended.slice(0, 4));
+            setLoading(false);
+          });
         })
         .catch(err => {
           console.error('Lỗi khi tải dữ liệu sản phẩm:', err);
@@ -254,6 +262,49 @@ export default function ProductDetailPage() {
         setIsAdding('idle');
       }, 2000);
     }, 600);
+  };
+
+  const handleBuyNow = () => {
+    if (!product) return;
+
+    const itemId = `${product.id}-${selectedVariantId || 'base'}`;
+    const existingItem = useCartStore.getState().items.find((i) => i.id === itemId);
+    const existingQty = existingItem ? existingItem.quantity : 0;
+    const maxStock = currentVariant ? (currentVariant.stock || 0) : 0;
+
+    if (existingQty + quantity > maxStock) {
+      if (existingQty >= maxStock) {
+        toast.error(`Bạn đã thêm số lượng tối đa hiện có của sản phẩm này trong kho vào giỏ hàng (${maxStock} sản phẩm).`);
+      } else {
+        toast.error(`Không thể thêm. Giỏ hàng đã có ${existingQty} sản phẩm, trong kho chỉ còn lại ${maxStock} sản phẩm.`);
+      }
+      navigate('/checkout');
+      return;
+    }
+
+    let materialStr = product.specs?.['Chất liệu'] || product.specs?.material || 'Mặc định';
+    if (currentVariant && currentVariant.attributes && Object.keys(currentVariant.attributes).length > 0) {
+      materialStr = formatAttributes(currentVariant.attributes);
+    }
+
+    addItem({
+      id: itemId,
+      productId: product.id,
+      variantId: selectedVariantId,
+      name: product.name,
+      material: materialStr,
+      price: displayPrice,
+      rawPrice: displayRawPrice,
+      basePrice: product.rawPrice,
+      baseOldPrice: product.rawBasePrice || product.rawPrice,
+      rawOldPrice: displayRawOldPrice || displayRawPrice,
+      image: currentVariant?.image_url || product.image,
+      quantity: quantity,
+      availableVariants: product.variants
+    });
+
+    toast.success('Đã thêm vào giỏ hàng và chuyển tới thanh toán!');
+    navigate('/checkout');
   };
 
   const detailContainerRef = useRef<HTMLDivElement>(null);
@@ -421,11 +472,11 @@ export default function ProductDetailPage() {
           </nav>
 
           {/* Product Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-sp-xl items-start mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-sp-xl items-start mt-4">
             {/* Left: Gallery */}
-            <div className="detail-gallery flex flex-col md:flex-row gap-sp-md lg:gap-sp-lg h-auto md:max-h-[600px] sticky top-28">
+            <div className="detail-gallery flex flex-col md:flex-row gap-sp-md lg:gap-sp-lg h-auto md:max-h-[680px] sticky top-28">
               <div
-                className="relative flex-1 aspect-[4/5] md:aspect-auto md:h-[600px] overflow-hidden cursor-zoom-in group order-1 md:order-2 rounded-2xl bg-white shadow-sm border border-outline-variant/30"
+                className="relative flex-1 aspect-[4/5] md:aspect-auto md:h-[680px] overflow-hidden cursor-zoom-in group order-1 md:order-2 rounded-2xl bg-white shadow-sm border border-outline-variant/30"
                 onClick={() => setIsZoomOpen(true)}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseMove={handleImageMouseMove}
@@ -693,44 +744,53 @@ export default function ProductDetailPage() {
               </div>
 
               {/* Actions */}
-              <div className="flex space-x-sp-md !mt-3">
+              <div className="flex space-x-sp-md !mt-3 w-full">
                 {(() => {
                   const isOutOfStock = !currentVariant || (currentVariant.stock || 0) <= 0;
                   return (
-                    <button
-                      onClick={handleAddToCart}
-                      disabled={isAdding !== 'idle' || isOutOfStock}
-                      className={`flex-grow py-4 rounded-xl font-label-md text-label-md shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-500 cursor-pointer flex items-center justify-center space-x-2 ${isOutOfStock
-                          ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none hover:shadow-none active:scale-100'
-                          : isAdding === 'success'
-                            ? 'bg-emerald-600 text-white shadow-emerald-100'
-                            : 'bg-primary text-on-primary hover:opacity-95'
-                        }`}
-                    >
-                      {isOutOfStock ? (
-                        <span>HẾT HÀNG</span>
-                      ) : isAdding === 'loading' ? (
-                        <>
-                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                          <span>ĐANG XỬ LÝ...</span>
-                        </>
-                      ) : isAdding === 'success' ? (
-                        <>
-                          <span className="material-symbols-outlined text-lg">check_circle</span>
-                          <span>ĐÃ THÊM VÀO GIỎ HÀNG!</span>
-                        </>
-                      ) : (
-                        <span>THÊM VÀO GIỎ HÀNG</span>
-                      )}
-                    </button>
+                    <>
+                      <button
+                        onClick={handleAddToCart}
+                        disabled={isAdding !== 'idle' || isOutOfStock}
+                        className={`flex-1 py-4 border rounded-xl font-label-md text-label-md shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-300 cursor-pointer flex items-center justify-center space-x-2 ${isOutOfStock
+                            ? 'bg-slate-300 text-slate-500 border-slate-300 cursor-not-allowed shadow-none hover:shadow-none active:scale-100'
+                            : isAdding === 'success'
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-emerald-100'
+                              : 'border-primary text-primary bg-transparent hover:bg-primary hover:text-white'
+                          }`}
+                      >
+                        {isOutOfStock ? (
+                          <span>HẾT HÀNG</span>
+                        ) : isAdding === 'loading' ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            <span>ĐANG XỬ LÝ...</span>
+                          </>
+                        ) : isAdding === 'success' ? (
+                          <>
+                            <span className="material-symbols-outlined text-lg">check_circle</span>
+                            <span>ĐÃ THÊM!</span>
+                          </>
+                        ) : (
+                          <span>THÊM VÀO GIỎ</span>
+                        )}
+                      </button>
+                      <button
+                        onClick={handleBuyNow}
+                        disabled={isOutOfStock}
+                        className={`flex-1 py-4 border rounded-xl font-label-md text-label-md shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-300 cursor-pointer flex items-center justify-center ${isOutOfStock
+                            ? 'bg-slate-300 text-slate-500 border-slate-300 cursor-not-allowed shadow-none hover:shadow-none active:scale-100'
+                            : 'bg-primary text-on-primary border-primary hover:opacity-95'
+                          }`}
+                      >
+                        <span>MUA NGAY</span>
+                      </button>
+                    </>
                   );
                 })()}
-                <button aria-label="Thêm vào danh sách yêu thích" className="px-4 border border-outline-variant text-on-surface-variant rounded-xl hover:bg-surface-container hover:text-primary transition-colors active:scale-95 cursor-pointer">
-                  <span className="material-symbols-outlined" aria-hidden="true">favorite</span>
-                </button>
               </div>
 
               {/* Trust Badges */}
@@ -872,16 +932,6 @@ export default function ProductDetailPage() {
                           loading="lazy"
                         />
                       )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                        }}
-                        aria-label={`Thêm ${p.name} vào yêu thích`}
-                        className="absolute top-10 right-1 w-11 h-11 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-primary opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <span className="material-symbols-outlined" aria-hidden="true">favorite</span>
-                      </button>
                     </div>
                     <h3 className="font-headline-md text-base md:text-lg font-bold text-on-surface mb-1 line-clamp-1 group-hover:text-primary transition-colors duration-300">{p.name}</h3>
                     <p className="font-label-md text-label-md text-primary" style={{ fontVariantNumeric: 'tabular-nums' }}>

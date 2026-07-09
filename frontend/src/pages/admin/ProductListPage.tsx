@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '@/services/api';
+import ConfirmModal from '@/components/ConfirmModal';
 import toast from 'react-hot-toast';
 import { 
   Plus, 
@@ -71,6 +72,19 @@ export default function ProductListPage() {
   // Status updating state
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
 
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title?: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    type?: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    message: '',
+    onConfirm: () => {},
+  });
+
   const fetchProducts = async () => {
     try {
       const res = await api.get('/products');
@@ -96,15 +110,24 @@ export default function ProductListPage() {
     fetchCollections();
   }, []);
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Bạn chắc chắn muốn xóa sản phẩm này?')) return;
-    try {
-      await api.delete(`/products/${id}`);
-      toast.success('Đã xóa sản phẩm thành công');
-      fetchProducts();
-    } catch {
-      toast.error('Xóa sản phẩm thất bại');
-    }
+  const handleDelete = (id: number) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Xóa sản phẩm',
+      message: 'Bạn có chắc chắn muốn xóa sản phẩm này? Hành động này không thể hoàn tác.',
+      confirmText: 'Xóa sản phẩm',
+      type: 'danger',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        try {
+          await api.delete(`/products/${id}`);
+          toast.success('Đã xóa sản phẩm thành công');
+          fetchProducts();
+        } catch {
+          toast.error('Xóa sản phẩm thất bại');
+        }
+      }
+    });
   };
 
   const handleToggleActive = async (id: number, currentStatus: boolean) => {
@@ -307,7 +330,7 @@ export default function ProductListPage() {
         </div>
         <Link
           to="/admin/products/create"
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-bold transition-all shadow-md shadow-indigo-600/10 hover:shadow-lg hover:shadow-indigo-600/20 hover:-translate-y-0.5"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-none text-xs font-bold transition-all shadow-md shadow-indigo-600/10 hover:shadow-lg hover:shadow-indigo-600/20 hover:-translate-y-0.5"
         >
           <Plus size={16} />
           Thêm sản phẩm mới
@@ -327,12 +350,12 @@ export default function ProductListPage() {
             setStockFilter('all');
             toast.success('Đã hiển thị tất cả sản phẩm');
           }}
-          className={`w-full text-left bg-white rounded-2xl border p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all flex items-center gap-4 cursor-pointer ${
+          className={`w-full text-left bg-white rounded-none border p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all flex items-center gap-4 cursor-pointer ${
             !hasActiveFilters ? 'border-indigo-500 ring-2 ring-indigo-500/10' : 'border-slate-200/60'
           }`}
           title="Click để hiển thị tất cả sản phẩm"
         >
-          <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600 shrink-0">
+          <div className="p-3 rounded-none bg-indigo-50 text-indigo-600 shrink-0">
             <Package size={20} />
           </div>
           <div>
@@ -347,12 +370,12 @@ export default function ProductListPage() {
             setStatusFilter('active');
             toast.success('Đang lọc sản phẩm đang bán');
           }}
-          className={`w-full text-left bg-white rounded-2xl border p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all flex items-center gap-4 cursor-pointer ${
+          className={`w-full text-left bg-white rounded-none border p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all flex items-center gap-4 cursor-pointer ${
             statusFilter === 'active' ? 'border-emerald-500 ring-2 ring-emerald-500/10' : 'border-slate-200/60'
           }`}
           title="Click để lọc sản phẩm đang bán"
         >
-          <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+          <div className="p-3 rounded-none bg-emerald-50 text-emerald-600 shrink-0">
             <CheckCircle2 size={20} />
           </div>
           <div>
@@ -371,12 +394,12 @@ export default function ProductListPage() {
             setSearchQuery('');
             toast.success('Đang lọc sản phẩm hết hàng');
           }}
-          className={`w-full text-left bg-white rounded-2xl border p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all flex items-center gap-4 cursor-pointer ${
+          className={`w-full text-left bg-white rounded-none border p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all flex items-center gap-4 cursor-pointer ${
             stockFilter === 'outofstock' ? 'border-rose-500 ring-2 ring-rose-500/10' : 'border-slate-200/60'
           }`}
           title="Click để lọc sản phẩm hết hàng"
         >
-          <div className="p-3 rounded-xl bg-rose-50 text-rose-600 shrink-0">
+          <div className="p-3 rounded-none bg-rose-50 text-rose-600 shrink-0">
             <XCircle size={20} />
           </div>
           <div>
@@ -395,12 +418,12 @@ export default function ProductListPage() {
             setSearchQuery('');
             toast.success('Đang lọc sản phẩm sắp hết hàng');
           }}
-          className={`w-full text-left bg-white rounded-2xl border p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all flex items-center gap-4 cursor-pointer ${
+          className={`w-full text-left bg-white rounded-none border p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98] transition-all flex items-center gap-4 cursor-pointer ${
             stockFilter === 'lowstock' ? 'border-amber-500 ring-2 ring-amber-500/10' : 'border-slate-200/60'
           }`}
           title="Click để lọc sản phẩm sắp hết hàng"
         >
-          <div className="p-3 rounded-xl bg-amber-50 text-amber-600 shrink-0">
+          <div className="p-3 rounded-none bg-amber-50 text-amber-600 shrink-0">
             <AlertTriangle size={20} />
           </div>
           <div>
@@ -412,7 +435,7 @@ export default function ProductListPage() {
       </div>
 
       {/* Filter and search bar card */}
-      <div className="bg-white rounded-2xl border border-slate-200/60 p-4 md:p-5 shadow-sm space-y-4">
+      <div className="bg-white rounded-none border border-slate-200/60 p-4 md:p-5 shadow-sm space-y-4">
         <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between">
           
           {/* Live Search Input */}
@@ -425,7 +448,7 @@ export default function ProductListPage() {
               placeholder="Tìm kiếm theo tên sản phẩm hoặc mã SKU..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl text-xs border border-slate-200/85 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500/80 transition-all text-slate-700 font-medium bg-slate-50/50"
+              className="w-full pl-10 pr-4 py-2.5 rounded-none text-xs border border-slate-200/85 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-500/80 transition-all text-slate-700 font-medium bg-slate-50/50"
             />
           </div>
 
@@ -433,7 +456,7 @@ export default function ProductListPage() {
           <div className="flex flex-wrap items-center gap-3">
             
             {/* Category Filter */}
-            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-none px-2.5 py-1.5">
               <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Danh mục:</span>
               <select
                 value={categoryFilter}
@@ -448,7 +471,7 @@ export default function ProductListPage() {
             </div>
 
             {/* Collection Filter */}
-            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-none px-2.5 py-1.5">
               <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Bộ sưu tập:</span>
               <select
                 value={collectionFilter}
@@ -463,7 +486,7 @@ export default function ProductListPage() {
             </div>
 
             {/* Stock Filter */}
-            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-none px-2.5 py-1.5">
               <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Tồn kho:</span>
               <select
                 value={stockFilter}
@@ -478,7 +501,7 @@ export default function ProductListPage() {
             </div>
 
             {/* Status Filter */}
-            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-none px-2.5 py-1.5">
               <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Trạng thái:</span>
               <select
                 value={statusFilter}
@@ -495,7 +518,7 @@ export default function ProductListPage() {
             {hasActiveFilters && (
               <button
                 onClick={handleClearFilters}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-none text-xs font-bold transition-colors cursor-pointer"
                 title="Đặt lại bộ lọc"
               >
                 <RotateCcw size={13} />
@@ -509,7 +532,7 @@ export default function ProductListPage() {
       </div>
 
       {/* Main product table container */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+      <div className="bg-white rounded-none shadow-sm border border-slate-200/60 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -530,7 +553,7 @@ export default function ProductListPage() {
                 <tr>
                   <td colSpan={9} className="text-center py-16 px-6">
                     <div className="flex flex-col items-center justify-center max-w-md mx-auto space-y-4">
-                      <div className="p-4 bg-slate-50 text-slate-400 rounded-full">
+                      <div className="p-4 bg-slate-50 text-slate-400 rounded-none">
                         <Search size={32} />
                       </div>
                       <div className="space-y-1">
@@ -542,7 +565,7 @@ export default function ProductListPage() {
                       {hasActiveFilters && (
                         <button
                           onClick={handleClearFilters}
-                          className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                          className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-none text-xs font-bold transition-colors cursor-pointer"
                         >
                           Xóa tất cả bộ lọc
                         </button>
@@ -564,14 +587,14 @@ export default function ProductListPage() {
                       {/* Name & Avatar/Image */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          {primaryImg ? (
+                           {primaryImg ? (
                             <img 
                               src={primaryImg} 
                               alt={p.name} 
-                              className="w-10 h-10 rounded-xl object-cover border border-slate-200/50 shrink-0"
+                              className="w-10 h-10 rounded-none object-cover border border-slate-200/50 shrink-0"
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-xl bg-slate-100/80 border border-slate-200/50 flex items-center justify-center font-bold text-slate-400 shrink-0 text-sm">
+                            <div className="w-10 h-10 rounded-none bg-slate-100/80 border border-slate-200/50 flex items-center justify-center font-bold text-slate-400 shrink-0 text-sm">
                               {p.name.charAt(0).toUpperCase()}
                             </div>
                           )}
@@ -595,7 +618,7 @@ export default function ProductListPage() {
                         <div className="flex flex-wrap gap-1 max-w-[150px]">
                           {p.collections && p.collections.length > 0 ? (
                             p.collections.map((col) => (
-                              <span key={col.id} className="inline-block px-1.5 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded">
+                              <span key={col.id} className="inline-block px-1.5 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded-none">
                                 {col.name}
                               </span>
                             ))
@@ -637,7 +660,7 @@ export default function ProductListPage() {
                         {p.discount_price ? (
                           <div className="space-y-0.5">
                             <span className="font-black text-rose-600 block">{formatPrice(p.discount_price)}</span>
-                            <span className="inline-block px-1.5 py-0.5 bg-rose-50 text-[10px] font-bold text-rose-600 rounded">
+                            <span className="inline-block px-1.5 py-0.5 bg-rose-50 text-[10px] font-bold text-rose-600 rounded-none">
                               Giảm {Math.round((1 - p.discount_price / p.base_price) * 100)}%
                             </span>
                           </div>
@@ -650,32 +673,32 @@ export default function ProductListPage() {
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-3">
                           {/* Badge Status */}
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition-colors ${
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-none text-[10px] font-bold border transition-colors ${
                             p.is_active
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               : 'bg-slate-100 text-slate-500 border-slate-200'
                           }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${p.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                            <span className={`w-1.5 h-1.5 rounded-none ${p.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
                             {p.is_active ? 'Đang bán' : 'Ngừng bán'}
                           </span>
 
-                          {/* iOS-style Toggle Switch */}
+                          {/* Square/Box Toggle Switch */}
                           <button
                             onClick={() => handleToggleActive(p.id, p.is_active)}
                             disabled={updatingStatusId === p.id}
-                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-none border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                               p.is_active ? 'bg-indigo-600' : 'bg-slate-200'
                             } ${updatingStatusId === p.id ? 'opacity-60 cursor-not-allowed' : 'hover:scale-105'}`}
                             title={p.is_active ? 'Click để ngừng bán' : 'Click để đăng bán'}
                           >
                             <span className="sr-only">Toggle active status</span>
                             {updatingStatusId === p.id ? (
-                              <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out flex items-center justify-center ${p.is_active ? 'translate-x-4' : 'translate-x-0'}`}>
-                                <span className="w-2.5 h-2.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                              <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-none bg-white shadow ring-0 transition duration-200 ease-in-out flex items-center justify-center ${p.is_active ? 'translate-x-4' : 'translate-x-0'}`}>
+                                <span className="w-2.5 h-2.5 border-2 border-indigo-600 border-t-transparent rounded-none animate-spin" />
                               </span>
                             ) : (
                               <span
-                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-none bg-white shadow ring-0 transition duration-200 ease-in-out ${
                                   p.is_active ? 'translate-x-4' : 'translate-x-0'
                                 }`}
                               />
@@ -689,14 +712,14 @@ export default function ProductListPage() {
                         <div className="flex items-center justify-center gap-2">
                           <Link
                             to={`/admin/products/edit/${p.id}`}
-                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-none transition-all"
                             title="Sửa sản phẩm"
                           >
                             <Pencil size={15} />
                           </Link>
                           <button
                             onClick={() => handleDelete(p.id)}
-                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-none transition-all cursor-pointer"
                             title="Xóa sản phẩm"
                           >
                             <Trash2 size={15} />
@@ -719,7 +742,7 @@ export default function ProductListPage() {
             <span className="text-xs text-slate-500 font-semibold">
               Hiển thị {totalItems > 0 ? indexOfFirstItem + 1 : 0} - {Math.min(indexOfLastItem, totalItems)} của {totalItems} sản phẩm
             </span>
-            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1">
+            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-none px-2 py-1">
               <span className="text-[10px] font-bold text-slate-400 uppercase">Dòng/Trang:</span>
               <select
                 value={pageSize}
@@ -739,7 +762,7 @@ export default function ProductListPage() {
             <button
               onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1.5 rounded-none border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronLeft size={16} />
             </button>
@@ -757,7 +780,7 @@ export default function ProductListPage() {
                 <button
                   key={`page-${page}`}
                   onClick={() => setCurrentPage(page as number)}
-                  className={`w-8 h-8 rounded-lg text-xs font-bold border transition-colors ${
+                  className={`w-8 h-8 rounded-none text-xs font-bold border transition-colors ${
                     currentPage === page
                       ? 'bg-indigo-600 border-indigo-600 text-white shadow'
                       : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
@@ -771,7 +794,7 @@ export default function ProductListPage() {
             <button
               onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1.5 rounded-none border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronRight size={16} />
             </button>
@@ -780,6 +803,16 @@ export default function ProductListPage() {
         </div>
 
       </div>
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        type={confirmModal.type}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }
