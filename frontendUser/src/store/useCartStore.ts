@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
+import { formatPrice } from '../utils/format';
 const formatAttributes = (attributes: Record<string, any> | undefined) => {
   if (!attributes || Object.keys(attributes).length === 0) return '';
   return Object.values(attributes)
@@ -100,8 +100,6 @@ export const useCartStore = create<CartState>()(
         
         const baseOldPrice = itemToUpdate.baseOldPrice || itemToUpdate.rawOldPrice || basePrice;
         const newRawOldPrice = baseOldPrice + (variant?.price_adjustment ? Number(variant.price_adjustment) : 0);
-        
-        const formatPrice = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value).replace('₫', '₫');
         
         let newMaterial = itemToUpdate.material;
         if (variant?.attributes && Object.keys(variant.attributes).length > 0) {

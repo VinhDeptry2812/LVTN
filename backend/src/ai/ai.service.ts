@@ -1,9 +1,10 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI } from '@google/genai';
 
 @Injectable()
 export class AiService {
+  private readonly logger = new Logger(AiService.name);
   private ai: GoogleGenAI;
 
   constructor(private readonly configService: ConfigService) {
@@ -66,7 +67,7 @@ Yêu cầu về định dạng đầu ra:
       });
       return response.text || 'Không thể tạo mô tả cho sản phẩm này.';
     } catch (error) {
-      console.error('Lỗi Gemini API:', error);
+      this.logger.error('Lỗi Gemini API:', error);
       throw new InternalServerErrorException(
         'Không thể tạo mô tả tự động lúc này.',
       );

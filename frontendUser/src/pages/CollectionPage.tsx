@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import ProductCard from '@/components/ProductCard';
 import { type Collection, getCollectionBySlug } from '@/services/collection.service';
 import { mapBackendProductToFrontend } from '@/services/product.service';
 import { useGSAP } from '@gsap/react';
@@ -304,50 +305,9 @@ const CollectionPage: React.FC = () => {
                   const product = mapBackendProductToFrontend(backendProd);
 
                   return (
-                    <Link
-                      key={product.id}
-                      to={`/product/${product.id}`}
-                      className="product-card group block"
-                    >
-                      <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-white/30 backdrop-blur-md border border-white/20 mb-1">
-                        <img
-                          className={`absolute inset-0 w-full h-full object-contain p-0 transition-opacity duration-500 mix-blend-multiply ${product.hoverImage ? 'opacity-100 group-hover:opacity-0' : ''}`}
-                          src={productCardImage(product.image)}
-                          alt={product.name}
-                          loading="lazy"
-                        />
-                        {product.hoverImage && (
-                          <img
-                            className="absolute inset-0 w-full h-full object-contain p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 mix-blend-multiply"
-                            src={productCardImage(product.hoverImage)}
-                            alt={`${product.name} alternate view`}
-                            loading="lazy"
-                          />
-                        )}
-
-                        {product.discount && (
-                          <div className="absolute top-10 left-1 bg-error text-on-error px-3 py-1 rounded-full font-label-sm text-label-sm font-bold shadow-sm z-10">
-                            Giảm {product.discount.replace('-', '')}
-                          </div>
-                        )}
-
-
-                      </div>
-
-                      <div className="text-left">
-                        <h2 className="font-headline-md text-base md:text-lg font-bold text-on-surface mb-1 line-clamp-1 group-hover:text-primary transition-colors duration-300">{product.name}</h2>
-                        <div className="flex items-baseline space-x-2">
-                          <p className="font-label-md text-label-md text-primary font-semibold" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                            {product.price}
-                          </p>
-                          {product.oldPrice && (
-                            <p className="text-xs text-on-surface-variant/60 line-through font-sans" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                              {product.oldPrice}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </Link>
+                    <div key={product.id} className="product-card">
+                      <ProductCard product={product} />
+                    </div>
                   );
                 })}
               </div>

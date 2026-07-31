@@ -139,6 +139,11 @@ export class CreateProductDto {
   @IsBoolean()
   is_active?: boolean;
 
+  @ApiPropertyOptional({ example: false, description: 'Sản phẩm cồng kềnh' })
+  @IsOptional()
+  @IsBoolean()
+  is_bulky?: boolean;
+
   @ApiPropertyOptional({
     type: [Number],
     description: 'Danh sách ID bộ sưu tập',

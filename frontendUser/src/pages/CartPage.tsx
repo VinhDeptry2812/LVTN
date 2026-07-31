@@ -5,9 +5,12 @@ import gsap from 'gsap';
 import toast from 'react-hot-toast';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import Breadcrumbs from '@/components/Breadcrumbs';
+import VariantSelectorModal from '@/components/VariantSelectorModal';
 
 import { useCartStore } from '@/store/useCartStore';
 import { productCardImage } from '@/utils/cloudinaryUrl';
+import { formatPrice } from '@/utils/format';
 
 const formatAttributes = (attributes: Record<string, any> | undefined) => {
   if (!attributes || Object.keys(attributes).length === 0) return '';
@@ -78,12 +81,6 @@ export default function CartPage() {
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.rawPrice * item.quantity, 0);
 
-  const formatPrice = (value: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
-      .format(value)
-      .replace('₫', '₫');
-  };
-
   return (
     <div className="bg-surface text-on-surface min-h-screen font-body-md antialiased overflow-x-hidden" ref={cartContainerRef}>
       <Header />
@@ -91,15 +88,9 @@ export default function CartPage() {
       <main className="pt-28 pb-sp-xl">
         <div className="max-w-container-max mx-auto px-sp-md md:px-lg">
           {/* Breadcrumbs */}
-          <nav className="flex items-center justify-start space-x-2 pb-sp-lg text-on-surface-variant font-label-sm text-label-sm">
-            <Link className="hover:text-primary transition-colors" to="/">
-              Trang chủ
-            </Link>
-            <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-            <span className="text-primary font-bold">Giỏ hàng</span>
-          </nav>
+          <Breadcrumbs items={[{ label: 'Giỏ hàng' }]} className="pb-sp-lg" />
 
-          <h1 className="cart-title font-headline-lg text-headline-lg text-primary mb-sp-xl text-left">Giỏ hàng của bạn</h1>
+          <h1 className="cart-title font-headline-lg text-headline-lg text-primary mb-3 md:mb-sp-xl text-left">Giỏ hàng của bạn</h1>
 
           {cartItems.length === 0 ? (
             <div className="text-center py-20 bg-white rounded-xl shadow-sm space-y-sp-md">
@@ -160,34 +151,11 @@ export default function CartPage() {
                             )}
                           </div>
 
-                          {/* Chọn biến thể */}
-                          {item.availableVariants && item.availableVariants.length > 0 ? (
-                            <div className="mt-2 text-left">
-                              <select
-                                value={item.variantId || (item.availableVariants[0]?.id || '')}
-                                onChange={(e) => updateVariant(item.id, Number(e.target.value))}
-                                className="font-body-sm text-xs text-on-surface-variant border border-outline-variant rounded-lg py-1 px-2.5 bg-surface-container-lowest focus:ring-1 focus:ring-primary outline-none max-w-full cursor-pointer hover:border-primary transition-colors appearance-none"
-                                style={{ backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23495057%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.6rem top 50%', backgroundSize: '0.55rem auto', paddingRight: '1.75rem' }}
-                              >
-                                {item.availableVariants.map((v: any) => {
-                                  const label = (v.attributes && Object.keys(v.attributes).length > 0)
-                                    ? formatAttributes(v.attributes)
-                                    : (v.sku || `Biến thể ${v.id}`);
-                                  return (
-                                    <option key={v.id} value={v.id}>
-                                      {label}
-                                    </option>
-                                  );
-                                })}
-                              </select>
-                            </div>
-                          ) : (
-                            <p className="font-body-sm text-xs text-on-surface-variant mt-2 text-left">
-                              {item.material?.includes('|')
-                                ? item.material
-                                : item.material?.split(' - ').map(s => s.includes('|') ? s.split('|')[0].trim() : s.trim()).join('|')}
-                            </p>
-                          )}
+                          {/* Chọn biến thể sản phẩm */}
+                          <VariantSelectorModal
+                            item={item}
+                            onUpdateVariant={updateVariant}
+                          />
                         </div>
                       </div>
 
@@ -244,7 +212,7 @@ export default function CartPage() {
                   <h2 className="font-headline-md text-headline-md text-on-surface font-semibold text-left">Thông tin đơn hàng</h2>
 
                   <div className="flex justify-between items-end pb-4 pt-2">
-                    <span className="font-headline-md text-headline-md text-on-surface font-medium">Tổng tiền:</span>
+                    <span className="font-headline-md text-headline-md text-on-surface font-medium">Tổng:</span>
                     <span className="font-headline-lg text-headline-lg text-error font-bold" style={{ fontVariantNumeric: 'tabular-nums' }}>{formatPrice(subtotal)}</span>
                   </div>
 

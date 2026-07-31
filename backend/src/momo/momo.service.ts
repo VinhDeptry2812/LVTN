@@ -1,9 +1,11 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, Logger } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { OrdersService } from '../orders/orders.service';
 
 @Injectable()
 export class MomoService {
+  private readonly logger = new Logger(MomoService.name);
+
   constructor(
     @Inject(forwardRef(() => OrdersService))
     private readonly ordersService: OrdersService,
@@ -24,13 +26,14 @@ export class MomoService {
 
     const orderInfo = `Thanh toan don hang #${orderId} tai FurniShop`;
     const requestId = partnerCode + new Date().getTime();
+    const momoOrderId = `${orderId}_${new Date().getTime()}`;
     const extraData = ''; // Dữ liệu bổ sung nếu muốn chuyển qua lại giữa FE và BE
     const orderGroupId = '';
     const autoCapture = true;
     const requestType = 'captureWallet'; // Loại thanh toán bằng ví MoMo
 
     // Tạo chuỗi signature theo yêu cầu của MoMo
-    const rawSignature = `accessKey=${accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${ipnUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${partnerCode}&redirectUrl=${redirectUrl}&requestId=${requestId}&requestType=${requestType}`;
+    const rawSignature = `accessKey=${accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${ipnUrl}&orderId=${momoOrderId}&orderInfo=${orderInfo}&partnerCode=${partnerCode}&redirectUrl=${redirectUrl}&requestId=${requestId}&requestType=${requestType}`;
 
     const signature = crypto
       .createHmac('sha256', secretKey)
@@ -43,7 +46,7 @@ export class MomoService {
       storeId: 'FurniShopStore',
       requestId,
       amount,
-      orderId: orderId.toString(),
+      orderId: momoOrderId,
       orderInfo,
       redirectUrl,
       ipnUrl,
@@ -56,9 +59,7 @@ export class MomoService {
     };
 
     try {
-      console.log('--- MOMO API REQUEST DETAILS ---');
-      console.log('Endpoint:', apiUrl);
-      console.log('Payload:', JSON.stringify(requestBody, null, 2));
+      this.logger.log(`--- MOMO API REQUEST DETAILS --- Endpoint: ${apiUrl}`);
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -71,14 +72,13 @@ export class MomoService {
       let responseData: any;
       try {
         responseData = await response.json();
-        console.log(
-          'MoMo Response Data:',
-          JSON.stringify(responseData, null, 2),
+        this.logger.log(
+          `MoMo Response Data: ${JSON.stringify(responseData)}`,
         );
       } catch (jsonErr) {
-        console.error('Failed to parse MoMo response JSON:', jsonErr);
+        this.logger.error('Failed to parse MoMo response JSON:', jsonErr);
         const text = await response.text();
-        console.log('MoMo Response Raw Text:', text);
+        this.logger.log(`MoMo Response Raw Text: ${text}`);
         throw new Error(`MoMo API error! status: ${response.status}`);
       }
 
@@ -91,7 +91,7 @@ export class MomoService {
 
       return responseData.payUrl; // Trả về payUrl để khách hàng click
     } catch (error) {
-      console.error('Error creating MoMo payment link:', error);
+      this.logger.error('Error creating MoMo payment link:', error);
       throw new Error(
         `Kết nối tới cổng thanh toán MoMo thất bại! Chi tiết: ${error.message}`,
       );

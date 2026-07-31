@@ -16,6 +16,7 @@ import { Collection } from '../collections/collection.entity';
 import { ProductDetail } from './product-detail.entity';
 import { ProductVariant } from './product-variant.entity';
 import { ProductImage } from './product-image.entity';
+import { Review } from '../reviews/review.entity';
 
 @Entity('products')
 export class Product {
@@ -62,6 +63,20 @@ export class Product {
 
   @OneToMany(() => ProductImage, (image) => image.product, { cascade: true })
   images: ProductImage[];
+
+  @OneToMany(() => Review, (review) => review.product)
+  reviews: Review[];
+
+  @Column({ default: false })
+  is_bulky: boolean;
+
+  averageRating?: number;
+
+  soldCount?: number;
+
+  inventoryUpdatedAt?: Date;
+
+  lastStockAddedAt?: Date;
 
   @CreateDateColumn()
   created_at: Date;

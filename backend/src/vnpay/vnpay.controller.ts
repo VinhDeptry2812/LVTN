@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Logger } from '@nestjs/common';
 import { OrdersService } from '../orders/orders.service';
 import { VnpayService } from './vnpay.service';
 import { PaymentStatus } from '../orders/order.entity';
@@ -9,6 +9,8 @@ import { PaymentStatus } from '../orders/order.entity';
  */
 @Controller('payment')
 export class VnpayController {
+  private readonly logger = new Logger(VnpayController.name);
+
   constructor(
     private readonly vnpayService: VnpayService,
     private readonly ordersService: OrdersService,
@@ -33,12 +35,15 @@ export class VnpayController {
     if (result.responseCode === '00' && result.orderId) {
       try {
         const paidAmount = Number(query['vnp_Amount']) / 100;
+        const payDate = query['vnp_PayDate'] || null;
         await this.ordersService.updatePaymentStatus(
           result.orderId,
           true,
           result.transactionNo,
           'vnpay',
           paidAmount,
+          payDate,
+          result.txnRef || null,
         );
 
         return {
@@ -50,7 +55,8 @@ export class VnpayController {
       } catch (error) {
         return {
           success: false,
-          message: error.message || 'Thanh toán thất bại do xác thực không hợp lệ.',
+          message:
+            error.message || 'Thanh toán thất bại do xác thực không hợp lệ.',
         };
       }
     }
@@ -106,17 +112,20 @@ export class VnpayController {
       }
 
       const isSuccess = result.responseCode === '00';
+      const payDate = query['vnp_PayDate'] || null;
       await this.ordersService.updatePaymentStatus(
         result.orderId,
         isSuccess,
         result.transactionNo,
         'vnpay',
         vnpAmount,
+        payDate,
+        result.txnRef || null,
       );
 
       return { RspCode: '00', Message: 'Confirm success' };
     } catch (error) {
-      console.error('Lỗi xử lý VNPAY IPN:', error);
+      this.logger.error('Lỗi xử lý VNPAY IPN:', error);
       return { RspCode: '99', Message: 'Unknown error' };
     }
   }

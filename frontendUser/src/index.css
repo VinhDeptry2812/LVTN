@@ -147,6 +147,24 @@ body {
   border-radius: 0px;
 }
 
+/* Utility to completely hide scrollbar across all browsers */
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Selection highlight color */
 ::selection {
   background: rgba(83, 98, 87, 0.2);
@@ -195,9 +213,11 @@ body {
 @utility font-headline-md {
   font-family: 'Plus Jakarta Sans', sans-serif;
 }
-@utility text-headline-md {
-  font-size: 24px;
-  line-height: 32px;
+
+
+@utility text-headline-mobile {
+  font-size: 14px;
+  line-height: 16px;
   font-weight: 600;
 }
 
@@ -250,8 +270,47 @@ body {
   }
 }
 
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
 @utility animate-slide-down {
   animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@utility animate-slideInRight {
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@utility animate-fadeIn {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+@utility animate-slide-up {
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* ==========================================================================
@@ -259,16 +318,16 @@ body {
    ========================================================================== */
 
 /* 1. Reset border radius for non-circular buttons and action links */
-button:not(.rounded-full),
-a.bg-primary:not(.rounded-full),
-a.border:not(.rounded-full),
+button:not(.rounded-full):not(.rounded-xl):not(.no-slide-effect),
+a.bg-primary:not(.rounded-full):not(.rounded-xl):not(.no-slide-effect),
+a.border:not(.rounded-full):not(.rounded-xl):not(.no-slide-effect),
 .btn-slide-dark,
 .btn-slide-light {
   border-radius: 0px !important;
 }
 
 /* 2. Primary Buttons hover effect (Slide-in high-contrast sand color) */
-:is(button, a).bg-primary:is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]),
+:is(button, a).bg-primary:is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(.rounded-full):not(.rounded-xl):not(.no-slide-effect),
 .btn-slide-dark {
   position: relative !important;
   overflow: hidden !important;
@@ -276,7 +335,7 @@ a.border:not(.rounded-full),
   transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease !important;
 }
 
-:is(button, a).bg-primary:is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"])::before,
+:is(button, a).bg-primary:is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(.rounded-full):not(.rounded-xl):not(.no-slide-effect)::before,
 .btn-slide-dark::before {
   content: "" !important;
   position: absolute !important;
@@ -288,20 +347,20 @@ a.border:not(.rounded-full),
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-:is(button, a).bg-primary:is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(:disabled):hover,
+:is(button, a).bg-primary:is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(.rounded-full):not(.rounded-xl):not(.no-slide-effect):not(:disabled):hover,
 .btn-slide-dark:not(:disabled):hover {
   color: var(--color-primary, #536257) !important;
   background-color: transparent !important;
   background-image: none !important;
 }
 
-:is(button, a).bg-primary:is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(:disabled):hover::before,
+:is(button, a).bg-primary:is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(.rounded-full):not(.rounded-xl):not(.no-slide-effect):not(:disabled):hover::before,
 .btn-slide-dark:not(:disabled):hover::before {
   transform: scaleX(1) !important;
 }
 
 /* 3. Outline/Secondary/Border Buttons hover effect (Slide-in primary brand color) */
-:is(button, a).border:not(.bg-primary):is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]),
+:is(button, a).border:not(.bg-primary):is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(.rounded-full):not(.rounded-xl):not(.no-slide-effect),
 .btn-slide-light {
   position: relative !important;
   overflow: hidden !important;
@@ -309,7 +368,7 @@ a.border:not(.rounded-full),
   transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease !important;
 }
 
-:is(button, a).border:not(.bg-primary):is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"])::before,
+:is(button, a).border:not(.bg-primary):is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(.rounded-full):not(.rounded-xl):not(.no-slide-effect)::before,
 .btn-slide-light::before {
   content: "" !important;
   position: absolute !important;
@@ -321,14 +380,14 @@ a.border:not(.rounded-full),
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-:is(button, a).border:not(.bg-primary):is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(:disabled):hover,
+:is(button, a).border:not(.bg-primary):is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(.rounded-full):not(.rounded-xl):not(.no-slide-effect):not(:disabled):hover,
 .btn-slide-light:not(:disabled):hover {
   color: var(--color-on-primary, #ffffff) !important;
   border-color: var(--color-primary, #536257) !important;
   background-color: transparent !important;
 }
 
-:is(button, a).border:not(.bg-primary):is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(:disabled):hover::before,
+:is(button, a).border:not(.bg-primary):is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(.rounded-full):not(.rounded-xl):not(.no-slide-effect):not(:disabled):hover::before,
 .btn-slide-light:not(:disabled):hover::before {
   transform: scaleX(1) !important;
 }

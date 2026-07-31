@@ -1,4 +1,10 @@
-import { IsString, IsNotEmpty, MinLength, IsOptional, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  MinLength,
+  IsOptional,
+  IsDateString,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class UpdateProfileDto {
@@ -60,4 +66,31 @@ export class ChangePasswordDto {
   @IsString()
   @IsNotEmpty({ message: 'Vui lòng xác nhận lại mật khẩu mới' })
   confirmNewPassword: string;
+}
+
+export class CreateUserDto {
+  @ApiProperty({ example: 'Nguyễn Văn A', description: 'Họ và tên' })
+  @IsString()
+  @IsNotEmpty({ message: 'Vui lòng nhập họ tên' })
+  name: string;
+
+  @ApiProperty({ example: 'admin@gmail.com', description: 'Email' })
+  @IsString()
+  @IsNotEmpty({ message: 'Vui lòng nhập email' })
+  email: string;
+
+  @ApiProperty({ example: '123456', description: 'Mật khẩu' })
+  @IsString()
+  @MinLength(6, { message: 'Mật khẩu phải từ 6 ký tự' })
+  password: string;
+
+  @ApiProperty({ example: '0987654321', description: 'Số điện thoại', required: false })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiProperty({ example: 'staff', description: 'Vai trò (admin hoặc staff)' })
+  @IsString()
+  @IsNotEmpty({ message: 'Vui lòng chọn vai trò' })
+  role: 'admin' | 'staff';
 }

@@ -6,9 +6,10 @@ import {
   IsOptional,
   IsBoolean,
   IsDateString,
+  IsArray,
   Min,
 } from 'class-validator';
-import { DiscountType } from '../voucher.entity';
+import { DiscountType, VoucherApplyType } from '../voucher.entity';
 
 export class CreateVoucherDto {
   @IsNotEmpty()
@@ -18,6 +19,10 @@ export class CreateVoucherDto {
   @IsNotEmpty()
   @IsEnum(DiscountType)
   discount_type: DiscountType;
+
+  @IsOptional()
+  @IsEnum(VoucherApplyType)
+  apply_type?: VoucherApplyType;
 
   @IsNotEmpty()
   @IsNumber()
@@ -50,4 +55,14 @@ export class CreateVoucherDto {
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  category_ids?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  product_ids?: number[];
 }

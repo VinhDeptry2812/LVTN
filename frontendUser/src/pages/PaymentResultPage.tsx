@@ -72,6 +72,31 @@ export default function PaymentResultPage() {
           console.error('Lỗi xác thực thanh toán MoMo:', err);
           setStatus('failed');
         });
+    } else if (searchParams.has('orderCode')) {
+      setPaymentMethod('Chuyển khoản VietQR (PayOS)');
+      const payosOrderCode = searchParams.get('orderCode');
+      if (payosOrderCode) {
+        setOrderCode(payosOrderCode);
+      }
+      api.get(`/payment/payos-verify?${searchParams.toString()}`)
+        .then((response) => {
+          if (response.data.success) {
+            setStatus('success');
+            clearCart();
+            if (response.data.order?.total_price) {
+              setAmount(
+                new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
+                  .format(Number(response.data.order.total_price))
+              );
+            }
+          } else {
+            setStatus('failed');
+          }
+        })
+        .catch((err) => {
+          console.error('Lỗi xác thực thanh toán PayOS:', err);
+          setStatus('failed');
+        });
     } else {
       // Direct navigation or COD fallback
       setStatus('success');

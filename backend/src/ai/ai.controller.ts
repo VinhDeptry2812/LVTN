@@ -11,7 +11,7 @@ export class AiController {
 
   @Post('generate-product-description')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
   async generateDescription(
     @Body() body: { name: string; category: string; attributes: string },
   ) {

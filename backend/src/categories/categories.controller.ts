@@ -36,8 +36,8 @@ export class CategoriesController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Thêm mới danh mục (Chỉ Admin)' })
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  @ApiOperation({ summary: 'Thêm mới danh mục (Admin & Staff)' })
   @Post()
   create(@Body() createCategoryDto: CreateCategoryDto) {
     return this.categoriesService.create(createCategoryDto);
@@ -45,8 +45,8 @@ export class CategoriesController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Cập nhật danh mục (Chỉ Admin)' })
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  @ApiOperation({ summary: 'Cập nhật danh mục (Admin & Staff)' })
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -57,8 +57,8 @@ export class CategoriesController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Xóa danh mục (Chỉ Admin)' })
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  @ApiOperation({ summary: 'Xóa danh mục (Admin & Staff)' })
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.categoriesService.remove(+id);

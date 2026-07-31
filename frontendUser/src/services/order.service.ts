@@ -11,7 +11,7 @@ export interface CreateOrderPayload {
   shipping_address: string;
   phone: string;
   notes?: string;
-  payment_method: 'cod' | 'vnpay' | 'momo';
+  payment_method: 'cod' | 'vnpay' | 'momo' | 'payos';
   voucher_code?: string;
   items: OrderItemPayload[];
 }
@@ -43,6 +43,19 @@ export const repayOrder = async (orderId: number) => {
 
 export const completeOrder = async (orderId: number) => {
   const response = await api.post(`/orders/my-orders/${orderId}/complete`);
+  return response.data;
+};
+
+export interface RequestReturnPayload {
+  reason: string;
+  description?: string;
+  images?: string[];
+  items: number[];
+  action_type: 'refund' | 'exchange';
+}
+
+export const requestReturnOrder = async (orderId: number, payload: RequestReturnPayload) => {
+  const response = await api.post(`/orders/my-orders/${orderId}/return`, payload);
   return response.data;
 };
 

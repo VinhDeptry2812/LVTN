@@ -14,6 +14,7 @@ export interface RegisterData {
 
 export interface AuthResponse {
   access_token: string;
+  refresh_token: string;
   user: {
     id: string;
     email: string;
@@ -58,6 +59,25 @@ const authService = {
 
   changePassword: async (data: ChangePasswordData) => {
     const response = await api.patch('/users/change-password', data);
+    return response.data;
+  },
+
+  forgotPassword: async (email: string) => {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  verifyOtp: async (email: string, otp: string) => {
+    const response = await api.post('/auth/verify-otp', { email, otp });
+    return response.data;
+  },
+
+  resetPassword: async (email: string, otp: string, newPasswordDto: string) => {
+    const response = await api.post('/auth/reset-password', {
+      email,
+      otp,
+      newPassword: newPasswordDto,
+    });
     return response.data;
   }
 };

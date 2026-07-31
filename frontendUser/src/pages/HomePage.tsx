@@ -1,40 +1,47 @@
-import { useRef, useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import ProductSectionCarousel from '@/components/ProductSectionCarousel';
+
+import { HeroBannerSection } from '@/components/home/HeroBannerSection';
+import { ServicesSection } from '@/components/home/ServicesSection';
+import { AboutUsSection } from '@/components/home/AboutUsSection';
+import { SpacesSection } from '@/components/home/SpacesSection';
+import { FeaturedCategoriesSection } from '@/components/home/FeaturedCategoriesSection';
+import { TestimonialsSection } from '@/components/home/TestimonialsSection';
+import { ArticlesSection } from '@/components/home/ArticlesSection';
+import { NewsletterSection } from '@/components/home/NewsletterSection';
+
 import { getCategories, type Category } from '@/services/category.service';
-import { fetchProducts, type ProductFrontend } from '@/services/product.service';
+import { fetchProducts, fetchBestSellers, type ProductFrontend } from '@/services/product.service';
 import { getActiveCollections, type Collection } from '@/services/collection.service';
+import { getActiveBanners } from '@/services/banner.service';
+import { fetchFeaturedReviews } from '@/services/review.service';
 import { useCartStore } from '@/store/useCartStore';
-import toast from 'react-hot-toast';
-import { heroBannerImage, categoryCardImage, productCardImage } from '@/utils/cloudinaryUrl';
 
 // Register GSAP plugins
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
 export default function HomePage() {
-  const navigate = useNavigate();
   const heroRef = useRef<HTMLDivElement>(null);
-  const servicesRef = useRef<HTMLElement>(null);
-  const aboutRef = useRef<HTMLElement>(null);
-  const categoriesRef = useRef<HTMLElement>(null);
-  const roomsRef = useRef<HTMLElement>(null);
-  const promoRef = useRef<HTMLElement>(null);
-  const productsRef = useRef<HTMLElement>(null);
-  const testimonialsRef = useRef<HTMLElement>(null);
-
-  const newsletterRef = useRef<HTMLElement>(null);
+  const servicesRef = useRef<HTMLDivElement>(null);
+  const aboutRef = useRef<HTMLDivElement>(null);
+  const categoriesRef = useRef<HTMLDivElement>(null);
+  const roomsRef = useRef<HTMLDivElement>(null);
+  const productsRef = useRef<HTMLDivElement>(null);
+  const testimonialsRef = useRef<HTMLDivElement>(null);
+  const articlesRef = useRef<HTMLDivElement>(null);
+  const newsletterRef = useRef<HTMLDivElement>(null);
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [allProducts, setAllProducts] = useState<ProductFrontend[]>([]);
-  const [products, setProducts] = useState<ProductFrontend[]>([]);
+  const [bestSellers, setBestSellers] = useState<ProductFrontend[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
-  const [activeTab, setActiveTab] = useState<'new' | 'best' | 'sale'>('new');
-  const [timeLeft, setTimeLeft] = useState({ days: 7, hours: 0, minutes: 0, seconds: 0 });
+  const [featuredReviews, setFeaturedReviews] = useState<any[]>([]);
   const addItem = useCartStore((state) => state.addItem);
 
   // Hero Banner Slider States
@@ -42,13 +49,7 @@ export default function HomePage() {
   const [isHovered, setIsHovered] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  // Product Carousel States
-  const [carouselIndex, setCarouselIndex] = useState(4);
-  const [isCarouselTransitioning, setIsCarouselTransitioning] = useState(true);
-  const [itemsToShow, setItemsToShow] = useState(4);
-  const [isAutoplayPaused, setIsAutoplayPaused] = useState(false);
-
-  const HERO_SLIDES = [
+  const DEFAULT_SLIDES = [
     {
       image: 'https://res.cloudinary.com/dblkv5veh/image/upload/v1782750523/imgi_57_BST-Coastal-3-3_ziafsm.jpg',
       badge: 'Bộ sưu tập',
@@ -75,9 +76,11 @@ export default function HomePage() {
     }
   ];
 
+  const [slides, setSlides] = useState(DEFAULT_SLIDES);
+
   // Autoplay & Progress timer for Hero Banner Carousel
   useEffect(() => {
-    if (isHovered) return;
+    if (isHovered || slides.length === 0) return;
 
     const intervalTime = 50; // ms
     const step = 100 / (6000 / intervalTime); // 100% over 6000ms
@@ -85,7 +88,7 @@ export default function HomePage() {
     const timer = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
-          setCurrentSlide((current) => (current + 1) % HERO_SLIDES.length);
+          setCurrentSlide((current) => (current + 1) % slides.length);
           return 0;
         }
         return prev + step;
@@ -93,15 +96,15 @@ export default function HomePage() {
     }, intervalTime);
 
     return () => clearInterval(timer);
-  }, [isHovered]);
+  }, [isHovered, slides.length]);
 
   const handlePrevSlide = () => {
-    setCurrentSlide((prev) => (prev === 0 ? HERO_SLIDES.length - 1 : prev - 1));
+    setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
     setProgress(0);
   };
 
   const handleNextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length);
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
     setProgress(0);
   };
 
@@ -110,151 +113,109 @@ export default function HomePage() {
     setProgress(0);
   };
 
-  // Load Categories, Products, and Collections
+  // Hero Banner Touch Swipe & Mouse Drag
+  const [heroDragging, setHeroDragging] = useState(false);
+  const heroStartXRef = useRef<number>(0);
+  const heroCurrentXRef = useRef<number>(0);
+  const heroStartYRef = useRef<number>(0);
+  const heroCurrentYRef = useRef<number>(0);
+  const heroContainerRef = useRef<HTMLElement>(null);
+
+  const handleHeroDragStart = (clientX: number, clientY: number = 0) => {
+    setHeroDragging(true);
+    heroStartXRef.current = clientX;
+    heroCurrentXRef.current = clientX;
+    heroStartYRef.current = clientY;
+    heroCurrentYRef.current = clientY;
+  };
+
+  const handleHeroDragMove = (clientX: number, clientY: number = 0) => {
+    if (!heroDragging) return;
+    heroCurrentXRef.current = clientX;
+    heroCurrentYRef.current = clientY;
+  };
+
+  const handleHeroDragEnd = () => {
+    if (!heroDragging) return;
+    const diffX = heroCurrentXRef.current - heroStartXRef.current;
+    const diffY = heroCurrentYRef.current - heroStartYRef.current;
+
+    if (Math.abs(diffX) > Math.abs(diffY) || heroStartYRef.current === 0) {
+      const containerWidth = heroContainerRef.current?.clientWidth || 400;
+      const steps = Math.max(1, Math.round(Math.abs(diffX) / (containerWidth * 0.35)));
+
+      if (diffX < -40 && slides.length > 0) {
+        setCurrentSlide((prev) => (prev + steps) % slides.length);
+        setProgress(0);
+      } else if (diffX > 40 && slides.length > 0) {
+        setCurrentSlide((prev) => (prev - steps + slides.length * 100) % slides.length);
+        setProgress(0);
+      }
+    }
+    setHeroDragging(false);
+  };
+
+  // Load Categories, Products, Collections, Banners, and Featured Reviews
   useEffect(() => {
-    Promise.all([getCategories(), fetchProducts(), getActiveCollections()])
-      .then(([categoriesData, productsData, collectionsData]) => {
+    Promise.all([
+      getCategories(),
+      fetchProducts(),
+      fetchBestSellers(12),
+      getActiveCollections(),
+      getActiveBanners().catch(() => []),
+      fetchFeaturedReviews().catch(() => [])
+    ])
+      .then(([categoriesData, productsData, bestSellersData, collectionsData, bannersData, reviewsData]) => {
         setCategories(categoriesData);
         setAllProducts(productsData);
-        setProducts(productsData.slice(0, 4)); // Show first 4 products on homepage
+        setBestSellers(bestSellersData);
         setCollections(collectionsData);
+        setFeaturedReviews(reviewsData);
+
+        if (bannersData && bannersData.length > 0) {
+          const mappedSlides = bannersData.map((b) => ({
+            image: b.image_url,
+            badge: b.subtitle || 'Khuyến mãi',
+            title: b.title,
+            description: b.description || '',
+            btnText: b.button_text || 'Khám phá ngay',
+            btnUrl: b.button_link || '/shop'
+          }));
+          setSlides(mappedSlides);
+        }
+
+        setTimeout(() => {
+          ScrollTrigger.refresh();
+        }, 300);
       })
       .catch(console.error);
   }, []);
 
-  // Countdown timer for Promo Combo
-  useEffect(() => {
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + 7);
-    
-    const interval = setInterval(() => {
-      const now = new Date().getTime();
-      const difference = targetDate.getTime() - now;
-      
-      if (difference <= 0) {
-        clearInterval(interval);
-      } else {
-        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((difference % (1000 * 60)) / 1000);
-        setTimeLeft({ days, hours, minutes, seconds });
-      }
-    }, 1000);
+  // Memoized product lists for 3 sections
+  const newProducts = useMemo(() => {
+    return [...allProducts]
+      .sort((a, b) => {
+        const timeA = a.lastStockAddedAt ? new Date(a.lastStockAddedAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+        const timeB = b.lastStockAddedAt ? new Date(b.lastStockAddedAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+        return timeB - timeA;
+      })
+      .slice(0, 12);
+  }, [allProducts]);
 
-    return () => clearInterval(interval);
-  }, []);
+  const bestSellerProducts = useMemo(() => {
+    return bestSellers.slice(0, 12);
+  }, [bestSellers]);
 
-  // Get products based on active tab
-  const getTabProducts = () => {
-    if (allProducts.length === 0) return [];
-    
-    switch (activeTab) {
-      case 'new':
-        return [...allProducts]
-          .sort((a, b) => Number(b.id) - Number(a.id))
-          .slice(0, 12)
-          .map(p => ({ ...p, isNew: true }));
-          
-      case 'best':
-        return allProducts.slice(0, 12).map((p) => ({
-          ...p,
-          badge: '',
-          isNew: false
-        }));
-        
-      case 'sale': {
-        const realSales = allProducts.filter(p => p.discount);
-        if (realSales.length >= 12) {
-          return realSales.slice(0, 12);
-        }
-        const mockSales = allProducts
-          .filter(p => !p.discount)
-          .slice(0, 12 - realSales.length)
-          .map((p, idx) => {
-            const discountPct = idx % 2 === 0 ? 15 : 20;
-            const oldPriceVal = Math.round(p.rawPrice * (1 + discountPct / 100));
-            return {
-              ...p,
-              discount: `-${discountPct}%`,
-              oldPrice: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(oldPriceVal),
-              isNew: false
-            };
-          });
-        return [...realSales, ...mockSales];
-      }
-      default:
-        return allProducts.slice(0, 12);
-    }
-  };
-
-
-
-  // Listen to window size to update visible slide count
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 1024) {
-        setItemsToShow(4);
-      } else if (window.innerWidth >= 640) {
-        setItemsToShow(2);
-      } else {
-        setItemsToShow(1);
-      }
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const displayProducts = getTabProducts();
-  const clonedProducts = displayProducts.length > 0 ? [
-    ...displayProducts.slice(-itemsToShow),
-    ...displayProducts,
-    ...displayProducts.slice(0, itemsToShow)
-  ] : [];
-
-  // Reset carousel index when visible count or active tab changes
-  useEffect(() => {
-    setIsCarouselTransitioning(false);
-    setCarouselIndex(itemsToShow);
-  }, [itemsToShow, activeTab]);
-
-  const handleNext = () => {
-    if (!isCarouselTransitioning) return;
-    setCarouselIndex(prev => prev + 1);
-  };
-
-  const handlePrev = () => {
-    if (!isCarouselTransitioning) return;
-    setCarouselIndex(prev => prev - 1);
-  };
-
-  const handleTransitionEnd = () => {
-    if (carouselIndex >= displayProducts.length + itemsToShow) {
-      setIsCarouselTransitioning(false);
-      setCarouselIndex(itemsToShow);
-    } else if (carouselIndex < itemsToShow) {
-      setIsCarouselTransitioning(false);
-      setCarouselIndex(displayProducts.length + carouselIndex);
-    }
-  };
-
-  useEffect(() => {
-    if (!isCarouselTransitioning) {
-      const raf = requestAnimationFrame(() => {
-        setIsCarouselTransitioning(true);
-      });
-      return () => cancelAnimationFrame(raf);
-    }
-  }, [isCarouselTransitioning]);
-
-  useEffect(() => {
-    if (isAutoplayPaused || displayProducts.length === 0) return;
-    const timer = setInterval(() => {
-      handleNext();
-    }, 4000);
-    return () => clearInterval(timer);
-  }, [carouselIndex, isCarouselTransitioning, isAutoplayPaused, displayProducts.length]);
+  const saleProducts = useMemo(() => {
+    return [...allProducts]
+      .filter((p) => p.rawBasePrice && p.rawPrice < p.rawBasePrice)
+      .sort((a, b) => {
+        const pctA = a.rawBasePrice ? (a.rawBasePrice - a.rawPrice) / a.rawBasePrice : 0;
+        const pctB = b.rawBasePrice ? (b.rawBasePrice - b.rawPrice) / b.rawBasePrice : 0;
+        return pctB - pctA;
+      })
+      .slice(0, 12);
+  }, [allProducts]);
 
   // 1. Hero Text Entry Animations (Runs every time currentSlide changes)
   useGSAP(() => {
@@ -265,711 +226,249 @@ export default function HomePage() {
       .fromTo('.hero-btn', { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' }, '-=0.35');
   }, { dependencies: [currentSlide], scope: heroRef });
 
-  // useGSAP handles cleanup automatically for ScrollTriggers
+  // GSAP ScrollTrigger animations
   useGSAP(() => {
-    // 2. Services entry
+    // Services entry
     gsap.fromTo('.service-item',
-      { opacity: 0, y: 30 },
+      { opacity: 0, y: 20 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.5,
+        stagger: 0.08,
+        ease: 'power2.out',
+        clearProps: 'transform,opacity',
+        scrollTrigger: {
+          trigger: servicesRef.current,
+          start: 'top 88%',
+          once: true,
+          toggleActions: 'play none none none'
+        }
+      }
+    );
+
+    // About us entry
+    gsap.fromTo('.about-animate',
+      { opacity: 0, y: 25 },
       {
         opacity: 1,
         y: 0,
         duration: 0.6,
-        stagger: 0.15,
+        stagger: 0.1,
         ease: 'power2.out',
-        scrollTrigger: {
-          trigger: servicesRef.current,
-          start: 'top 85%',
-          toggleActions: 'play none none none'
-        }
-      }
-    );
-
-    // 2.5 About us entry
-    gsap.fromTo('.about-animate',
-      { opacity: 0, y: 40 },
-      {
-        opacity: 1,
-        y: 0,
-        duration: 0.8,
-        stagger: 0.2,
-        ease: 'power2.out',
+        clearProps: 'transform,opacity',
         scrollTrigger: {
           trigger: aboutRef.current,
-          start: 'top 80%',
+          start: 'top 85%',
+          once: true,
           toggleActions: 'play none none none'
         }
       }
     );
 
-    // 3. Bento Grid categories scroll entry
+    // Bento Grid categories scroll entry
     gsap.fromTo('.category-item',
-      { opacity: 0, y: 50 },
+      { opacity: 0, y: 25 },
       {
         opacity: 1,
         y: 0,
-        duration: 0.8,
-        stagger: 0.2,
+        duration: 0.6,
+        stagger: 0.08,
         ease: 'power2.out',
+        clearProps: 'transform,opacity',
         scrollTrigger: {
           trigger: categoriesRef.current,
-          start: 'top 80%',
+          start: 'top 85%',
+          once: true,
           toggleActions: 'play none none none'
         }
       }
     );
 
-    // 4. Rooms (Collections) entry
+    // Rooms (Collections) entry
     gsap.fromTo('.room-item',
-      { opacity: 0, scale: 0.95 },
+      { opacity: 0, y: 20, scale: 0.97 },
       {
         opacity: 1,
+        y: 0,
         scale: 1,
-        duration: 0.8,
-        stagger: 0.2,
+        duration: 0.6,
+        stagger: 0.1,
         ease: 'power2.out',
+        clearProps: 'transform,opacity',
         scrollTrigger: {
           trigger: roomsRef.current,
-          start: 'top 80%',
-          toggleActions: 'play none none none'
-        }
-      }
-    );
-
-    // 4.5 Promo banner entry
-    gsap.fromTo('.promo-animate',
-      { opacity: 0, scale: 0.98 },
-      {
-        opacity: 1,
-        scale: 1,
-        duration: 1,
-        ease: 'power3.out',
-        scrollTrigger: {
-          trigger: promoRef.current,
           start: 'top 85%',
+          once: true,
           toggleActions: 'play none none none'
         }
       }
     );
 
-    // 5. Products card list scroll entry
+    // Products card list scroll entry
     gsap.fromTo('.product-card-item',
-      { opacity: 0, y: 60 },
+      { opacity: 0, y: 25 },
       {
         opacity: 1,
         y: 0,
-        duration: 0.9,
-        stagger: 0.15,
+        duration: 0.6,
+        stagger: 0.08,
         ease: 'power2.out',
+        clearProps: 'transform,opacity',
         scrollTrigger: {
           trigger: productsRef.current,
-          start: 'top 75%',
+          start: 'top 85%',
+          once: true,
           toggleActions: 'play none none none'
         }
       }
     );
 
-    // 5.5 Testimonials card entry
+    // Testimonials card entry
     gsap.fromTo('.testimonial-card',
-      { opacity: 0, y: 30 },
+      { opacity: 0, y: 20 },
       {
         opacity: 1,
         y: 0,
-        duration: 0.7,
-        stagger: 0.15,
+        duration: 0.5,
+        stagger: 0.08,
         ease: 'power2.out',
+        clearProps: 'transform,opacity',
         scrollTrigger: {
           trigger: testimonialsRef.current,
-          start: 'top 80%',
+          start: 'top 85%',
+          once: true,
           toggleActions: 'play none none none'
         }
       }
     );
 
-
-
-    // 6. Newsletter box zoom & entry
-    gsap.from('.newsletter-box', {
-      scale: 0.96,
-      opacity: 0,
-      duration: 1,
-      ease: 'power3.out',
-      scrollTrigger: {
-        trigger: newsletterRef.current,
-        start: 'top 85%',
-        toggleActions: 'play none none none'
+    // Articles card entry
+    gsap.fromTo('.article-card-item',
+      { opacity: 0, y: 25 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.6,
+        stagger: 0.08,
+        ease: 'power2.out',
+        clearProps: 'transform,opacity',
+        scrollTrigger: {
+          trigger: articlesRef.current,
+          start: 'top 85%',
+          once: true,
+          toggleActions: 'play none none none'
+        }
       }
+    );
+
+    // Newsletter box zoom & entry
+    gsap.fromTo(
+      '.newsletter-box',
+      { opacity: 0, y: 20, scale: 0.98 },
+      {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        duration: 0.6,
+        ease: 'power2.out',
+        clearProps: 'transform,opacity',
+        scrollTrigger: {
+          trigger: newsletterRef.current,
+          start: 'top 90%',
+          once: true,
+          toggleActions: 'play none none none'
+        }
+      }
+    );
+  }, { dependencies: [featuredReviews, allProducts], scope: heroRef });
+
+  const handleAddToCart = (product: ProductFrontend) => {
+    addItem({
+      id: `${product.id}-base`,
+      productId: product.id,
+      name: product.name,
+      price: product.price,
+      rawPrice: product.rawPrice,
+      rawOldPrice: product.rawBasePrice,
+      image: product.image,
+      quantity: 1,
     });
-  }, { scope: heroRef });
+  };
 
   return (
     <div className="bg-surface text-on-surface min-h-screen font-body-md antialiased overflow-x-hidden" ref={heroRef}>
       <Header />
 
-      <main className="pt-20">
-        {/* Hero Banner Section */}
-        <section 
-          className="relative h-[calc(100vh-80px)] w-full overflow-hidden flex items-center bg-surface-container"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          {/* Slides */}
-          <div className="absolute inset-0 z-0 w-full h-full">
-            {HERO_SLIDES.map((slide, idx) => {
-              const isActive = idx === currentSlide;
-              return (
-                <div
-                  key={idx}
-                  className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ease-in-out ${
-                    isActive ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-                  }`}
-                >
-                  {/* Background Image with Ken Burns effect when active */}
-                  <img
-                    alt={slide.title}
-                    className={`w-full h-full object-cover transition-transform duration-[6000ms] ease-out ${
-                      isActive ? 'scale-105' : 'scale-100'
-                    }`}
-                    src={heroBannerImage(slide.image)}
-                  />
-                  {/* Subtle Dark Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/25 to-transparent z-10"></div>
-                </div>
-              );
-            })}
-          </div>
+      <main>
+        {/* 1. Hero Banner */}
+        <HeroBannerSection
+          ref={heroContainerRef}
+          slides={slides}
+          currentSlide={currentSlide}
+          progress={progress}
+          setIsHovered={setIsHovered}
+          onPrevSlide={handlePrevSlide}
+          onNextSlide={handleNextSlide}
+          onDotClick={handleDotClick}
+          onDragStart={handleHeroDragStart}
+          onDragMove={handleHeroDragMove}
+          onDragEnd={handleHeroDragEnd}
+        />
 
-          {/* Foreground Text Layer */}
-          <div className="relative z-20 max-w-container-max mx-auto px-sp-md md:px-lg w-full text-white">
-            <div className="max-w-2xl">
-              <span className="hero-badge inline-block px-4 py-1.5 mb-sp-md rounded-full bg-white/20 backdrop-blur-md text-white font-label-md text-label-md uppercase tracking-wider">
-                {HERO_SLIDES[currentSlide].badge}
-              </span>
-              <h1 className="hero-title font-headline-xl text-headline-xl mb-sp-md text-white leading-[1.1] tracking-tight">
-                {HERO_SLIDES[currentSlide].title}
-              </h1>
-              <p className="hero-desc font-body-lg text-body-lg text-white/90 mb-sp-lg max-w-lg leading-relaxed">
-                {HERO_SLIDES[currentSlide].description}
-              </p>
-              <div className="flex flex-wrap gap-sp-md">
-                <button
-                  onClick={() => navigate(HERO_SLIDES[currentSlide].btnUrl)}
-                  className="relative overflow-hidden group hero-btn px-10 py-4 bg-white text-black hover:text-white rounded-xl font-label-md text-label-md active:scale-95 cursor-pointer shadow-lg shadow-black/15 transition-colors duration-200"
-                >
-                  <span className="absolute inset-0 w-full h-full bg-primary origin-left scale-x-0 transition-transform duration-200 ease-out group-hover:scale-x-100"></span>
-                  <span className="relative z-10 transition-colors duration-200">
-                    {HERO_SLIDES[currentSlide].btnText}
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
+        {/* 2. Services Section */}
+        <ServicesSection ref={servicesRef} />
 
-          {/* Navigation Arrows */}
-          <button
-            onClick={handlePrevSlide}
-            aria-label="Previous Slide"
-            className="absolute left-6 top-1/2 -translate-y-1/2 z-30 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/25 text-white hover:bg-white hover:text-black hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer group"
-          >
-            <ChevronLeft size={24} className="group-hover:-translate-x-0.5 transition-transform" />
-          </button>
-          <button
-            onClick={handleNextSlide}
-            aria-label="Next Slide"
-            className="absolute right-6 top-1/2 -translate-y-1/2 z-30 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/25 text-white hover:bg-white hover:text-black hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer group"
-          >
-            <ChevronRight size={24} className="group-hover:translate-x-0.5 transition-transform" />
-          </button>
+        {/* 3. About Us Section */}
+        <AboutUsSection ref={aboutRef} />
 
-          {/* Indicators / Progress Bar */}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3">
-            {HERO_SLIDES.map((_, idx) => {
-              const isActive = idx === currentSlide;
-              return (
-                <button
-                  key={idx}
-                  onClick={() => handleDotClick(idx)}
-                  className="group relative flex items-center justify-center w-12 h-6 cursor-pointer"
-                  aria-label={`Go to slide ${idx + 1}`}
-                >
-                  {/* Track line */}
-                  <span className="w-full h-[2px] rounded bg-white/30 group-hover:bg-white/50 transition-colors"></span>
-                  {/* Active progress timer line */}
-                  {isActive && (
-                    <span 
-                      className="absolute left-0 h-[2px] rounded bg-white transition-all duration-75"
-                      style={{ width: `${progress}%` }}
-                    ></span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </section>
+        {/* 4. Featured Categories Section */}
+        <FeaturedCategoriesSection ref={categoriesRef} categories={categories} />
 
-        {/* Core Values / Services Section */}
-        <section ref={servicesRef} className="py-12 bg-surface border-b border-outline-variant/30">
-          <div className="max-w-container-max mx-auto px-sp-md md:px-lg">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-              {[
-                { icon: 'local_shipping', title: 'Miễn phí giao hàng', desc: 'Cho đơn hàng trên 5 triệu' },
-                { icon: 'verified', title: 'Bảo hành 2 năm', desc: 'Chất lượng đảm bảo' },
-                { icon: 'currency_exchange', title: 'Đổi trả 7 ngày', desc: 'Miễn phí đổi trả' },
-                { icon: 'eco', title: 'Vật liệu an toàn', desc: 'Đạt chuẩn CARB-P2' },
-              ].map((service, idx) => (
-                <div key={idx} className="service-item flex flex-col items-center p-4">
-                  <span className="material-symbols-outlined text-[40px] text-primary mb-3">{service.icon}</span>
-                  <h3 className="font-headline-sm font-bold text-on-surface mb-1">{service.title}</h3>
-                  <p className="font-body-sm text-on-surface-variant">{service.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* 5. Product Carousels */}
+        <div ref={productsRef}>
+          {newProducts.length > 0 && (
+            <ProductSectionCarousel
+              title="SẢN PHẨM MỚI"
+              subtitle="Những thiết kế mới nhất vừa cập bến FurniShop"
+              products={newProducts}
+              viewAllLink="/shop?sort=newest"
+              onAddToCart={handleAddToCart}
+            />
+          )}
 
-        {/* Section: Cam kết chất lượng & Chứng nhận CARB-P2 (MOHO Inspired) */}
-        <section ref={aboutRef} className="py-20 bg-gradient-to-b from-surface via-surface-container-lowest/30 to-surface border-b border-outline-variant/20 overflow-hidden">
-          <div className="max-w-container-max mx-auto px-sp-md md:px-lg">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-              {/* Left Column: Image with artistic border & floating glass badge */}
-              <div className="relative about-animate group">
-                {/* Decorative background border */}
-                <div className="absolute -inset-3 border-2 border-primary/15 rounded-3xl -z-10 translate-x-2 translate-y-2 pointer-events-none transition-transform duration-500 group-hover:translate-x-3 group-hover:translate-y-3"></div>
-                
-                <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-xl border border-outline-variant/20">
-                  <img
-                    src="https://images.unsplash.com/photo-1541123437800-1bb1317badc2?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80"
-                    alt="Nhà máy FurniShop"
-                    className="w-full h-full object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-black/5 transition-opacity duration-500 group-hover:opacity-10"></div>
-                </div>
-                {/* Floating Glassmorphism Badge */}
-                <div className="absolute -bottom-6 -right-4 lg:-right-8 bg-white/90 backdrop-blur-md p-6 rounded-2xl shadow-2xl border border-white/40 hidden md:block max-w-[260px] transition-all duration-500 hover:scale-105">
-                  <div className="bg-primary/10 text-primary w-12 h-12 rounded-xl flex items-center justify-center mb-3">
-                    <span className="material-symbols-outlined text-[28px]">workspace_premium</span>
-                  </div>
-                  <h4 className="font-bold text-headline-sm text-neutral-800 mb-1.5">Chuẩn Gỗ CARB-P2</h4>
-                  <p className="text-[12px] text-neutral-600 leading-relaxed">Nồng độ phát thải Formaldehyde gần như bằng 0, tuyệt đối an toàn cho sức khỏe gia đình bạn.</p>
-                </div>
-              </div>
+          {bestSellerProducts.length > 0 && (
+            <ProductSectionCarousel
+              title="SẢN PHẨM BẢN CHẠY"
+              subtitle="Được khách hàng yêu thích và lựa chọn nhiều nhất"
+              products={bestSellerProducts}
+              viewAllLink="/shop?sort=bestseller"
+              onAddToCart={handleAddToCart}
+            />
+          )}
 
-              {/* Right Column: Premium Narrative */}
-              <div className="flex flex-col justify-center about-animate">
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="text-primary font-semibold tracking-widest uppercase text-xs">Về chúng tôi</span>
-                  <div className="h-[1px] w-12 bg-primary/30"></div>
-                </div>
-                <h2 className="font-headline-lg text-headline-lg text-on-surface mb-6 leading-tight">
-                  Nội thất <span className="text-primary">Xanh</span> cho gia đình Việt
-                </h2>
-                <p className="font-body-md text-body-md text-on-surface-variant/90 mb-5 leading-relaxed">
-                  Là thương hiệu nội thất bán lẻ trực thuộc nhà máy liên doanh xuất khẩu quy mô lớn, FurniShop tự hào sở hữu quy trình sản xuất khép kín đạt chứng chỉ bảo vệ rừng quốc tế <strong>FSC</strong>.
-                </p>
-                <p className="font-body-md text-body-md text-on-surface-variant/90 mb-8 leading-relaxed">
-                  Từng thớ gỗ, từng lớp sơn phủ đều vượt qua kiểm định khắt khe của chứng chỉ <strong>CARB-P2</strong> (California Air Resources Board) - tiêu chuẩn an toàn không khí cao cấp nhất dành cho vật liệu gỗ công nghiệp, đảm bảo sức khỏe hô hấp lâu dài cho trẻ nhỏ và người cao tuổi.
-                </p>
-                
-                {/* Certifications Feature Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {/* FSC Card */}
-                  <div className="group/card flex items-start gap-4 p-5 rounded-2xl bg-primary/[0.02] border border-primary/5 hover:border-primary/15 hover:bg-primary/[0.04] transition-all duration-300">
-                    <div className="bg-primary/10 text-primary w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover/card:scale-110">
-                      <span className="material-symbols-outlined text-[22px]">forest</span>
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-neutral-800 text-sm mb-1 group-hover/card:text-primary transition-colors">100% FSC Certified</h4>
-                      <p className="text-[12px] text-on-surface-variant leading-relaxed">Gỗ có nguồn gốc minh bạch từ rừng trồng bền vững.</p>
-                    </div>
-                  </div>
+          {saleProducts.length > 0 && (
+            <ProductSectionCarousel
+              title="ƯU ĐÃI ĐẶC BIỆT"
+              subtitle="Sở hữu sản phẩm nội thất cao cấp với mức giá ưu đãi"
+              products={saleProducts}
+              viewAllLink="/shop?sort=sale"
+              onAddToCart={handleAddToCart}
+            />
+          )}
+        </div>
 
-                  {/* Eco Card */}
-                  <div className="group/card flex items-start gap-4 p-5 rounded-2xl bg-primary/[0.02] border border-primary/5 hover:border-primary/15 hover:bg-primary/[0.04] transition-all duration-300">
-                    <div className="bg-primary/10 text-primary w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover/card:scale-110">
-                      <span className="material-symbols-outlined text-[22px]">eco</span>
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-neutral-800 text-sm mb-1 group-hover/card:text-primary transition-colors">Eco-friendly Coated</h4>
-                      <p className="text-[12px] text-on-surface-variant leading-relaxed">Sử dụng sơn phủ thân thiện môi trường, không mùi độc hại.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* 6. Spaces / Collections Section */}
+        <SpacesSection ref={roomsRef} collections={collections} />
 
-        {/* Shop By Room / Collections Section */}
-        <section ref={roomsRef} className="py-sp-xl bg-surface-container-lowest">
-          <div className="max-w-container-max mx-auto px-sp-md md:px-lg">
-            <div className="flex items-end justify-between mb-sp-lg">
-              <div>
-                <h2 className="font-headline-lg text-headline-lg text-on-surface mb-2">Không gian sống</h2>
-                <p className="font-body-md text-body-md text-on-surface-variant">Khám phá các gợi ý thiết kế trọn bộ cho ngôi nhà của bạn</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {collections.filter(c => c.name.toLowerCase().includes('phòng')).slice(0, 3).map((col) => (
-                <Link
-                  key={col.id}
-                  to={`/collection/${col.slug}`}
-                  className="room-item group relative h-[450px] rounded-2xl overflow-hidden cursor-pointer"
-                >
-                  <img
-                    src={heroBannerImage(col.cover_image) || 'https://via.placeholder.com/600x800?text=Room'}
-                    alt={col.name}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity"></div>
-                  <div className="absolute bottom-0 left-0 p-8 w-full transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                    <h3 className="font-headline-md text-white font-bold mb-2">{col.name}</h3>
-                    <div className="flex items-center text-label-sm text-white/90 font-label-sm uppercase tracking-widest gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
-                      <span>Khám phá ngay</span>
-                      <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-            <div className="mt-10 text-center">
-              <Link
-                to="/collections"
-                className="inline-block px-8 py-3 border border-outline text-on-surface rounded-xl font-label-md hover:bg-surface-container transition-colors"
-              >
-                Xem tất cả không gian
-              </Link>
-            </div>
-          </div>
-        </section>
+        {/* 7. Testimonials Section */}
+        <TestimonialsSection ref={testimonialsRef} featuredReviews={featuredReviews} />
 
-        {/* Featured Categories: Bento Grid Layout */}
-        <section ref={categoriesRef} className="py-sp-xl bg-surface">
-          <div className="max-w-container-max mx-auto px-sp-md md:px-lg">
-            <div className="flex items-end justify-between mb-sp-lg">
-              <div>
-                <h2 className="font-headline-lg text-headline-lg text-on-surface mb-2">Danh mục nổi bật</h2>
-                <p className="font-body-md text-body-md text-on-surface-variant">Tìm kiếm mảnh ghép hoàn hảo cho từng góc nhỏ</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-4 md:gap-6 md:h-[650px]">
-              {categories.slice(0, 4).map((cat, index) => {
-                // Perfect 4-item Bento Grid layout
-                let gridClass = '';
-                if (index === 0) gridClass = 'md:col-span-2 md:row-span-2 h-[300px] md:h-auto';
-                else if (index === 1) gridClass = 'md:col-span-2 md:row-span-1 h-[250px] md:h-auto';
-                else gridClass = 'md:col-span-1 md:row-span-1 h-[250px] md:h-auto';
+        {/* 8. Articles Section */}
+        <ArticlesSection ref={articlesRef} />
 
-                return (
-                  <div
-                    key={cat.id}
-                    onClick={() => navigate(`/shop?category=${cat.slug}`)}
-                    className={`category-item group relative overflow-hidden rounded-2xl bg-surface-container cursor-pointer shadow-sm hover:shadow-xl transition-all duration-500 ${gridClass}`}
-                  >
-                    <img
-                      alt={cat.name}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                      src={categoryCardImage(cat.image_url) || 'https://via.placeholder.com/600x400?text=No+Image'}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-70 group-hover:opacity-90 transition-opacity duration-500"></div>
-                    <div className="absolute bottom-0 left-0 w-full p-6 md:p-8 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                      <h3 className="font-headline-md font-bold md:font-headline-lg text-white drop-shadow-lg">{cat.name}</h3>
-                      <span className="inline-block mt-2 font-label-sm text-label-sm text-white/90 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
-                        Khám phá ngay &rarr;
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        {/* Section: Combo Ưu đãi với Bộ đếm ngược (Countdown Timer) (MOHO Inspired) */}
-        <section ref={promoRef} className="py-sp-xl bg-surface-container-low overflow-hidden">
-          <div className="max-w-container-max mx-auto px-sp-md md:px-lg">
-            <div className="promo-animate bg-on-surface-variant/5 rounded-3xl overflow-hidden border border-outline-variant/30 flex flex-col lg:flex-row items-center">
-              {/* Left Column: Promotion content */}
-              <div className="flex-1 p-8 md:p-12 lg:p-16 flex flex-col justify-center">
-                <span className="text-primary font-label-md text-label-md uppercase tracking-widest block mb-3">Ưu đãi giới hạn</span>
-                <h2 className="font-headline-lg text-headline-lg text-on-surface mb-4 leading-tight">
-                  Combo Phòng Khách Ấm Áp
-                </h2>
-                <p className="font-body-md text-body-md text-on-surface-variant mb-8 max-w-lg leading-relaxed">
-                  Sở hữu trọn bộ sofa Coastal, bàn trà gỗ sồi tự nhiên và tủ kệ tivi với mức giá ưu đãi cực khủng giảm đến 25%. Miễn phí vận chuyển và lắp đặt tận nhà.
-                </p>
-
-                {/* Countdown Timer Grid */}
-                <div className="flex gap-4 mb-8">
-                  {[
-                    { label: 'Ngày', value: timeLeft.days },
-                    { label: 'Giờ', value: timeLeft.hours },
-                    { label: 'Phút', value: timeLeft.minutes },
-                    { label: 'Giây', value: timeLeft.seconds }
-                  ].map((unit, idx) => (
-                    <div key={idx} className="bg-surface-container-highest/60 backdrop-blur-sm rounded-xl p-4 min-w-[70px] md:min-w-[80px] text-center shadow-sm border border-outline-variant/20">
-                      <div className="font-headline-md text-headline-md font-bold text-on-surface mb-1" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                        {String(unit.value).padStart(2, '0')}
-                      </div>
-                      <div className="text-[11px] text-on-surface-variant font-medium uppercase tracking-wider">{unit.label}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex flex-wrap gap-4">
-                  <button
-                    onClick={() => navigate('/shop')}
-                    className="relative overflow-hidden group px-8 py-3.5 bg-primary text-on-primary rounded-xl font-label-md text-label-md active:scale-95 cursor-pointer shadow-sm"
-                  >
-                    Mua ngay combo
-                  </button>
-                </div>
-              </div>
-
-              {/* Right Column: Dynamic lifestyle photo */}
-              <div className="flex-1 w-full h-[350px] lg:h-[500px] relative">
-                <img
-                  src="https://images.unsplash.com/photo-1618219908412-a29a1bb7b86e?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80"
-                  alt="Combo phòng khách Coastal"
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-black/10"></div>
-                <div className="absolute top-6 right-6 bg-error text-on-error px-4 py-2 rounded-full font-bold text-label-md shadow-md animate-pulse">
-                  Giảm 25%
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Section: Bộ chọn Tab Sản phẩm (Mới nhất, Bán chạy, Khuyến mãi) (MOHO Inspired) */}
-        <section ref={productsRef} className="py-sp-xl bg-surface">
-          <div className="max-w-container-max mx-auto px-sp-md md:px-lg">
-            <div className="flex flex-col md:flex-row md:items-end justify-between mb-sp-xl gap-sp-md border-b border-outline-variant/20 pb-6">
-              <div>
-                <h2 className="font-headline-lg text-headline-lg text-on-surface mb-2">Mua sắm theo xu hướng</h2>
-                <p className="font-body-md text-body-md text-on-surface-variant max-w-xl">
-                  Khám phá những thiết kế tinh tuyển, đáp ứng các tiêu chuẩn xuất khẩu cao cấp nhất.
-                </p>
-              </div>
-
-              {/* Tab Selector Buttons */}
-              <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-none shrink-0">
-                {[
-                  { id: 'new', label: 'Mới nhất' },
-                  { id: 'best', label: 'Bán chạy nhất' },
-                  { id: 'sale', label: 'Khuyến mãi hot' }
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`px-6 py-3 rounded-full font-label-md text-label-md transition-all duration-300 whitespace-nowrap cursor-pointer ${
-                      activeTab === tab.id
-                        ? 'bg-primary text-on-primary shadow-sm'
-                        : 'bg-surface-container hover:bg-surface-container-high border border-outline-variant/50 text-on-surface-variant'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Tabbed Product Carousel with Loop */}
-            <div 
-              className="relative -mx-3 px-3"
-              onMouseEnter={() => setIsAutoplayPaused(true)}
-              onMouseLeave={() => setIsAutoplayPaused(false)}
-            >
-              {/* Outer Wrapper */}
-              <div className="overflow-hidden">
-                <div
-                  className={`flex -mx-2 ${isCarouselTransitioning ? 'transition-transform duration-500 ease-out' : ''}`}
-                  style={{
-                    transform: `translateX(-${(carouselIndex * 100) / itemsToShow}%)`,
-                  }}
-                  onTransitionEnd={handleTransitionEnd}
-                >
-                  {clonedProducts.map((prod, idx) => {
-                    const hoverImg = prod.hoverImage || prod.gallery?.find(img => img.url !== prod.image)?.url;
-                    
-                    return (
-                      <div
-                        key={`${idx}-${prod.id}`}
-                        className="shrink-0 px-2 animate-slide-item"
-                        style={{ width: `${100 / itemsToShow}%` }}
-                      >
-                        <Link
-                          to={`/product/${prod.id}`}
-                          className="product-card-item group block"
-                        >
-                          <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-white/30 backdrop-blur-md border border-white/20 mb-1 transition-all duration-300">
-                            <img
-                              className={`absolute inset-0 w-full h-full object-contain p-0 transition-opacity duration-500 mix-blend-multiply ${hoverImg ? 'opacity-100 group-hover:opacity-0' : ''}`}
-                              src={productCardImage(prod.image)}
-                              alt={prod.name}
-                              loading="lazy"
-                            />
-                            {hoverImg && (
-                              <img
-                                className="absolute inset-0 w-full h-full object-contain p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 mix-blend-multiply"
-                                src={productCardImage(hoverImg)}
-                                alt={`${prod.name} alternate view`}
-                                loading="lazy"
-                              />
-                            )}
-                            {prod.isNew && (
-                              <span className="absolute top-10 left-1 bg-primary text-on-primary px-3 py-1 rounded-full font-label-sm text-label-sm">
-                                Mới
-                              </span>
-                            )}
-                            {prod.badge && (
-                              <span className="absolute top-10 left-1 bg-primary-fixed text-primary px-3 py-1 rounded-full font-label-sm text-label-sm">
-                                {prod.badge}
-                              </span>
-                            )}
-                            {prod.discount && (
-                              <span className="absolute top-10 left-1 bg-error text-on-error px-3 py-1 rounded-full font-label-sm text-label-sm font-bold">
-                                {prod.discount}
-                              </span>
-                            )}
-                          </div>
-                          <h3 className="font-headline-md text-base md:text-lg font-bold text-on-surface mb-1 line-clamp-1 group-hover:text-primary transition-colors duration-300">{prod.name}</h3>
-                          <p className="font-label-md text-label-md text-primary" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                            {prod.price}
-                            {prod.oldPrice && (
-                              <span className="text-on-surface-variant line-through ml-2 font-normal text-body-sm">{prod.oldPrice}</span>
-                            )}
-                          </p>
-                        </Link>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Navigation Controls */}
-              <button
-                onClick={handlePrev}
-                aria-label="Slide trước"
-                className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-30 w-12 h-12 rounded-full bg-white/95 border border-outline-variant/30 text-on-surface hover:bg-primary hover:text-on-primary shadow-lg flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 group/btn"
-              >
-                <ChevronLeft size={24} className="group-hover/btn:-translate-x-0.5 transition-transform" />
-              </button>
-              <button
-                onClick={handleNext}
-                aria-label="Slide tiếp theo"
-                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-30 w-12 h-12 rounded-full bg-white/95 border border-outline-variant/30 text-on-surface hover:bg-primary hover:text-on-primary shadow-lg flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 group/btn"
-              >
-                <ChevronRight size={24} className="group-hover/btn:translate-x-0.5 transition-transform" />
-              </button>
-            </div>
-            
-            <div className="mt-sp-xl text-center">
-              <Link
-                to="/shop"
-                className="inline-block px-10 py-4 border border-2 border-primary text-primary font-label-md text-label-md cursor-pointer"
-              >
-                Xem tất cả sản phẩm
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* Section: Đánh giá từ khách hàng (Testimonials) (MOHO Inspired) */}
-        <section ref={testimonialsRef} className="py-sp-xl bg-surface-container-lowest">
-          <div className="max-w-container-max mx-auto px-sp-md md:px-lg">
-            <div className="text-center max-w-2xl mx-auto mb-sp-xl">
-              <span className="text-primary font-label-md text-label-md uppercase tracking-widest block mb-3">Đánh giá thực tế</span>
-              <h2 className="font-headline-lg text-headline-lg text-on-surface">Khách hàng nói gì về Nội thất</h2>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {[
-                {
-                  name: 'Chị Mai Anh',
-                  location: 'Quận 2, TP. Hồ Chí Minh',
-                  avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
-                  rating: 5,
-                  comment: 'Bộ bàn ăn gỗ sồi của Nội thất đẹp vượt mong đợi. Bề mặt gỗ láng mịn, chuẩn CARB-P2 nên mở hộp không hề nghe mùi hóa chất độc hại. Giao hàng và lắp đặt rất nhanh chóng.',
-                },
-                {
-                  name: 'Anh Minh Trí',
-                  location: 'Quận Cầu Giấy, Hà Nội',
-                  avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
-                  rating: 5,
-                  comment: 'Sofa giường Coastal thực sự êm ái và tiện lợi. Nhà tôi có trẻ nhỏ nên rất chú trọng vật liệu an toàn, và Nội thất đã làm tốt điều đó. Sẽ tiếp tục ủng hộ thương hiệu.',
-                },
-                {
-                  name: 'Chị Thu Trang',
-                  location: 'Quận Hải Châu, Đà Nẵng',
-                  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80',
-                  rating: 5,
-                  comment: 'Tủ kệ tivi thiết kế tối giản nhưng rất sang trọng và chắc chắn. Dịch vụ chăm sóc khách hàng nhiệt tình, bảo hành 2 năm làm tôi rất an tâm sử dụng.',
-                },
-              ].map((item, idx) => (
-                <div key={idx} className="testimonial-card bg-surface rounded-2xl p-8 border border-outline-variant/30 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
-                  <div>
-                    <div className="flex gap-1 text-yellow-500 mb-4">
-                      {[...Array(item.rating)].map((_, i) => (
-                        <span key={i} className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                      ))}
-                    </div>
-                    <p className="font-body-md text-body-md text-on-surface-variant italic mb-6">
-                      "{item.comment}"
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4 border-t border-outline-variant/20 pt-4">
-                    <img src={item.avatar} alt={item.name} className="w-12 h-12 rounded-full object-cover shrink-0" />
-                    <div>
-                      <h4 className="font-headline-sm font-bold text-on-surface mb-0.5">{item.name}</h4>
-                      <p className="text-[12px] text-on-surface-variant">{item.location}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-
-
-        {/* Newsletter Section */}
-        <section ref={newsletterRef} className="py-sp-xl bg-primary-container/10">
-          <div className="max-w-container-max mx-auto px-sp-md md:px-lg">
-            <div className="newsletter-box bg-surface-container-lowest rounded-[2rem] p-sp-lg md:p-xl flex flex-col md:flex-row items-center justify-between gap-sp-xl shadow-sm">
-              <div className="max-w-xl text-center md:text-left">
-                <h2 className="font-headline-lg text-headline-lg text-on-surface mb-4">Kết nối với Nội thất</h2>
-                <p className="font-body-md text-body-md text-on-surface-variant">
-                  Đăng ký nhận bản tin để cập nhật các bộ sưu tập mới nhất và ưu đãi đặc quyền dành riêng cho bạn.
-                </p>
-              </div>
-              <form
-                className="w-full max-w-md flex flex-col sm:flex-row gap-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const target = e.target as HTMLFormElement;
-                  const emailInput = target.querySelector('input[type="email"]') as HTMLInputElement;
-                  if (emailInput) {
-                    emailInput.value = '';
-                  }
-                  toast.success('Đăng ký nhận bản tin ưu đãi thành công!');
-                }}
-              >
-                <input
-                  className="flex-grow bg-surface-container px-6 py-4 rounded-xl border-none focus:ring-2 focus:ring-primary font-body-md outline-none text-on-surface"
-                  placeholder="Địa chỉ email của bạn"
-                  type="email"
-                  required
-                />
-                <button
-                  type="submit"
-                  className="px-8 py-4 bg-primary text-on-primary rounded-xl font-label-md text-label-md hover:bg-on-primary-container transition-all cursor-pointer whitespace-nowrap"
-                >
-                  Đăng ký
-                </button>
-              </form>
-            </div>
-          </div>
-        </section>
+        {/* 9. Newsletter Section */}
+        <NewsletterSection ref={newsletterRef} />
       </main>
 
       <Footer />

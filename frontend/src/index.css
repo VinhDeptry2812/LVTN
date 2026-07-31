@@ -12,3 +12,13 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Ẩn scrollbar cho Chrome, Safari và Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+/* Ẩn scrollbar cho IE, Edge và Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}

@@ -7,15 +7,17 @@ import {
   Param,
   Query,
   Req,
+  Res,
   UseGuards,
   ParseIntPipe,
   DefaultValuePipe,
   BadRequestException,
 } from '@nestjs/common';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { OrdersService } from './orders.service';
 import { VnpayService } from '../vnpay/vnpay.service';
 import { MomoService } from '../momo/momo.service';
+import { PayosService } from '../payos/payos.service';
 import { Inject, forwardRef } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -24,6 +26,8 @@ import { GetUser } from '../auth/decorators/get-user.decorator';
 import { UserRole } from '../users/user.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { RequestReturnDto } from './dto/request-return.dto';
+import { HandleReturnDto } from './dto/handle-return.dto';
 import { OrderStatus, PaymentMethod, PaymentStatus } from './order.entity';
 
 @Controller('orders')
@@ -33,9 +37,27 @@ export class OrdersController {
     private readonly vnpayService: VnpayService,
     @Inject(forwardRef(() => MomoService))
     private readonly momoService: MomoService,
+    private readonly payosService: PayosService,
   ) {}
 
   // 1. APIs cho Khách hàng
+
+  @Post('calculate-shipping')
+  async calculateShipping(
+    @Body() body: { items: { product_id: number; quantity: number }[]; province?: string },
+  ) {
+    if (!body.items || body.items.length === 0) {
+      return { shipping_fee: 0, is_bulky: false };
+    }
+    const result = await this.ordersService.calculateShippingFeeInternal(
+      body.items,
+      body.province || '',
+    );
+    return {
+      shipping_fee: result.shippingFee,
+      is_bulky: result.isBulky,
+    };
+  }
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -69,6 +91,19 @@ export class OrdersController {
     // Nếu phương thức thanh toán là MoMo, tự động tạo URL thanh toán MoMo
     if (createOrderDto.payment_method === PaymentMethod.MOMO) {
       const paymentUrl = await this.momoService.createPaymentUrl(
+        order.id,
+        Number(order.total_amount),
+      );
+
+      return {
+        order,
+        paymentUrl,
+      };
+    }
+
+    // Nếu phương thức thanh toán là PayOS, tự động tạo URL thanh toán PayOS
+    if (createOrderDto.payment_method === PaymentMethod.PAYOS) {
+      const paymentUrl = await this.payosService.createPaymentUrl(
         order.id,
         Number(order.total_amount),
       );
@@ -122,13 +157,30 @@ export class OrdersController {
       };
     }
 
+    if (createOrderDto.payment_method === PaymentMethod.PAYOS) {
+      const paymentUrl = await this.payosService.createPaymentUrl(
+        order.id,
+        Number(order.total_amount),
+      );
+
+      return {
+        order,
+        paymentUrl,
+      };
+    }
+
     return { order, paymentUrl: null };
   }
 
   @Get('my-orders')
   @UseGuards(JwtAuthGuard)
-  async getMyOrders(@GetUser('id') userId: number) {
-    return this.ordersService.getMyOrders(userId);
+  async getMyOrders(
+    @GetUser('id') userId: number,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('status') status?: string,
+  ) {
+    return this.ordersService.getMyOrders(userId, page, limit, status);
   }
 
   @Get('my-orders/:id')
@@ -166,10 +218,16 @@ export class OrdersController {
     @Param('id', ParseIntPipe) orderId: number,
     @Req() req: Request,
   ) {
-    const order = await this.ordersService.getOrderDetails(userId, orderId, UserRole.CUSTOMER);
+    const order = await this.ordersService.getOrderDetails(
+      userId,
+      orderId,
+      UserRole.CUSTOMER,
+    );
 
     if (order.status === OrderStatus.CANCELLED) {
-      throw new BadRequestException('Đơn hàng đã bị hủy, không thể thanh toán.');
+      throw new BadRequestException(
+        'Đơn hàng đã bị hủy, không thể thanh toán.',
+      );
     }
 
     if (order.payment_status === PaymentStatus.PAID) {
@@ -201,14 +259,35 @@ export class OrdersController {
       return { paymentUrl };
     }
 
-    throw new BadRequestException('Phương thức thanh toán không hỗ trợ thanh toán trực tuyến.');
+    if (order.payment_method === PaymentMethod.PAYOS) {
+      const paymentUrl = await this.payosService.createPaymentUrl(
+        order.id,
+        Number(order.total_amount),
+      );
+
+      return { paymentUrl };
+    }
+
+    throw new BadRequestException(
+      'Phương thức thanh toán không hỗ trợ thanh toán trực tuyến.',
+    );
+  }
+
+  @Post('my-orders/:id/return')
+  @UseGuards(JwtAuthGuard)
+  async requestMyOrderReturn(
+    @GetUser('id') userId: number,
+    @Param('id', ParseIntPipe) orderId: number,
+    @Body() dto: RequestReturnDto,
+  ) {
+    return this.ordersService.requestOrderReturn(userId, orderId, dto);
   }
 
   // 2. APIs cho Admin
 
   @Get('admin')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
   async getAllOrdersAdmin(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
@@ -216,24 +295,69 @@ export class OrdersController {
     @Query('search') search?: string,
     @Query('paymentMethod') paymentMethod?: string,
     @Query('dateRange') dateRange?: string,
+    @Query('isReturn') isReturn?: string,
   ) {
-    return this.ordersService.getAllOrdersAdmin(page, limit, status, search, paymentMethod, dateRange);
+    return this.ordersService.getAllOrdersAdmin(
+      page,
+      limit,
+      status,
+      search,
+      paymentMethod,
+      dateRange,
+      isReturn,
+    );
   }
 
   @Get('admin/stats')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  async getDashboardStatsAdmin() {
-    return this.ordersService.getDashboardStatsAdmin();
+  async getDashboardStatsAdmin(
+    @Query('timeframe') timeframe?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.ordersService.getDashboardStatsAdmin(timeframe, startDate, endDate);
   }
 
   @Patch('admin/:id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
   async updateOrderStatusAdmin(
     @Param('id', ParseIntPipe) orderId: number,
     @Body() dto: UpdateOrderStatusDto,
   ) {
     return this.ordersService.updateOrderStatusAdmin(orderId, dto);
+  }
+
+  @Post('admin/:id/handle-return')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  async handleOrderReturnAdmin(
+    @Param('id', ParseIntPipe) orderId: number,
+    @Body() dto: HandleReturnDto,
+  ) {
+    return this.ordersService.handleOrderReturnAdmin(orderId, dto);
+  }
+
+  @Get(':id/invoice')
+  @UseGuards(JwtAuthGuard)
+  async downloadInvoice(
+    @Param('id', ParseIntPipe) orderId: number,
+    @GetUser('id') userId: number,
+    @GetUser('role') role: UserRole,
+    @Res() res: Response,
+  ) {
+    // Kiểm tra quyền sở hữu đơn hàng
+    await this.ordersService.getOrderDetails(userId, orderId, role);
+
+    const pdfBuffer = await this.ordersService.generateInvoicePdf(orderId);
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename=hoadon-${orderId}.pdf`,
+      'Content-Length': pdfBuffer.length,
+    });
+
+    res.end(pdfBuffer);
   }
 }

@@ -6,15 +6,20 @@ import CartPage from '@/pages/CartPage';
 import CheckoutPage from '@/pages/CheckoutPage';
 import PaymentResultPage from '@/pages/PaymentResultPage';
 import RegisterPage from '@/pages/RegisterPage';
+import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
 import CollectionListPage from '@/pages/CollectionListPage';
 import CollectionPage from '@/pages/CollectionPage';
 import SearchPage from '@/pages/SearchPage';
 import ProfilePage from '@/pages/ProfilePage';
+import AboutFurniturePage from '@/pages/AboutFurniturePage';
+import AboutStorePage from '@/pages/AboutStorePage';
+import WarrantyPolicyPage from '@/pages/WarrantyPolicyPage';
 import { useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/useAuthStore';
 import authService from '@/services/auth.service';
 import toast from 'react-hot-toast';
+import FloatingContact from '@/components/FloatingContact';
 
 function LoginCallback() {
   const [searchParams] = useSearchParams();
@@ -23,11 +28,12 @@ function LoginCallback() {
 
   useEffect(() => {
     const token = searchParams.get('token');
+    const refreshToken = searchParams.get('refresh_token');
     if (token) {
-      useAuthStore.setState({ token });
+      useAuthStore.setState({ token, refreshToken });
       authService.getProfile()
         .then((user) => {
-          setAuth(token, user);
+          setAuth(token, refreshToken || '', user);
           toast.success('Đăng nhập thành công!');
           navigate('/');
         })
@@ -62,11 +68,16 @@ function App() {
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/payment/result" element={<PaymentResultPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/about-furniture" element={<AboutFurniturePage />} />
+        <Route path="/about-store" element={<AboutStorePage />} />
+        <Route path="/warranty-policy" element={<WarrantyPolicyPage />} />
         <Route path="/login" element={<LoginCallback />} />
         {/* Redirect default to homepage */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <FloatingContact />
     </>
   );
 }

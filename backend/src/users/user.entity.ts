@@ -8,6 +8,7 @@ import {
 
 export enum UserRole {
   ADMIN = 'admin',
+  STAFF = 'staff',
   CUSTOMER = 'customer',
 }
 
@@ -52,6 +53,15 @@ export class User {
     default: UserStatus.ACTIVE,
   })
   status: UserStatus;
+
+  @Column({ type: 'varchar', nullable: true })
+  current_hashed_refresh_token: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  otp_code: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  otp_expires_at: Date | null;
 
   @CreateDateColumn()
   created_at: Date;

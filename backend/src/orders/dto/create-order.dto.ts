@@ -6,6 +6,7 @@ import {
   IsArray,
   ValidateNested,
   IsNumber,
+  Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaymentMethod } from '../order.entity';
@@ -35,6 +36,9 @@ export class CreateOrderDto {
 
   @IsNotEmpty()
   @IsString()
+  @Matches(/^(0|\+84)[3|5|7|8|9][0-9]{8}$/, {
+    message: 'Số điện thoại không hợp lệ (Ví dụ: 0912345678)',
+  })
   phone: string;
 
   @IsOptional()

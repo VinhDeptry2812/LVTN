@@ -1,6 +1,7 @@
 import {
   Controller,
   Patch,
+  Post,
   Body,
   UseGuards,
   Request,
@@ -23,7 +24,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from './user.entity';
-import { UpdateProfileDto, ChangePasswordDto } from './dto/users.dto';
+import { UpdateProfileDto, ChangePasswordDto, CreateUserDto } from './dto/users.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -99,14 +100,19 @@ export class UsersController {
   @Get('admin/list')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Admin: Lấy danh sách toàn bộ người dùng (Có phân trang & Tìm kiếm)' })
+  @ApiOperation({
+    summary:
+      'Admin: Lấy danh sách toàn bộ người dùng (Có phân trang, Lọc & Tìm kiếm)',
+  })
   @ApiResponse({ status: 200, description: 'Trả về danh sách người dùng.' })
   async getUsers(
     @Query('page', new ParseIntPipe({ optional: true })) page?: number,
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
     @Query('search') search?: string,
+    @Query('role') role?: string,
+    @Query('status') status?: string,
   ) {
-    return this.usersService.findAll(page || 1, limit || 10, search);
+    return this.usersService.findAll(page || 1, limit || 10, search, role, status);
   }
 
   @Patch('admin/:id/status')
@@ -115,11 +121,19 @@ export class UsersController {
   @ApiOperation({ summary: 'Admin: Khóa/Mở khóa tài khoản' })
   @ApiResponse({ status: 200, description: 'Cập nhật trạng thái thành công.' })
   async updateStatus(
+    @Request() req,
     @Param('id', ParseIntPipe) id: number,
     @Body('status') status: string,
   ) {
+    if (req.user.id === id) {
+      throw new BadRequestException(
+        'Bạn không thể tự khóa tài khoản của chính mình',
+      );
+    }
     if (!['active', 'inactive'].includes(status)) {
-      throw new BadRequestException('Trạng thái không hợp lệ. Chỉ chấp nhận active hoặc inactive');
+      throw new BadRequestException(
+        'Trạng thái không hợp lệ. Chỉ chấp nhận active hoặc inactive',
+      );
     }
     const updatedUser = await this.usersService.updateStatus(id, status);
     if (!updatedUser) {
@@ -133,6 +147,81 @@ export class UsersController {
         name: updatedUser.name,
         role: updatedUser.role,
         status: updatedUser.status,
+      },
+    };
+  }
+
+  @Patch('admin/:id/role')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Admin: Cập nhật vai trò người dùng' })
+  @ApiResponse({ status: 200, description: 'Cập nhật vai trò thành công.' })
+  async updateRole(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body('role') role: string,
+  ) {
+    if (req.user.id === id) {
+      throw new BadRequestException(
+        'Bạn không thể tự thay đổi vai trò của chính mình',
+      );
+    }
+    if (!['admin', 'staff', 'customer'].includes(role)) {
+      throw new BadRequestException(
+        'Vai trò không hợp lệ. Chỉ chấp nhận admin, staff hoặc customer',
+      );
+    }
+    const updatedUser = await this.usersService.updateRole(id, role);
+    if (!updatedUser) {
+      throw new NotFoundException('Người dùng không tồn tại');
+    }
+    return {
+      message: 'Cập nhật vai trò thành công',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        role: updatedUser.role,
+        status: updatedUser.status,
+      },
+    };
+  }
+
+  @Post('admin/create')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Admin: Tạo tài khoản quản trị / nhân viên mới' })
+  @ApiResponse({ status: 201, description: 'Tạo tài khoản thành công.' })
+  async createAdminUser(@Body() body: CreateUserDto) {
+    const existingUser = await this.usersService.findByEmail(body.email);
+    if (existingUser) {
+      throw new BadRequestException('Email này đã được sử dụng');
+    }
+
+    if (!['admin', 'staff'].includes(body.role)) {
+      throw new BadRequestException('Chỉ cho phép tạo tài khoản với vai trò admin hoặc staff');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash(body.password, salt);
+
+    const newUser = await this.usersService.create({
+      name: body.name,
+      email: body.email,
+      phone: body.phone || undefined,
+      role: body.role as UserRole,
+      password_hash,
+      status: 'active' as any,
+    });
+
+    return {
+      message: 'Tạo tài khoản quản trị thành công',
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        role: newUser.role,
+        status: newUser.status,
       },
     };
   }

@@ -30,8 +30,8 @@ export class CollectionsController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Lấy tất cả bộ sưu tập (Chỉ Admin)' })
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  @ApiOperation({ summary: 'Lấy tất cả bộ sưu tập (Admin & Staff)' })
   @Get('admin/all')
   async findAllAdmin() {
     return this.collectionsService.findAllAdmin();
@@ -45,8 +45,8 @@ export class CollectionsController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Tạo mới bộ sưu tập (Chỉ Admin)' })
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  @ApiOperation({ summary: 'Tạo mới bộ sưu tập (Admin & Staff)' })
   @Post()
   create(@Body() createCollectionDto: CreateCollectionDto) {
     return this.collectionsService.create(createCollectionDto);
@@ -54,8 +54,8 @@ export class CollectionsController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Cập nhật bộ sưu tập (Chỉ Admin)' })
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  @ApiOperation({ summary: 'Cập nhật bộ sưu tập (Admin & Staff)' })
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -66,8 +66,8 @@ export class CollectionsController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Xóa bộ sưu tập (Chỉ Admin)' })
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  @ApiOperation({ summary: 'Xóa bộ sưu tập (Admin & Staff)' })
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.collectionsService.remove(+id);

@@ -7,8 +7,10 @@ import { productCardImage } from '@/utils/cloudinaryUrl';
 import { useAuthStore } from '@/store/useAuthStore';
 import { createOrder } from '@/services/order.service';
 import toast from 'react-hot-toast';
+import VariantSelectorModal from '@/components/VariantSelectorModal';
 import api from '@/services/api';
 import { getAddresses, type AddressData } from '@/services/address.service';
+import { formatPrice } from '@/utils/format';
 
 const formatAttributes = (attributes: Record<string, any> | undefined) => {
   if (!attributes || Object.keys(attributes).length === 0) return '';
@@ -53,7 +55,7 @@ export default function CheckoutPage() {
   const [hasAutoFilled, setHasAutoFilled] = useState(false);
 
   useEffect(() => {
-    fetch('https://provinces.open-api.vn/api/?depth=3')
+    fetch('https://provinces.open-api.vn/api/v2/?depth=2')
       .then(res => res.json())
       .then(data => setProvinces(data))
       .catch(err => console.error("Failed to fetch provinces", err));
@@ -86,34 +88,22 @@ export default function CheckoutPage() {
     setAddress(addr.detail || '');
 
     const pCode = addr.province_code || '';
-    const dCode = addr.district_code || '';
     const wCode = addr.ward_code || '';
 
     setSelectedProvince(pCode);
     setCity(addr.province_name || '');
+    setSelectedDistrict('');
+    setDistrict('');
+    setDistricts([]);
 
     const province = provinces.find(p => p.code.toString() === pCode.toString());
     if (province) {
-      const pDistricts = province.districts || [];
-      setDistricts(pDistricts);
-      setSelectedDistrict(dCode);
-      setDistrict(addr.district_name || '');
-
-      const districtObj = pDistricts.find((d: any) => d.code.toString() === dCode.toString());
-      if (districtObj) {
-        setWards(districtObj.wards || []);
-        setSelectedWard(wCode);
-        setWard(addr.ward_name || '');
-      } else {
-        setWards([]);
-        setSelectedWard('');
-        setWard('');
-      }
+      const pWards = province.wards || [];
+      setWards(pWards);
+      setSelectedWard(wCode);
+      setWard(addr.ward_name || '');
     } else {
-      setDistricts([]);
       setWards([]);
-      setSelectedDistrict('');
-      setDistrict('');
       setSelectedWard('');
       setWard('');
     }
@@ -141,26 +131,21 @@ export default function CheckoutPage() {
     const province = provinces.find(p => p.code.toString() === provinceCode);
     if (province) {
       setCity(province.name);
-      setDistricts(province.districts || []);
+      setWards(province.wards || []);
+      setSelectedWard('');
+      setWard('');
+    } else {
+      setCity('');
       setWards([]);
-      setSelectedDistrict('');
-      setDistrict('');
       setSelectedWard('');
       setWard('');
     }
+    setSelectedDistrict('');
+    setDistrict('');
+    setDistricts([]);
   };
 
-  const handleDistrictChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const districtCode = e.target.value;
-    setSelectedDistrict(districtCode);
-    const districtObj = districts.find(d => d.code.toString() === districtCode);
-    if (districtObj) {
-      setDistrict(districtObj.name);
-      setWards(districtObj.wards || []);
-      setSelectedWard('');
-      setWard('');
-    }
-  };
+  const handleDistrictChange = () => {};
 
   const handleWardChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const wardCode = e.target.value;
@@ -177,7 +162,7 @@ export default function CheckoutPage() {
   const subtotal = items.reduce((total, item) => total + item.rawPrice * item.quantity, 0);
 
   // Payment State
-  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'vnpay' | 'momo'>('cod');
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'vnpay' | 'momo' | 'payos'>('cod');
   const [discountCode, setDiscountCode] = useState('');
 
   // Voucher State
@@ -190,8 +175,12 @@ export default function CheckoutPage() {
   } | null>(null);
   const [isValidatingVoucher, setIsValidatingVoucher] = useState(false);
 
+  const [shippingFee, setShippingFee] = useState<number>(0);
+  const [isBulky, setIsBulky] = useState<boolean>(false);
+  const [isLoadingShipping, setIsLoadingShipping] = useState<boolean>(false);
+
   const discountAmount = appliedVoucher ? appliedVoucher.discountAmount : 0;
-  const total = Math.max(0, subtotal - discountAmount);
+  const total = Math.max(0, subtotal - discountAmount + shippingFee);
 
   // Order success modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -251,14 +240,37 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subtotal, user?.id]);
 
-  // Variant change states
-  const [selectedItemForVariant, setSelectedItemForVariant] = useState<any | null>(null);
-  const [tempVariantId, setTempVariantId] = useState<number | string | null>(null);
+  useEffect(() => {
+    const fetchShippingFee = async () => {
+      if (items.length === 0) {
+        setShippingFee(0);
+        setIsBulky(false);
+        return;
+      }
+      try {
+        setIsLoadingShipping(true);
+        const itemsPayload = items.map(item => ({
+          product_id: parseInt(item.id.toString(), 10),
+          quantity: item.quantity
+        }));
+        
+        const res = await api.post('/orders/calculate-shipping', {
+          items: itemsPayload,
+          province: city || ''
+        });
+        setShippingFee(res.data.shipping_fee);
+        setIsBulky(res.data.is_bulky);
+      } catch (error) {
+        console.error('Failed to calculate shipping fee', error);
+      } finally {
+        setIsLoadingShipping(false);
+      }
+    };
 
-  const handleOpenVariantModal = (item: any) => {
-    setSelectedItemForVariant(item);
-    setTempVariantId(item.variantId || null);
-  };
+    fetchShippingFee();
+  }, [items, city]);
+
+
 
   const handleUpdateQuantity = (id: string, currentQty: number, delta: number, item: any) => {
     const newQty = currentQty + delta;
@@ -295,16 +307,16 @@ export default function CheckoutPage() {
     });
   }, { scope: checkoutRef });
 
-  const formatPrice = (value: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
-      .format(value)
-      .replace('₫', '₫');
-  };
-
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName || !phone || !address || !email || !city || !district || !ward) {
+    if (!fullName || !phone || !address || !email || !city || !ward) {
       toast.error('Vui lòng điền đầy đủ thông tin giao hàng.');
+      return;
+    }
+
+    const phoneRegex = /^(0|\+84)[3|5|7|8|9][0-9]{8}$/;
+    if (!phoneRegex.test(phone.trim())) {
+      toast.error('Số điện thoại không đúng định dạng Việt Nam (Ví dụ: 0912345678).');
       return;
     }
 
@@ -320,7 +332,7 @@ export default function CheckoutPage() {
 
     try {
       setIsSubmitting(true);
-      const fullAddress = `${address}, ${ward}, ${district}, ${city}`;
+      const fullAddress = `${address}, ${ward}, ${city}`;
 
       const orderPayload = {
         shipping_address: fullAddress,
@@ -373,7 +385,7 @@ export default function CheckoutPage() {
 
           {/* Mobile toggle summary button (simplified) */}
           <div className="lg:hidden flex items-center justify-between mb-4 border-b border-[#e1e1e1] pb-4">
-            <h2 className="font-medium text-lg flex items-center gap-2">
+            <h2 className="font-medium text-sm md:text-lg flex items-center gap-2">
               <span className="material-symbols-outlined text-primary">shopping_cart</span>
               Tóm tắt đơn hàng ({items.length})
             </h2>
@@ -382,18 +394,24 @@ export default function CheckoutPage() {
 
           <div className="space-y-4 mb-6">
             {items.map((item) => (
-              <div key={item.id} className="flex gap-4 items-center">
+              <div key={item.id} className="flex gap-3 sm:gap-4 items-start sm:items-center">
                 <div className="relative flex-shrink-0">
                   <div className="w-16 h-16 rounded-lg overflow-hidden border border-[#e1e1e1] bg-white">
                     <img className="w-full h-full object-cover" src={productCardImage(item.image)} alt={item.name} />
                   </div>
                 </div>
-                <div className="flex-grow text-left">
-                  <p className="font-medium text-sm line-clamp-2">{item.name}</p>
+                <div className="flex-grow text-left min-w-0">
+                  <p className="font-medium text-sm line-clamp-2 leading-snug">{item.name}</p>
                   
-                  <div className="flex items-center gap-3 mt-2 flex-wrap">
-                    {/* Bộ chọn số lượng */}
-                    <div className="flex items-center border border-[#d9d9d9] rounded-md bg-white h-7" role="group" aria-label={`Số lượng ${item.name}`}>
+                  {/* Hiển thị và thay đổi phân loại sản phẩm */}
+                  <VariantSelectorModal
+                    item={item}
+                    onUpdateVariant={updateVariant}
+                  />
+
+                  {/* Bộ chọn số lượng */}
+                  <div className="flex items-center mt-2">
+                    <div className="flex items-center border border-[#d9d9d9] rounded-md bg-white h-7 shrink-0" role="group" aria-label={`Số lượng ${item.name}`}>
                       <button
                         type="button"
                         onClick={() => handleUpdateQuantity(item.id, item.quantity, -1, item)}
@@ -412,35 +430,9 @@ export default function CheckoutPage() {
                         <span className="material-symbols-outlined text-[14px]" aria-hidden="true">add</span>
                       </button>
                     </div>
-
-                    {/* Chọn phân loại */}
-                    {item.availableVariants && item.availableVariants.length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={() => handleOpenVariantModal(item)}
-                        className="inline-flex items-center gap-1 bg-[#f5f5f5] hover:bg-[#eaeaea] text-[#333333] font-medium text-xs px-2.5 py-1 rounded-md transition-colors cursor-pointer border border-[#e1e1e1] h-7"
-                      >
-                        <span>
-                          {item.material
-                            ? (item.material.includes('|')
-                                ? item.material
-                                : item.material.split(' - ').map((s: string) => s.includes('|') ? s.split('|')[0].trim() : s.trim()).join('|'))
-                            : 'Chọn phân loại'}
-                        </span>
-                        <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-                      </button>
-                    ) : (
-                      item.material && (
-                        <p className="text-xs text-[#737373] py-1">
-                          {item.material.includes('|') 
-                            ? item.material 
-                            : item.material.split(' - ').map((s: string) => s.includes('|') ? s.split('|')[0].trim() : s.trim()).join('|')}
-                        </p>
-                      )
-                    )}
                   </div>
                 </div>
-                <div className="font-medium text-sm whitespace-nowrap">
+                <div className="font-semibold text-sm whitespace-nowrap self-start sm:self-center text-right shrink-0 mt-0.5 sm:mt-0">
                   {formatPrice(item.rawPrice * item.quantity)}
                 </div>
               </div>
@@ -504,7 +496,15 @@ export default function CheckoutPage() {
             )}
             <div className="flex justify-between">
               <span className="text-[#717171]">Phí vận chuyển</span>
-              <span className="font-medium">-</span>
+              <span className="font-medium">
+                {isLoadingShipping ? (
+                  <span className="text-xs text-gray-400">Đang tính...</span>
+                ) : shippingFee === 0 ? (
+                  'Miễn phí'
+                ) : (
+                  formatPrice(shippingFee)
+                )}
+              </span>
             </div>
           </div>
 
@@ -540,13 +540,13 @@ export default function CheckoutPage() {
             {/* Contact Info */}
             <div className="mb-8">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-medium">Thông tin giao hàng</h2>
+                <h2 className="text-sm lg:text-lg font-medium">Thông tin giao hàng</h2>
                 {user ? (
                   savedAddresses.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setShowAddressModal(true)}
-                      className="text-sm text-primary hover:underline font-medium flex items-center gap-1 cursor-pointer bg-transparent border-none"
+                      className="text-sm lg:text-lg text-primary hover:underline font-medium flex items-center gap-1 cursor-pointer bg-transparent border-none"
                     >
                       <span className="material-symbols-outlined text-base">local_shipping</span>
                       Chọn địa chỉ đã lưu
@@ -595,7 +595,7 @@ export default function CheckoutPage() {
                 required
               />
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="relative">
                   <select
                     value={selectedProvince}
@@ -612,26 +612,11 @@ export default function CheckoutPage() {
                 </div>
                 <div className="relative">
                   <select
-                    value={selectedDistrict}
-                    onChange={handleDistrictChange}
-                    className="w-full bg-white border border-[#d9d9d9] rounded-md px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none transition-shadow"
-                    required
-                    disabled={!selectedProvince}
-                  >
-                    <option value="" disabled>Chọn Quận/Huyện</option>
-                    {districts.map(d => (
-                      <option key={d.code} value={d.code}>{d.name}</option>
-                    ))}
-                  </select>
-                  <span className="material-symbols-outlined absolute right-3 top-3 text-[#737373] pointer-events-none">expand_more</span>
-                </div>
-                <div className="relative">
-                  <select
                     value={selectedWard}
                     onChange={handleWardChange}
                     className="w-full bg-white border border-[#d9d9d9] rounded-md px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none transition-shadow"
                     required
-                    disabled={!selectedDistrict}
+                    disabled={!selectedProvince}
                   >
                     <option value="" disabled>Chọn Phường/Xã</option>
                     {wards.map(w => (
@@ -644,23 +629,28 @@ export default function CheckoutPage() {
             </div>
 
             {/* Phương thức giao hàng */}
-            {selectedProvince && selectedDistrict && selectedWard && (
+            {selectedProvince && selectedWard && (
               <div className="mb-8">
                 <h2 className="text-lg font-medium mb-4 text-left">Phương thức giao hàng</h2>
-                <div className="bg-white border border-[#333333] rounded-lg p-4 flex items-center justify-between gap-4">
+                <div className="bg-white border border-[#333333] rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-start gap-3">
                     <div className="mt-1 flex-shrink-0 w-4 h-4 rounded-full border-2 border-[#333333] flex items-center justify-center">
                       <div className="w-2 h-2 rounded-full bg-[#333333]" />
                     </div>
-                    <p className="text-sm text-[#333333] text-left leading-relaxed">
-                      {(city.toLowerCase().includes('hồ chí minh') || selectedProvince === '79') ? (
-                        'Miễn phí giao hàng & lắp đặt tại tất cả quận huyện thuộc TP.HCM đối với các sản phẩm nội thất. Các sản phẩm thuộc danh mục Đồ Trang Trí, phí giao hàng sẽ được MOHO liên hệ báo sau.'
-                      ) : (
-                        'Các tỉnh thành không thuộc khu vực miễn phí giao hàng & lắp đặt, phí giao hàng sẽ được MOHO liên hệ báo sau.'
-                      )}
-                    </p>
+                    <div className="text-sm text-[#333333] text-left leading-relaxed">
+                      <p className="font-medium">
+                        {isBulky ? 'Vận chuyển hàng cồng kềnh' : 'Tiêu chuẩn'}
+                      </p>
+                      <p className="text-xs text-[#737373] mt-1">
+                        {isBulky
+                          ? 'Đơn hàng chứa sản phẩm cồng kềnh (giường, tủ lớn...). Miễn phí vận chuyển từ 20.000.000đ.'
+                          : 'Miễn phí vận chuyển cho đơn hàng từ 5.000.000đ.'}
+                      </p>
+                    </div>
                   </div>
-                  <span className="font-bold text-sm whitespace-nowrap text-[#333333]">Miễn phí</span>
+                  <span className="font-bold text-sm whitespace-nowrap text-[#333333] md:self-center self-start pl-7 md:pl-0">
+                    {shippingFee === 0 ? 'Miễn phí' : formatPrice(shippingFee)}
+                  </span>
                 </div>
               </div>
             )}
@@ -705,7 +695,7 @@ export default function CheckoutPage() {
                 </label>
 
                 {/* Momo */}
-                <label className={`flex items-center p-4 cursor-pointer ${paymentMethod === 'momo' ? 'bg-[#f4f8f5]' : ''}`}>
+                <label className={`flex items-center p-4 border-b border-[#d9d9d9] cursor-pointer ${paymentMethod === 'momo' ? 'bg-[#f4f8f5]' : ''}`}>
                   <div className={`w-4 h-4 rounded-full border flex items-center justify-center mr-3 ${paymentMethod === 'momo' ? 'border-primary' : 'border-[#d9d9d9]'}`}>
                     {paymentMethod === 'momo' && <div className="w-2 h-2 rounded-full bg-primary" />}
                   </div>
@@ -713,6 +703,17 @@ export default function CheckoutPage() {
                   <span className="text-sm flex-grow">Thanh toán qua Ví MoMo</span>
                   <img src="https://cdn.haitrieu.com/wp-content/uploads/2022/10/Logo-MoMo-Square.png" alt="MoMo" className="h-6 rounded-sm object-contain" />
                   <input type="radio" name="payment" className="hidden" checked={paymentMethod === 'momo'} onChange={() => setPaymentMethod('momo')} />
+                </label>
+
+                {/* PayOS (VietQR) */}
+                <label className={`flex items-center p-4 cursor-pointer ${paymentMethod === 'payos' ? 'bg-[#f4f8f5]' : ''}`}>
+                  <div className={`w-4 h-4 rounded-full border flex items-center justify-center mr-3 ${paymentMethod === 'payos' ? 'border-primary' : 'border-[#d9d9d9]'}`}>
+                    {paymentMethod === 'payos' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                  </div>
+                  <span className="material-symbols-outlined text-[#737373] mr-2">qr_code_2</span>
+                  <span className="text-sm flex-grow">Chuyển khoản ngân hàng (VietQR / PayOS)</span>
+                  <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded font-bold uppercase tracking-wider">VietQR</span>
+                  <input type="radio" name="payment" className="hidden" checked={paymentMethod === 'payos'} onChange={() => setPaymentMethod('payos')} />
                 </label>
 
               </div>
@@ -767,92 +768,6 @@ export default function CheckoutPage() {
           </div>
         </div>
       )}
-
-      {/* Variant Selection Modal */}
-      {selectedItemForVariant && (() => {
-        const currentTempVariant = selectedItemForVariant.availableVariants?.find(
-          (v: any) => v.id === tempVariantId
-        );
-        const basePrice = selectedItemForVariant.basePrice || selectedItemForVariant.rawPrice || 0;
-        const tempPrice = basePrice + (currentTempVariant?.price_adjustment ? Number(currentTempVariant.price_adjustment) : 0);
-        const tempImage = currentTempVariant?.image_url || selectedItemForVariant.image;
-
-        return (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-outline-variant/30 flex flex-col max-h-[90vh]">
-              {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant/50">
-                <button 
-                  type="button" 
-                  onClick={() => setSelectedItemForVariant(null)} 
-                  className="w-8 h-8 rounded-full bg-[#f5f5f5] hover:bg-[#eaeaea] flex items-center justify-center transition-colors cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[20px]">close</span>
-                </button>
-                <h3 className="font-headline-md text-lg font-bold text-[#333333] flex-grow text-center pr-8">Chọn phân loại</h3>
-              </div>
-
-              {/* Body */}
-              <div className="p-6 overflow-y-auto space-y-6 flex-grow">
-                {/* Product Info Preview */}
-                <div className="flex gap-4 items-center">
-                  <img 
-                    src={productCardImage(tempImage)} 
-                    alt={selectedItemForVariant.name} 
-                    className="w-24 h-24 rounded-lg object-cover border border-[#e1e1e1] bg-white"
-                  />
-                  <div className="text-left space-y-1">
-                    <p className="font-medium text-sm text-[#333333] line-clamp-2">{selectedItemForVariant.name}</p>
-                    <p className="font-bold text-lg text-primary">{formatPrice(tempPrice)}</p>
-                  </div>
-                </div>
-
-                {/* Variant Options */}
-                <div className="text-left space-y-3">
-                  <span className="font-label-md text-sm text-[#333333] font-semibold block">Màu sắc / Phân loại</span>
-                  <div className="flex flex-wrap gap-2.5">
-                    {selectedItemForVariant.availableVariants?.map((v: any) => {
-                      const isSelected = v.id === tempVariantId;
-                      const label = (v.attributes && Object.keys(v.attributes).length > 0)
-                        ? formatAttributes(v.attributes)
-                        : (v.sku || `Phân loại ${v.id}`);
-                      return (
-                        <button
-                          key={v.id}
-                          type="button"
-                          onClick={() => setTempVariantId(v.id)}
-                          className={`px-4 py-2 text-sm rounded-lg border-2 font-medium transition-all cursor-pointer ${
-                            isSelected
-                              ? 'border-primary bg-primary/5 text-primary'
-                              : 'border-[#d9d9d9] hover:border-[#999999] bg-white text-[#555555]'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="p-6 border-t border-outline-variant/50">
-                <button
-                  type="button"
-                  onClick={() => {
-                    updateVariant(selectedItemForVariant.id, tempVariantId);
-                    setSelectedItemForVariant(null);
-                    toast.success('Đã cập nhật phân loại sản phẩm.');
-                  }}
-                  className="w-full bg-primary text-white py-4 border border-primary rounded-lg font-bold hover:brightness-110 active:scale-[0.98] transition-all shadow-md cursor-pointer uppercase tracking-wider text-sm"
-                >
-                  Xác nhận
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Saved Address Selection Modal */}
       {showAddressModal && (

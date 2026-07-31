@@ -2,11 +2,13 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Voucher } from './voucher.entity';
 import { Order } from '../orders/order.entity';
+import { Category } from '../categories/category.entity';
+import { Product } from '../products/product.entity';
 import { VouchersService } from './vouchers.service';
 import { VouchersController } from './vouchers.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Voucher, Order])],
+  imports: [TypeOrmModule.forFeature([Voucher, Order, Category, Product])],
   controllers: [VouchersController],
   providers: [VouchersService],
   exports: [VouchersService],

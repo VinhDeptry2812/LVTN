@@ -35,4 +35,9 @@ export class OrderItem {
 
   @CreateDateColumn()
   created_at: Date;
+
+  toJSON() {
+    const { order, ...rest } = this;
+    return rest;
+  }
 }

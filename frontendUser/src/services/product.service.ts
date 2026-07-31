@@ -22,6 +22,8 @@ export interface ProductFrontend {
   specs?: Record<string, string>;
   variants?: any[];
   createdAt?: string;
+  inventoryUpdatedAt?: string;
+  lastStockAddedAt?: string;
 }
 
 export const formatPrice = (value: number) => {
@@ -79,13 +81,14 @@ export const mapBackendProductToFrontend = (p: any): ProductFrontend => {
   const discountPrice = p.discount_price ? Number(p.discount_price) : null;
   const hasDiscount = discountPrice !== null && discountPrice > 0 && discountPrice < basePrice;
 
-  // Determine if product is "new" (created within the last 30 days)
+  // Determine if product is "new" (imported to inventory in last 3 days)
   let isNew = false;
-  if (p.created_at) {
-    const createdDate = new Date(p.created_at);
+  const stockDateStr = p.lastStockAddedAt || p.created_at;
+  if (stockDateStr) {
+    const stockDate = new Date(stockDateStr);
     const now = new Date();
-    const diffDays = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
-    isNew = diffDays <= 30;
+    const diffDays = (now.getTime() - stockDate.getTime()) / (1000 * 60 * 60 * 24);
+    isNew = diffDays <= 14;
   }
 
   // Featured = has discount or special badge
@@ -105,22 +108,87 @@ export const mapBackendProductToFrontend = (p: any): ProductFrontend => {
     hoverImage,
     gallery: gallery.length > 0 ? gallery : undefined,
     category: p.category ? p.category.slug : 'other',
-    rating: 4.5,
+    rating: p.averageRating !== undefined ? Number(p.averageRating) : 0,
     specs: specs,
     isNew,
     isFeatured,
-    soldCount: p.sold_count || 0,
+    soldCount: p.soldCount || p.sold_count || 0,
     variants: p.variants || [],
     createdAt: p.created_at || undefined,
+    inventoryUpdatedAt: p.inventoryUpdatedAt || undefined,
+    lastStockAddedAt: p.lastStockAddedAt || undefined,
   };
 };
 
-export const fetchProducts = async (): Promise<ProductFrontend[]> => {
-  const response = await api.get('/products');
-  return response.data.map(mapBackendProductToFrontend);
+export interface FetchProductsResponse {
+  data: ProductFrontend[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export const fetchProducts = async (params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  category?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  onlySale?: boolean;
+  sortBy?: string;
+}): Promise<ProductFrontend[]> => {
+  const response = await api.get('/products', { params });
+  if (response.data && Array.isArray(response.data.data)) {
+    return response.data.data.map(mapBackendProductToFrontend);
+  }
+  return (Array.isArray(response.data) ? response.data : []).map(mapBackendProductToFrontend);
+};
+
+export const fetchProductsPaginated = async (params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  category?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  onlySale?: boolean;
+  sortBy?: string;
+}): Promise<FetchProductsResponse> => {
+  const response = await api.get('/products', { params });
+  if (response.data && Array.isArray(response.data.data)) {
+    return {
+      data: response.data.data.map(mapBackendProductToFrontend),
+      total: response.data.total,
+      page: response.data.page,
+      totalPages: response.data.totalPages,
+    };
+  }
+  const rawList = Array.isArray(response.data) ? response.data : [];
+  const mapped = rawList.map(mapBackendProductToFrontend);
+  return {
+    data: mapped,
+    total: mapped.length,
+    page: 1,
+    totalPages: 1,
+  };
 };
 
 export const fetchProductById = async (id: string): Promise<ProductFrontend> => {
   const response = await api.get(`/products/${id}`);
   return mapBackendProductToFrontend(response.data);
+};
+
+export const fetchRelatedProducts = async (id: string): Promise<ProductFrontend[]> => {
+  const response = await api.get(`/products/${id}/related`);
+  return response.data.map(mapBackendProductToFrontend);
+};
+
+export const fetchFrequentlyBoughtTogether = async (id: string): Promise<ProductFrontend[]> => {
+  const response = await api.get(`/products/${id}/frequently-bought-together`);
+  return response.data.map(mapBackendProductToFrontend);
+};
+
+export const fetchBestSellers = async (limit?: number): Promise<ProductFrontend[]> => {
+  const response = await api.get('/products/best-sellers', { params: { limit } });
+  return response.data.map(mapBackendProductToFrontend);
 };

@@ -29,7 +29,7 @@ const RegisterPage: React.FC = () => {
         phone: registerMethod === 'phone' ? phone : undefined,
         password,
       });
-      setAuth(response.access_token, response.user);
+      setAuth(response.access_token, response.refresh_token, response.user);
       toast.success('Đăng ký tài khoản thành công!');
       navigate('/');
     } catch (error: any) {

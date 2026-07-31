@@ -7,12 +7,15 @@ import {
   Get,
   Query,
   Res,
+  Logger,
 } from '@nestjs/common';
 import { MomoService } from './momo.service';
 import { OrdersService } from '../orders/orders.service';
 
 @Controller('payment')
 export class MomoController {
+  private readonly logger = new Logger(MomoController.name);
+
   constructor(
     private readonly momoService: MomoService,
     private readonly ordersService: OrdersService,
@@ -25,16 +28,17 @@ export class MomoController {
   @Post('momo-ipn')
   @HttpCode(HttpStatus.OK)
   async handleMomoIPN(@Body() ipnData: any) {
-    console.log('--- NHẬN WEBHOOK IPN TỪ MOMO ---', ipnData);
+    this.logger.log(`--- NHẬN WEBHOOK IPN TỪ MOMO --- ${JSON.stringify(ipnData)}`);
 
     // 1. Xác thực chữ ký số bảo mật của MoMo
     const isValid = this.momoService.verifySignature(ipnData);
     if (!isValid) {
-      console.warn('Cảnh báo: Chữ ký số MoMo IPN không hợp lệ!');
+      this.logger.warn('Cảnh báo: Chữ ký số MoMo IPN không hợp lệ!');
       return { status: 'error', message: 'Signature mismatch' };
     }
 
-    const orderId = parseInt(ipnData.orderId, 10);
+    const rawOrderId = String(ipnData.orderId || '');
+    const orderId = parseInt(rawOrderId.split('_')[0], 10);
     const resultCode = parseInt(ipnData.resultCode, 10);
     const transId = ipnData.transId;
     const paidAmount = Number(ipnData.amount);
@@ -52,8 +56,11 @@ export class MomoController {
         paidAmount,
       );
     } catch (error) {
-      console.error('Lỗi khi cập nhật trạng thái đơn hàng từ MoMo IPN:', error);
-      return { status: 'error', message: error.message || 'Payment update failed' };
+      this.logger.error('Lỗi khi cập nhật trạng thái đơn hàng từ MoMo IPN:', error);
+      return {
+        status: 'error',
+        message: error.message || 'Payment update failed',
+      };
     }
 
     // 3. Trả về đúng định dạng MoMo yêu cầu để xác nhận đã nhận IPN thành công
@@ -78,7 +85,8 @@ export class MomoController {
       return { success: false, message: 'Chữ ký số không hợp lệ!' };
     }
 
-    const orderId = parseInt(query.orderId, 10);
+    const rawOrderId = String(query.orderId || '');
+    const orderId = parseInt(rawOrderId.split('_')[0], 10);
     const resultCode = parseInt(query.resultCode, 10);
     const isSuccess = resultCode === 0;
     const paidAmount = Number(query.amount);

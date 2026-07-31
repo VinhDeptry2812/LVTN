@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
+import axios from 'axios';
 
 @Injectable()
 export class VnpayService {
@@ -69,6 +70,7 @@ export class VnpayService {
   verifyReturnUrl(query: Record<string, string>): {
     isValid: boolean;
     orderId: number | null;
+    txnRef: string;
     responseCode: string;
     transactionNo: string;
   } {
@@ -96,6 +98,7 @@ export class VnpayService {
     return {
       isValid,
       orderId,
+      txnRef,
       responseCode: query['vnp_ResponseCode'] || '',
       transactionNo: query['vnp_TransactionNo'] || '',
     };
@@ -126,5 +129,98 @@ export class VnpayService {
       pad(date.getMinutes()) +
       pad(date.getSeconds())
     );
+  }
+
+  /**
+   * Gọi API hoàn tiền (Refund) của VNPAY
+   * Tài liệu: https://sandbox.vnpayment.vn/apis/docs/truy-van-hoan-tien/querydr&refund.html
+   *
+   * @param txnRef       Mã TxnRef gốc lúc thanh toán (format: orderId_timestamp)
+   * @param transactionNo Mã giao dịch VNPAY (vnp_TransactionNo từ khi thanh toán thành công)
+   * @param transactionDate Ngày giao dịch gốc (vnp_PayDate, định dạng yyyyMMddHHmmss)
+   * @param amount       Số tiền hoàn (VND) - sẽ nhân 100 trước khi gửi sang VNPAY
+   * @param reason       Nội dung lý do hoàn tiền (không dấu)
+   * @param ipAddr       Địa chỉ IP của người thực hiện hoàn tiền
+   */
+  async refundTransaction(params: {
+    txnRef: string;
+    transactionNo: string;
+    transactionDate: string;
+    amount: number;
+    reason: string;
+    ipAddr: string;
+  }): Promise<{ success: boolean; message: string; responseCode: string; rawData?: any }> {
+    const apiUrl =
+      process.env.VNPAY_API_URL ||
+      'https://sandbox.vnpayment.vn/merchant_webapi/api/transaction';
+
+    const requestId = Date.now().toString();
+    const createDate = this.formatDate(new Date());
+
+    const rawParams: Record<string, string> = {
+      vnp_RequestId: requestId,
+      vnp_Version: '2.1.0',
+      vnp_Command: 'refund',
+      vnp_TmnCode: this.tmnCode,
+      vnp_TransactionType: '02', // 02 = Hoàn tiền toàn phần
+      vnp_TxnRef: params.txnRef,
+      vnp_Amount: String(Math.round(params.amount * 100)),
+      vnp_TransactionNo: params.transactionNo,
+      vnp_TransactionDate: params.transactionDate,
+      vnp_CreateBy: 'admin',
+      vnp_CreateDate: createDate,
+      vnp_IpAddr: params.ipAddr,
+      vnp_OrderInfo: params.reason,
+    };
+
+    // Tạo chuỗi ký theo thứ tự VNPAY yêu cầu:
+    // RequestId|Version|Command|TmnCode|TransactionType|TxnRef|Amount|TransactionNo|TransactionDate|CreateBy|CreateDate|IpAddr|OrderInfo
+    const hashData = [
+      rawParams.vnp_RequestId,
+      rawParams.vnp_Version,
+      rawParams.vnp_Command,
+      rawParams.vnp_TmnCode,
+      rawParams.vnp_TransactionType,
+      rawParams.vnp_TxnRef,
+      rawParams.vnp_Amount,
+      rawParams.vnp_TransactionNo,
+      rawParams.vnp_TransactionDate,
+      rawParams.vnp_CreateBy,
+      rawParams.vnp_CreateDate,
+      rawParams.vnp_IpAddr,
+      rawParams.vnp_OrderInfo,
+    ].join('|');
+
+    const hmac = crypto.createHmac('sha512', this.hashSecret);
+    const secureHash = hmac.update(Buffer.from(hashData, 'utf-8')).digest('hex');
+
+    const requestBody = { ...rawParams, vnp_SecureHash: secureHash };
+
+    try {
+      const response = await axios.post(apiUrl, requestBody, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 15000,
+      });
+
+      const data = response.data;
+      const responseCode = data?.vnp_ResponseCode || '';
+      const success = responseCode === '00';
+
+      return {
+        success,
+        responseCode,
+        message: success
+          ? 'Hoàn tiền VNPAY thành công'
+          : `Hoàn tiền VNPAY thất bại (Mã: ${responseCode})`,
+        rawData: data,
+      };
+    } catch (error) {
+      const message = error?.response?.data?.message || error?.message || 'Lỗi kết nối VNPAY';
+      return {
+        success: false,
+        responseCode: '99',
+        message: `Lỗi khi gọi API hoàn tiền VNPAY: ${message}`,
+      };
+    }
   }
 }

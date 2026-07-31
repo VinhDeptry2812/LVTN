@@ -39,8 +39,11 @@ export class UsersService {
     page: number = 1,
     limit: number = 10,
     search?: string,
-  ): Promise<{ data: User[]; total: number; page: number; lastPage: number }> {
-    const query = this.usersRepository.createQueryBuilder('user')
+    role?: string,
+    status?: string,
+  ) {
+    const query = this.usersRepository
+      .createQueryBuilder('user')
       .select([
         'user.id',
         'user.email',
@@ -54,9 +57,26 @@ export class UsersService {
       ]);
 
     if (search) {
-      query.where('user.name LIKE :search OR user.email LIKE :search OR user.phone LIKE :search', {
-        search: `%${search}%`,
-      });
+      query.andWhere(
+        '(user.name LIKE :search OR user.email LIKE :search OR user.phone LIKE :search)',
+        {
+          search: `%${search}%`,
+        },
+      );
+    }
+
+    if (role && role !== 'all') {
+      const roles = role
+        .split(',')
+        .map((r) => r.trim())
+        .filter((r) => Boolean(r) && r !== 'all');
+      if (roles.length > 0) {
+        query.andWhere('user.role IN (:...roles)', { roles });
+      }
+    }
+
+    if (status && status !== 'all') {
+      query.andWhere('user.status = :status', { status });
     }
 
     const [data, total] = await query
@@ -65,16 +85,30 @@ export class UsersService {
       .take(limit)
       .getManyAndCount();
 
+    const totalPages = Math.ceil(total / limit) || 1;
+
     return {
       data,
       total,
       page,
-      lastPage: Math.ceil(total / limit),
+      lastPage: totalPages,
+      meta: {
+        totalItems: total,
+        itemCount: data.length,
+        itemsPerPage: limit,
+        totalPages,
+        currentPage: page,
+      },
     };
   }
 
   async updateStatus(id: number, status: string): Promise<User | null> {
     await this.usersRepository.update(id, { status: status as any });
+    return this.findById(id);
+  }
+
+  async updateRole(id: number, role: string): Promise<User | null> {
+    await this.usersRepository.update(id, { role: role as any });
     return this.findById(id);
   }
 }

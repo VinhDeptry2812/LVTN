@@ -5,8 +5,10 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { fetchProducts, type ProductFrontend, matchProduct } from '@/services/product.service';
-import { productCardImage } from '@/utils/cloudinaryUrl';
+import ProductCard from '@/components/ProductCard';
+import Breadcrumbs from '@/components/Breadcrumbs';
+import { ProductFilterBar } from '@/components/ProductFilterBar';
+import { fetchProducts, type ProductFrontend } from '@/services/product.service';
 
 // Đăng ký các plugin GSAP
 gsap.registerPlugin(useGSAP, ScrollTrigger);
@@ -14,20 +16,50 @@ gsap.registerPlugin(useGSAP, ScrollTrigger);
 const ITEMS_PER_PAGE = 16; // Số sản phẩm hiển thị trên mỗi trang
 
 export default function SearchPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
+
+  const [searchQuery, setSearchQuery] = useState(query);
+  const [priceRange, setPriceRange] = useState<string>('all');
+  const [appliedCustomPrice, setAppliedCustomPrice] = useState<{ min: number | null; max: number | null }>({ min: null, max: null });
+  const [onlySale, setOnlySale] = useState<boolean>(false);
+  const [sortBy, setSortBy] = useState<string>('default');
 
   const [products, setProducts] = useState<ProductFrontend[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<string>('price-low');
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Lấy dữ liệu sản phẩm từ backend
+  // Đồng bộ searchQuery khi URL query param (q) thay đổi từ bên ngoài (ví dụ: thanh tìm kiếm Header)
+  useEffect(() => {
+    setSearchQuery(query);
+  }, [query]);
+
+  const { minPrice, maxPrice } = useMemo(() => {
+    if (appliedCustomPrice.min !== null || appliedCustomPrice.max !== null) {
+      return {
+        minPrice: appliedCustomPrice.min ?? undefined,
+        maxPrice: appliedCustomPrice.max ?? undefined,
+      };
+    }
+    if (priceRange === 'under-5m') return { minPrice: undefined, maxPrice: 5_000_000 };
+    if (priceRange === '5m-10m') return { minPrice: 5_000_000, maxPrice: 10_000_000 };
+    if (priceRange === '10m-20m') return { minPrice: 10_000_000, maxPrice: 20_000_000 };
+    if (priceRange === 'over-20m') return { minPrice: 20_000_000, maxPrice: undefined };
+    return { minPrice: undefined, maxPrice: undefined };
+  }, [priceRange, appliedCustomPrice]);
+
+  // Lấy dữ liệu sản phẩm từ backend dựa trên searchQuery, sortBy và bộ lọc
   useEffect(() => {
     setLoading(true);
-    fetchProducts()
+    fetchProducts({
+      search: searchQuery,
+      sortBy,
+      minPrice,
+      maxPrice,
+      onlySale: onlySale ? true : undefined,
+    })
       .then((productsData) => {
         setProducts(productsData);
         setLoading(false);
@@ -36,35 +68,24 @@ export default function SearchPage() {
         console.error("Failed to load products for search", err);
         setLoading(false);
       });
-  }, []);
+  }, [searchQuery, sortBy, minPrice, maxPrice, onlySale]);
 
-  // Reset về trang 1 khi từ khóa tìm kiếm thay đổi
+  // Reset về trang 1 khi từ khóa hoặc bộ lọc thay đổi
   useEffect(() => {
     setCurrentPage(1);
-  }, [query]);
+  }, [searchQuery, sortBy, priceRange, appliedCustomPrice, onlySale]);
 
-  // Lọc và sắp xếp sản phẩm khớp từ khóa
-  const filteredProducts = useMemo(() => {
-    let result = [...products];
+  const filteredProducts = products;
 
-    if (query.trim() !== '') {
-      result = result.filter((p) => matchProduct(p, query));
-    }
-
-    // Sắp xếp theo lựa chọn
-    if (sortBy === 'price-low') {
-      result.sort((a, b) => a.rawPrice - b.rawPrice);
-    } else if (sortBy === 'price-high') {
-      result.sort((a, b) => b.rawPrice - a.rawPrice);
-    } else if (sortBy === 'newest') {
-      result.sort((a, b) => (a.isNew === b.isNew ? 0 : a.isNew ? -1 : 1));
-    } else {
-      // Phổ biến nhất
-      result.sort((a, b) => b.rating - a.rating);
-    }
-
-    return result;
-  }, [products, query, sortBy]);
+  const handleClearAll = () => {
+    setPriceRange('all');
+    setAppliedCustomPrice({ min: null, max: null });
+    setOnlySale(false);
+    setSortBy('default');
+    setSearchQuery('');
+    setSearchParams({});
+    setCurrentPage(1);
+  };
 
   // Tính toán phân trang
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
@@ -92,107 +113,70 @@ export default function SearchPage() {
     <div className="bg-surface text-on-surface min-h-screen font-body-md antialiased overflow-x-hidden" ref={containerRef}>
       <Header />
 
-      <main className="pt-32 pb-sp-xl">
+      <main className="pt-[150px] md:pt-32 pb-sp-xl">
         <div className="max-w-container-max mx-auto px-sp-md md:px-lg w-full">
           {/* Breadcrumb và Tiêu đề kết quả */}
-          <div className="mb-sp-lg">
-            <nav className="flex items-center space-x-2 font-label-md text-label-md text-on-surface-variant mb-3">
-              <Link className="hover:text-primary transition-colors" to="/">
-                Trang chủ
-              </Link>
-              <span className="opacity-50">/</span>
-              <span className="font-bold">Tìm kiếm</span>
-            </nav>
-            <h1 className="font-headline-lg text-2xl md:text-3xl font-bold text-on-surface">
+          <div className="mb-sp-md">
+            <Breadcrumbs items={[{ label: 'Tìm kiếm' }]} className="mb-2" />
+            <h1 className="font-headline-lg text-xl sm:text-2xl md:text-3xl font-bold text-on-surface">
               {query.trim() ? `Kết quả tìm kiếm cho: "${query}"` : 'Tất cả sản phẩm tìm kiếm'}
             </h1>
-            <p className="font-body-md text-sm text-on-surface-variant mt-1.5">
+            <p className="font-body-md text-xs sm:text-sm text-on-surface-variant mt-1">
               Tìm thấy <span className="font-bold text-primary">{filteredProducts.length}</span> sản phẩm phù hợp.
             </p>
           </div>
 
-          <div className="flex justify-between items-center mb-sp-md border-b border-outline-variant/15 pb-4">
-            <div className="flex items-center space-x-4">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="bg-transparent border-none font-label-md text-label-md text-on-surface-variant focus:ring-0 cursor-pointer outline-none"
-              >
-                <option value="price-low">Giá: Thấp đến Cao</option>
-                <option value="price-high">Giá: Cao đến Thấp</option>
-                <option value="newest">Mới nhất</option>
-                <option value="popular">Phổ biến nhất</option>
-              </select>
-            </div>
-          </div>
+          {/* Thanh bộ lọc sản phẩm dùng chung */}
+          <ProductFilterBar
+            searchQuery={searchQuery}
+            setSearchQuery={(q) => {
+              setSearchQuery(q);
+              const newParams = new URLSearchParams(searchParams);
+              if (q) newParams.set('q', q);
+              else newParams.delete('q');
+              setSearchParams(newParams);
+            }}
+            priceRange={priceRange}
+            setPriceRange={setPriceRange}
+            appliedCustomPrice={appliedCustomPrice}
+            setAppliedCustomPrice={setAppliedCustomPrice}
+            onlySale={onlySale}
+            setOnlySale={setOnlySale}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            onClearAll={handleClearAll}
+            setCurrentPage={setCurrentPage}
+          />
 
           {loading ? (
             <div className="py-20 text-center text-on-surface-variant">
-              <span className="material-symbols-outlined text-4xl mb-4 animate-spin">sync</span>
-              <p className="font-body-lg">Đang tải sản phẩm...</p>
+              <span className="material-symbols-outlined text-4xl mb-4 animate-spin text-primary">sync</span>
+              <p className="font-body-lg text-sm">Đang tải sản phẩm...</p>
             </div>
           ) : filteredProducts.length === 0 ? (
-            <div className="py-20 text-center text-on-surface-variant bg-neutral-50/50 rounded-2xl border border-dashed border-neutral-200">
-              <span className="material-symbols-outlined text-5xl mb-4 text-neutral-300" aria-hidden="true">search_off</span>
-              <h3 className="font-headline-md text-lg font-bold text-on-surface mb-2">Không tìm thấy sản phẩm nào</h3>
-              <p className="font-body-md text-sm text-on-surface-variant max-w-md mx-auto mb-6">
-                Rất tiếc, chúng tôi không tìm thấy kết quả phù hợp cho từ khóa của bạn. Vui lòng thử lại với một từ khóa khác hoặc quay lại cửa hàng.
+            <div className="py-16 text-center text-on-surface-variant bg-surface-container-low/50 rounded-2xl border border-dashed border-outline-variant/40 p-6">
+              <span className="material-symbols-outlined text-5xl mb-3 text-on-surface-variant/40" aria-hidden="true">search_off</span>
+              <h3 className="font-headline-md text-base font-bold text-on-surface mb-2">Không tìm thấy sản phẩm nào</h3>
+              <p className="font-body-md text-xs text-on-surface-variant max-w-md mx-auto mb-6">
+                Rất tiếc, chúng tôi không tìm thấy kết quả phù hợp cho từ khóa của bạn. Vui lòng thử lại với từ khóa khác hoặc quay lại cửa hàng.
               </p>
               <Link
                 to="/shop"
-                className="inline-block px-6 py-3 bg-[#333333] hover:bg-black text-white text-xs font-semibold uppercase tracking-wider rounded-sm transition-all duration-300"
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-on-primary text-xs font-bold rounded-xl shadow-sm hover:bg-primary/90 transition-all cursor-pointer"
               >
+                <span className="material-symbols-outlined text-[16px]">storefront</span>
                 Tiếp tục mua sắm
               </Link>
             </div>
           ) : (
             <>
-              {/* Product Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-gutter">
-                {paginatedProducts.map((prod) => {
-                  const hoverImg = prod.hoverImage || prod.gallery?.find(img => img.url !== prod.image)?.url;
-                  return (
-                    <Link
-                      key={prod.id}
-                      to={`/product/${prod.id}`}
-                      className="search-product-item group block"
-                    >
-                      <div className="relative aspect-[4/5] rounded-xl overflow-hidden bg-white/30 backdrop-blur-md border border-white/20 mb-1">
-                        <img
-                          className={`absolute inset-0 w-full h-full object-contain p-0 transition-opacity duration-500 mix-blend-multiply ${hoverImg ? 'opacity-100 group-hover:opacity-0' : ''}`}
-                          src={productCardImage(prod.image)}
-                          alt={prod.name}
-                          loading="lazy"
-                        />
-                        {hoverImg && (
-                          <img
-                            className="absolute inset-0 w-full h-full object-contain p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 mix-blend-multiply"
-                            src={productCardImage(hoverImg)}
-                            alt={`${prod.name} alternate view`}
-                            loading="lazy"
-                          />
-                        )}
-                        {prod.isNew && (
-                          <span className="absolute top-10 left-1 bg-primary text-on-primary px-3 py-1 rounded-full font-label-sm text-label-sm">
-                            Mới
-                          </span>
-                        )}
-                        {prod.discount && (
-                          <span className="absolute top-10 left-1 bg-error text-on-error px-3 py-1 rounded-full font-label-sm text-label-sm font-bold">
-                            {prod.discount}
-                          </span>
-                        )}
-                      </div>
-                      <h2 className="font-headline-md text-base md:text-lg font-bold text-on-surface mb-1 line-clamp-1 group-hover:text-primary transition-colors duration-300">{prod.name}</h2>
-                      <p className="font-label-md text-label-md text-primary" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                        {prod.price}
-                        {prod.oldPrice && (
-                          <span className="text-on-surface-variant line-through ml-2 font-normal">{prod.oldPrice}</span>
-                        )}
-                      </p>
-                    </Link>
-                  );
-                })}
+              {/* Product Grid (Responsive: 2 cột trên Mobile, 3-4 cột trên Desktop) */}
+              <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-gutter">
+                {paginatedProducts.map((prod) => (
+                  <div key={prod.id} className="search-product-item">
+                    <ProductCard product={prod} />
+                  </div>
+                ))}
               </div>
 
               {/* Pagination Controls */}
