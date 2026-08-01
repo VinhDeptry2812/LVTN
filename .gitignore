@@ -62,3 +62,5 @@ dist-ssr/
 # Misc
 .vercel
 .cache/
+
+ARCHITECTURE.md

@@ -7,7 +7,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ProductSectionCarousel from '@/components/ProductSectionCarousel';
 
-import { HeroBannerSection } from '@/components/home/HeroBannerSection';
+import { HeroBannerSection, type SlideItem } from '@/components/home/HeroBannerSection';
 import { ServicesSection } from '@/components/home/ServicesSection';
 import { AboutUsSection } from '@/components/home/AboutUsSection';
 import { SpacesSection } from '@/components/home/SpacesSection';
@@ -49,34 +49,9 @@ export default function HomePage() {
   const [isHovered, setIsHovered] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const DEFAULT_SLIDES = [
-    {
-      image: 'https://res.cloudinary.com/dblkv5veh/image/upload/v1782750523/imgi_57_BST-Coastal-3-3_ziafsm.jpg',
-      badge: 'Bộ sưu tập',
-      title: 'COASTAL',
-      description: 'Coastal với đầy đủ các thiết kế cho mọi không gian trong nhà, mang tới một định nghĩa mới về sự thư thái, thoải mái.',
-      btnText: 'Xem bộ sưu tập',
-      btnUrl: '/collection/coastal'
-    },
-    {
-      image: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=2000&auto=format&fit=crop',
-      badge: 'Không gian sống tinh tế',
-      title: 'PHÒNG KHÁCH',
-      description: 'Tối giản hóa không gian sống với các sản phẩm sofa, bàn trà gỗ tự nhiên tinh tế, mang lại hơi thở hiện đại cho tổ ấm của bạn.',
-      btnText: 'Khám phá ngay',
-      btnUrl: '/shop'
-    },
-    {
-      image: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=2000&auto=format&fit=crop',
-      badge: 'Không gian yên bình',
-      title: 'PHÒNG NGỦ ẤM ÁP',
-      description: 'Chăm sóc giấc ngủ trọn vẹn của bạn bằng những mẫu giường gỗ tràm tự nhiên đạt chuẩn xuất khẩu quốc tế.',
-      btnText: 'Xem sản phẩm',
-      btnUrl: '/shop'
-    }
-  ];
-
-  const [slides, setSlides] = useState(DEFAULT_SLIDES);
+  
+  const [slides, setSlides] = useState<SlideItem[]>([]);
+  const [isBannersLoading, setIsBannersLoading] = useState(true);
 
   // Autoplay & Progress timer for Hero Banner Carousel
   useEffect(() => {
@@ -183,12 +158,16 @@ export default function HomePage() {
           }));
           setSlides(mappedSlides);
         }
+        setIsBannersLoading(false);
 
         setTimeout(() => {
           ScrollTrigger.refresh();
         }, 300);
       })
-      .catch(console.error);
+      .catch((err) => {
+        console.error(err);
+        setIsBannersLoading(false);
+      });
   }, []);
 
   // Memoized product lists for 3 sections
@@ -407,6 +386,7 @@ export default function HomePage() {
           slides={slides}
           currentSlide={currentSlide}
           progress={progress}
+          isLoading={isBannersLoading}
           setIsHovered={setIsHovered}
           onPrevSlide={handlePrevSlide}
           onNextSlide={handleNextSlide}

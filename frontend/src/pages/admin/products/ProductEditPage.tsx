@@ -818,14 +818,6 @@ export default function ProductEditPage() {
               <label className="block text-sm font-medium text-slate-600 mb-1.5">Slug (tự động)</label>
               <input name="slug" value={form.slug} onChange={handleChange} className={`${inputCls} bg-slate-50 text-slate-500`} readOnly />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1.5">Giá cơ bản (VNĐ) *</label>
-              <input disabled name="base_price" type="number" value={form.base_price} onChange={handleChange} required className={inputCls} placeholder="VD: 15000000" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1.5">Giá khuyến mãi (VNĐ)</label>
-              <input disabled name="discount_price" type="number" value={form.discount_price} onChange={handleChange} className={inputCls} placeholder="VD: 12000000 (Để trống nếu không giảm giá)" />
-            </div>
             {variants.length === 0 && (
               <div>
                 <label className="block text-sm font-medium text-slate-600 mb-1.5">Số lượng tồn kho (Chỉ đọc)</label>

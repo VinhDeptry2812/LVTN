@@ -16,6 +16,7 @@ interface HeroBannerSectionProps {
   slides: SlideItem[];
   currentSlide: number;
   progress: number;
+  isLoading?: boolean;
   setIsHovered: (hovered: boolean) => void;
   onPrevSlide: () => void;
   onNextSlide: () => void;
@@ -30,6 +31,7 @@ export const HeroBannerSection = forwardRef<HTMLElement, HeroBannerSectionProps>
     slides,
     currentSlide,
     progress,
+    isLoading = false,
     setIsHovered,
     onPrevSlide,
     onNextSlide,
@@ -39,6 +41,27 @@ export const HeroBannerSection = forwardRef<HTMLElement, HeroBannerSectionProps>
     onDragEnd,
   } = props;
   const navigate = useNavigate();
+
+  if (isLoading || slides.length === 0) {
+    return (
+      <section
+        ref={ref}
+        className="relative mt-20 h-[400px] sm:h-[460px] md:h-[540px] lg:h-[calc(100vh-80px)] min-h-[400px] w-full overflow-hidden flex items-end pb-10 md:items-center md:pb-0 bg-slate-900 animate-pulse"
+      >
+        <div className="relative z-20 max-w-container-max mx-auto px-4 md:px-8 lg:px-12 w-full">
+          <div className="max-w-lg md:max-w-2xl space-y-4">
+            <div className="h-6 w-28 bg-slate-700/60 rounded-full"></div>
+            <div className="h-10 sm:h-12 w-3/4 bg-slate-700/80 rounded-lg"></div>
+            <div className="h-4 sm:h-5 w-full max-w-lg bg-slate-700/50 rounded"></div>
+            <div className="h-4 sm:h-5 w-2/3 max-w-md bg-slate-700/40 rounded"></div>
+            <div className="pt-2">
+              <div className="h-11 w-36 bg-slate-700/70 rounded-xl"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section

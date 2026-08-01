@@ -169,17 +169,6 @@ export default function ProductCreatePage() {
           if (!value.trim()) next.sku = 'Mã SKU không được để trống';
           else delete next.sku;
           break;
-        case 'base_price':
-          if (!value.trim() || Number(value) <= 0) next.base_price = 'Giá bán gốc phải lớn hơn 0';
-          else delete next.base_price;
-          break;
-        case 'discount_price':
-          if (value && Number(value) >= Number(form.base_price) && Number(form.base_price) > 0) {
-            next.discount_price = 'Giá khuyến mãi phải nhỏ hơn giá gốc';
-          } else {
-            delete next.discount_price;
-          }
-          break;
         case 'category_id':
           if (!value) next.category_id = 'Vui lòng chọn danh mục';
           else delete next.category_id;
@@ -187,7 +176,7 @@ export default function ProductCreatePage() {
       }
       return next;
     });
-  }, [form.base_price]);
+  }, []);
 
   // Check draft on mount
   useEffect(() => {
@@ -206,7 +195,6 @@ export default function ProductCreatePage() {
       form.name.trim() !== '' ||
       form.sku.trim() !== '' ||
       (form.description && form.description.trim() !== '' && form.description !== '<p><br></p>') ||
-      form.base_price.trim() !== '' ||
       specs.some(s => s.value.trim() !== '') ||
       variants.length > 0;
 
@@ -239,7 +227,6 @@ export default function ProductCreatePage() {
         form.name.trim() !== '' ||
         form.sku.trim() !== '' ||
         (form.description && form.description.trim() !== '' && form.description !== '<p><br></p>') ||
-        form.base_price.trim() !== '' ||
         specs.some(s => s.value.trim() !== '') ||
         variants.length > 0;
 
@@ -628,22 +615,6 @@ export default function ProductCreatePage() {
       toast.error('Vui lòng chọn danh mục sản phẩm.');
       return false;
     }
-    const basePrice = Number(form.base_price);
-    if (isNaN(basePrice) || basePrice <= 0) {
-      toast.error('Giá bán cơ bản phải là số lớn hơn 0.');
-      return false;
-    }
-    if (form.discount_price) {
-      const discountPrice = Number(form.discount_price);
-      if (isNaN(discountPrice) || discountPrice <= 0) {
-        toast.error('Giá khuyến mãi phải là số lớn hơn 0.');
-        return false;
-      }
-      if (discountPrice >= basePrice) {
-        toast.error('Giá khuyến mãi phải nhỏ hơn giá cơ bản.');
-        return false;
-      }
-    }
     if (productImages.length === 0) {
       toast.error('Vui lòng tải lên ít nhất 1 hình ảnh sản phẩm.');
       return false;
@@ -750,7 +721,7 @@ export default function ProductCreatePage() {
 
       const payload: Record<string, unknown> = {
         sku: form.sku, name: form.name, slug: form.slug, description: processedDescription,
-        base_price: Number(form.base_price),
+        base_price: Number(form.base_price) || 0,
         discount_price: form.discount_price ? Number(form.discount_price) : null,
         is_active: form.is_active,
         is_bulky: form.is_bulky,
@@ -1167,35 +1138,9 @@ export default function ProductCreatePage() {
               <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Slug URL (Tự động)</label>
               <input name="slug" value={form.slug} className={`${inputCls} bg-slate-50 text-slate-500`} readOnly />
             </div>
-          </section>
-
-          {/* ĐỊNH GIÁ */}
-          <section className="bg-white rounded-none shadow-sm border border-slate-200 p-6 space-y-4">
-            <h2 className="text-base font-bold text-slate-700 border-b border-slate-100 pb-3 flex items-center gap-2"><Banknote size={16} className="text-amber-600" />Định giá cơ bản</h2>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Giá bán gốc (VNĐ) *</label>
-              <input disabled name="base_price" type="number" value={form.base_price} onChange={handleChange} onBlur={() => validateField('base_price', form.base_price)} required className={`${inputCls} ${validationErrors.base_price ? 'border-red-400 ring-1 ring-red-200' : ''}`} placeholder="VD: 15000000" />
-              {validationErrors.base_price && (
-                <p className="flex items-center gap-1 mt-1.5 text-xs text-red-500 font-medium"><AlertCircle size={12} />{validationErrors.base_price}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Giá khuyến mãi (VNĐ)</label>
-              <input disabled name="discount_price" type="number" value={form.discount_price} onChange={handleChange} onBlur={() => validateField('discount_price', form.discount_price)} className={`${inputCls} ${validationErrors.discount_price ? 'border-red-400 ring-1 ring-red-200' : ''}`} placeholder="VD: 12000000" />
-              {validationErrors.discount_price && (
-                <p className="flex items-center gap-1 mt-1.5 text-xs text-red-500 font-medium"><AlertCircle size={12} />{validationErrors.discount_price}</p>
-              )}
-              {form.base_price && form.discount_price && Number(form.discount_price) < Number(form.base_price) && (
-                <div className="text-[11px] text-emerald-600 font-semibold mt-1">
-                  Đã cấu hình giảm giá {Math.round((1 - Number(form.discount_price) / Number(form.base_price)) * 100)}%
-                </div>
-              )}
-            </div>
 
             {variants.length === 0 && (
-              <div>
+              <div className="pt-2 border-t border-slate-100">
                 <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Số lượng tồn kho ban đầu</label>
                 <input
                   type="number"
