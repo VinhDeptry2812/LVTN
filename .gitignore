@@ -23,6 +23,7 @@ out/
 # Environment variables
 .env
 .env.*
+!.env.production
 
 # Editor directories and files
 .idea/
