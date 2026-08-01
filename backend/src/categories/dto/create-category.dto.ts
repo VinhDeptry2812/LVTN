@@ -36,4 +36,19 @@ export class CreateCategoryDto {
   @IsOptional()
   @IsNumber({}, { message: 'ID danh mục cha phải là số' })
   parentId?: number;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Được hiển thị làm danh mục nổi bật ngoài trang chủ',
+  })
+  @IsOptional()
+  is_featured?: boolean;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Thứ tự ưu tiên sắp xếp',
+  })
+  @IsOptional()
+  @IsNumber({}, { message: 'Thứ tự sắp xếp phải là số' })
+  sort_order?: number;
 }

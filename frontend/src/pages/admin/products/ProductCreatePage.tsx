@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
-import { Upload, Sparkles, ArrowLeft, Loader2, Plus, Trash2, Star, Eye, Copy, FileText, Settings, Palette, Rocket, Banknote, Tags, ImageIcon, Save, AlertCircle } from 'lucide-react';
+import { Upload, Sparkles, ArrowLeft, Loader2, Plus, Trash2, Star, Eye, Copy, FileText, Settings, Palette, Rocket, Banknote, Tags, ImageIcon, Save, AlertCircle, RotateCcw } from 'lucide-react';
 import TiptapEditor from '@/components/TiptapEditor';
 import UploadProgressWidget from '@/components/UploadProgressWidget';
 import type { UploadProgress } from '@/components/UploadProgressWidget';
@@ -433,11 +433,47 @@ export default function ProductCreatePage() {
     }
   }, [form.name, form.category_id, categories, skuManuallyEdited]);
 
+  const handleResetAutoSku = () => {
+    setSkuManuallyEdited(false);
+    if (form.category_id && form.name) {
+      const selectedCategory = categories.find(c => c.id === Number(form.category_id));
+      if (selectedCategory) {
+        const getPrefix = (str: string) => {
+          return str
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd')
+            .replace(/Đ/g, 'D')
+            .replace(/[^a-zA-Z0-9\s]/g, '')
+            .split(/\s+/)
+            .map(word => word.charAt(0))
+            .join('')
+            .toUpperCase();
+        };
+        const catPrefix = getPrefix(selectedCategory.name);
+        const prodPrefix = getPrefix(form.name);
+        if (catPrefix && prodPrefix) {
+          setForm(prev => ({
+            ...prev,
+            sku: `${catPrefix}-${prodPrefix}`
+          }));
+          toast.success('Đã khôi phục tự động sinh mã SKU');
+          return;
+        }
+      }
+    }
+    toast.success('Đã bật lại tự động sinh mã SKU. Hãy nhập Tên và chọn Danh mục sản phẩm.');
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
     if (name === 'sku') {
-      setSkuManuallyEdited(true);
+      if (!value.trim()) {
+        setSkuManuallyEdited(false);
+      } else {
+        setSkuManuallyEdited(true);
+      }
     }
     setForm(prev => ({
       ...prev,
@@ -1187,7 +1223,17 @@ export default function ProductCreatePage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Mã SKU chính *</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Mã SKU chính *</label>
+                <button
+                  type="button"
+                  onClick={handleResetAutoSku}
+                  className="flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-700 font-semibold hover:underline cursor-pointer"
+                  title="Tự động tạo lại mã SKU theo Danh mục & Tên sản phẩm"
+                >
+                  <RotateCcw size={12} /> Auto
+                </button>
+              </div>
               <input name="sku" value={form.sku} onChange={handleChange} onBlur={() => validateField('sku', form.sku)} required className={`${inputCls} ${validationErrors.sku ? 'border-red-400 ring-1 ring-red-200' : ''}`} placeholder="VD: SOFA-MILANO" />
               {validationErrors.sku && (
                 <p className="flex items-center gap-1 mt-1.5 text-xs text-red-500 font-medium"><AlertCircle size={12} />{validationErrors.sku}</p>

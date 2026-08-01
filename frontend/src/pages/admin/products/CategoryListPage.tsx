@@ -8,7 +8,7 @@ import ConfirmModal from '@/components/ConfirmModal';
 import AdminPageHeader from '@/components/AdminPageHeader';
 import useConfirmModal from '@/hooks/useConfirmModal';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Pencil, X, FolderTree, Loader2, Upload, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Pencil, X, FolderTree, Loader2, Upload, ChevronRight, ChevronDown, Star, LayoutGrid } from 'lucide-react';
 
 interface Category {
   id: number;
@@ -18,6 +18,8 @@ interface Category {
   parent?: Category | null;
   children?: Category[];
   level?: number;
+  is_featured?: boolean;
+  sort_order?: number;
 }
 
 const flattenCategories = (nodes: Category[], parent: Category | null = null, level = 0): Category[] => {
@@ -37,6 +39,7 @@ export default function CategoryListPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [showSkeletonPreview, setShowSkeletonPreview] = useState(true);
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -72,7 +75,14 @@ export default function CategoryListPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [form, setForm] = useState({ name: '', slug: '', image_url: '', parentId: '' as string | number });
+  const [form, setForm] = useState({
+    name: '',
+    slug: '',
+    image_url: '',
+    parentId: '' as string | number,
+    is_featured: false,
+    sort_order: 0,
+  });
   const [localImageFile, setLocalImageFile] = useState<File | null>(null);
 
   const fetchCategories = async () => {
@@ -90,6 +100,51 @@ export default function CategoryListPage() {
   useEffect(() => {
     fetchCategories();
   }, []);
+
+  // Lấy các danh mục đang được chọn hiển thị Trang chủ (sort_order > 0)
+  const homeCategories = categories
+    .filter((c) => (c.sort_order || 0) > 0)
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+  const handleToggleHomeDisplay = async (cat: Category) => {
+    const currentOrder = cat.sort_order || 0;
+
+    // 1. Trường hợp: Bỏ chọn danh mục đang hiển thị
+    if (currentOrder > 0) {
+      try {
+        // Đặt vị trí danh mục này về 0
+        await api.patch(`/categories/${cat.id}`, { sort_order: 0 });
+
+        // Dồn số thứ tự của các danh mục đứng đằng sau lên 1 nấc
+        const categoriesToShift = homeCategories.filter((c) => (c.sort_order || 0) > currentOrder);
+        for (const item of categoriesToShift) {
+          const newOrder = (item.sort_order || 0) - 1;
+          await api.patch(`/categories/${item.id}`, { sort_order: newOrder });
+        }
+
+        toast.success(`Đã bỏ chọn "${cat.name}" khỏi Trang chủ`);
+        fetchCategories();
+      } catch {
+        toast.error('Không thể cập nhật vị trí Trang chủ');
+      }
+      return;
+    }
+
+    // 2. Trường hợp: Chọn danh mục mới
+    if (homeCategories.length >= 4) {
+      toast.error('Tối đa 4 danh mục hiển thị Trang chủ. Vui lòng bỏ chọn một danh mục trước!');
+      return;
+    }
+
+    try {
+      const nextOrder = homeCategories.length + 1;
+      await api.patch(`/categories/${cat.id}`, { sort_order: nextOrder });
+      toast.success(`Đã chọn "${cat.name}" hiển thị ở Vị trí ${nextOrder} Trang chủ`);
+      fetchCategories();
+    } catch {
+      toast.error('Không thể chọn danh mục cho Trang chủ');
+    }
+  };
 
   const toggleExpand = (id: number) => {
     setExpandedIds((prev) => {
@@ -110,10 +165,10 @@ export default function CategoryListPage() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setForm((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: type === 'checkbox' ? checked : value,
       ...(name === 'name' ? { slug: generateSlug(value) } : {}),
     }));
   };
@@ -140,7 +195,7 @@ export default function CategoryListPage() {
 
   const openCreateModal = () => {
     setEditingId(null);
-    setForm({ name: '', slug: '', image_url: '', parentId: '' });
+    setForm({ name: '', slug: '', image_url: '', parentId: '', is_featured: false, sort_order: 0 });
     setLocalImageFile(null);
     setShowModal(true);
   };
@@ -152,6 +207,8 @@ export default function CategoryListPage() {
       slug: cat.slug,
       image_url: cat.image_url || '',
       parentId: cat.parent?.id || '',
+      is_featured: cat.is_featured ?? false,
+      sort_order: cat.sort_order ?? 0,
     });
     setLocalImageFile(null);
     setShowModal(true);
@@ -186,6 +243,8 @@ export default function CategoryListPage() {
       slug: form.slug,
       image_url: finalImageUrl || undefined,
       parentId: form.parentId === '' ? null : Number(form.parentId),
+      is_featured: form.is_featured,
+      sort_order: Number(form.sort_order || 0),
     };
 
     try {
@@ -249,6 +308,11 @@ export default function CategoryListPage() {
   const invalidParentIds = editingId ? [editingId, ...getDescendantIds(editingId, categories)] : [];
   const parentOptions = categories.filter((c) => !invalidParentIds.includes(c.id));
 
+  const slot1 = homeCategories.find((c) => (c.sort_order || 0) === 1);
+  const slot2 = homeCategories.find((c) => (c.sort_order || 0) === 2);
+  const slot3 = homeCategories.find((c) => (c.sort_order || 0) === 3);
+  const slot4 = homeCategories.find((c) => (c.sort_order || 0) === 4);
+
   return (
     <div>
       <AdminPageHeader
@@ -256,17 +320,187 @@ export default function CategoryListPage() {
         subtitle="Quản lý danh mục sản phẩm và phân cấp danh mục trong hệ thống"
         icon={FolderTree}
         actions={
-          <button
-            onClick={openCreateModal}
-            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-none text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer"
-          >
-            <Plus size={18} />
-            Thêm danh mục
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowSkeletonPreview((prev) => !prev)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-none text-sm font-semibold transition-all border border-slate-300 cursor-pointer"
+            >
+              <LayoutGrid size={18} className="text-indigo-600" />
+              {showSkeletonPreview ? 'Ẩn sơ đồ xem trước' : 'Hiện sơ đồ xem trước'}
+            </button>
+            <button
+              onClick={openCreateModal}
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-none text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer"
+            >
+              <Plus size={18} />
+              Thêm danh mục
+            </button>
+          </div>
         }
       />
 
+      {/* Sơ đồ khung xương xem trước bố cục Trang chủ (Redesigned Light Wireframe) */}
+      {showSkeletonPreview && (
+        <div className="mb-6 bg-slate-50/70 p-4 border border-slate-200/80 transition-all">
+          <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-200/60">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-indigo-100/80 rounded text-indigo-600">
+                <LayoutGrid size={16} />
+              </div>
+              <h3 className="font-semibold text-xs text-slate-800 uppercase tracking-wide">
+                Bố cục hiển thị Trang chủ
+              </h3>
+            </div>
+            
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 md:grid-rows-2 gap-3 h-[200px]">
+            {/* Vị trí 1: Khung Lớn */}
+            <div
+              className={`col-span-2 md:col-span-2 md:row-span-2 relative overflow-hidden rounded border transition-all p-3.5 flex flex-col justify-between ${
+                slot1
+                  ? 'bg-gradient-to-br from-indigo-50/90 via-white to-slate-50 border-indigo-200 shadow-xs'
+                  : 'bg-white/60 border-2 border-dashed border-slate-200 justify-center items-center'
+              }`}
+            >
+              {slot1 ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-indigo-600 tracking-wide uppercase">
+                      Vị trí 1
+                    </span>
+                    
+                  </div>
+                  <div className="flex items-end justify-between gap-3 mt-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-base text-slate-900 truncate">{slot1.name}</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center p-2">
+                  <span className="text-[11px] font-bold text-slate-400 tracking-wide uppercase mb-1 block">
+                    Vị trí 1
+                  </span>
+                  <p className="text-xs font-medium text-slate-400">Khung Lớn (Trống)</p>
+                </div>
+              )}
+            </div>
+
+            {/* Vị trí 2: Khung Ngang */}
+            <div
+              className={`col-span-2 md:col-span-2 md:row-span-1 relative overflow-hidden rounded border transition-all p-3 flex items-center justify-between ${
+                slot2
+                  ? 'bg-gradient-to-r from-blue-50/80 via-white to-slate-50 border-blue-200 shadow-xs'
+                  : 'bg-white/60 border-2 border-dashed border-slate-200 justify-center items-center'
+              }`}
+            >
+              {slot2 ? (
+                <>
+                  <div className="min-w-0 flex-1 pr-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold text-blue-600 tracking-wide uppercase">
+                        Vị trí 2
+                      </span>
+                      
+                    </div>
+                    <p className="font-bold text-sm text-slate-900 truncate">{slot2.name}</p>
+                  </div>
+                 
+                </>
+              ) : (
+                <div className="text-center">
+                  <span className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">
+                    Vị trí 2
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium ml-2">Khung Ngang (Trống)</span>
+                </div>
+              )}
+            </div>
+
+            {/* Vị trí 3: Khung Vuông Trái */}
+            <div
+              className={`col-span-1 md:col-span-1 md:row-span-1 relative overflow-hidden rounded border transition-all p-2.5 flex flex-col justify-between ${
+                slot3
+                  ? 'bg-gradient-to-br from-violet-50/80 via-white to-slate-50 border-violet-200 shadow-xs'
+                  : 'bg-white/60 border-2 border-dashed border-slate-200 justify-center items-center'
+              }`}
+            >
+              {slot3 ? (
+                <>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[10px] font-bold text-violet-600 tracking-wide uppercase">
+                      Vị trí 3
+                    </span>
+                    {slot3.image_url && (
+                      <img
+                        src={slot3.image_url}
+                        alt={slot3.name}
+                        className="w-6 h-6 object-cover rounded border border-slate-200 shrink-0"
+                      />
+                    )}
+                  </div>
+                  <p className="font-bold text-xs text-slate-900 truncate mt-1">{slot3.name}</p>
+                </>
+              ) : (
+                <div className="text-center">
+                  <span className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">
+                    Vị trí 3
+                  </span>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Trống</p>
+                </div>
+              )}
+            </div>
+
+            {/* Vị trí 4: Khung Vuông Phải */}
+            <div
+              className={`col-span-1 md:col-span-1 md:row-span-1 relative overflow-hidden rounded border transition-all p-2.5 flex flex-col justify-between ${
+                slot4
+                  ? 'bg-gradient-to-br from-emerald-50/80 via-white to-slate-50 border-emerald-200 shadow-xs'
+                  : 'bg-white/60 border-2 border-dashed border-slate-200 justify-center items-center'
+              }`}
+            >
+              {slot4 ? (
+                <>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[10px] font-bold text-emerald-600 tracking-wide uppercase">
+                      Vị trí 4
+                    </span>
+                    {slot4.image_url && (
+                      <img
+                        src={slot4.image_url}
+                        alt={slot4.name}
+                        className="w-6 h-6 object-cover rounded border border-slate-200 shrink-0"
+                      />
+                    )}
+                  </div>
+                  <p className="font-bold text-xs text-slate-900 truncate mt-1">{slot4.name}</p>
+                </>
+              ) : (
+                <div className="text-center">
+                  <span className="text-[10px] font-bold text-slate-400 tracking-wide uppercase">
+                    Vị trí 4
+                  </span>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Trống</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-none shadow-sm border border-slate-200 overflow-hidden">
+        {/* Thanh trạng thái theo dõi số lượng danh mục chọn ra Trang chủ */}
+        <div className="bg-indigo-50/60 border-b border-indigo-100 px-6 py-3.5 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-sm text-indigo-950 font-medium">
+            <Star size={16} className="text-amber-500 fill-amber-400" />
+            <span>Danh mục chọn hiển thị Trang chủ: <strong className="text-indigo-600 font-bold font-mono text-base">{homeCategories.length}/4</strong></span>
+          </div>
+          <span className="text-xs text-slate-500">
+            Bấm vào nút <strong className="text-indigo-700">+ Chọn hiển thị</strong> tại bất kỳ danh mục nào để gán vị trí tự động ngoài Trang chủ.
+          </span>
+        </div>
+
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
@@ -274,13 +508,14 @@ export default function CategoryListPage() {
               <th className="text-left px-6 py-4 font-semibold text-slate-600">Ảnh</th>
               <th className="text-left px-6 py-4 font-semibold text-slate-600">Tên danh mục</th>
               <th className="text-left px-6 py-4 font-semibold text-slate-600">Slug</th>
+              <th className="text-center px-6 py-4 font-semibold text-slate-600">Hiển thị Trang chủ</th>
               <th className="text-center px-6 py-4 font-semibold text-slate-600">Hành động</th>
             </tr>
           </thead>
           <tbody>
             {categories.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-center py-12 text-slate-400">
+                <td colSpan={6} className="text-center py-12 text-slate-400">
                   <FolderTree size={32} className="mx-auto mb-2 opacity-40" />
                   Chưa có danh mục nào. Hãy thêm danh mục đầu tiên!
                 </td>
@@ -290,6 +525,8 @@ export default function CategoryListPage() {
                 if (!isVisible(cat)) return null;
                 const hasChildren = categories.some((c) => c.parent?.id === cat.id);
                 const isExpanded = expandedIds.has(cat.id);
+                const homeOrder = cat.sort_order || 0;
+                const isSelectedForHome = homeOrder > 0;
 
                 return (
                   <tr key={cat.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
@@ -323,6 +560,20 @@ export default function CategoryListPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-slate-500 font-mono text-xs">{cat.slug}</td>
+                    <td className="px-6 py-4 text-center">
+                      <button
+                        onClick={() => handleToggleHomeDisplay(cat)}
+                        title={isSelectedForHome ? 'Bấm để bỏ chọn khỏi Trang chủ' : 'Bấm để chọn hiển thị ngoài Trang chủ'}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer ${
+                          isSelectedForHome
+                            ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
+                            : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'
+                        }`}
+                      >
+                        <Star size={14} className={isSelectedForHome ? 'fill-amber-400 text-amber-500' : 'text-slate-400'} />
+                        {isSelectedForHome ? `Vị trí ${homeOrder}` : '+ Chọn hiển thị'}
+                      </button>
+                    </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <button

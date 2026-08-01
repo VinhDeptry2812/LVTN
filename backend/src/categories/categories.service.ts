@@ -21,7 +21,17 @@ export class CategoriesService {
   ) {}
 
   async findAll(): Promise<Category[]> {
-    return this.categoriesRepository.findTrees();
+    const trees = await this.categoriesRepository.findTrees();
+    const sortTree = (nodes: Category[]) => {
+      nodes.sort((a, b) => a.id - b.id);
+      for (const node of nodes) {
+        if (node.children && node.children.length > 0) {
+          sortTree(node.children);
+        }
+      }
+    };
+    sortTree(trees);
+    return trees;
   }
 
   async findOne(id: number): Promise<Category> {

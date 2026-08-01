@@ -5,6 +5,8 @@ export interface Category {
   name: string;
   slug: string;
   image_url: string;
+  is_featured?: boolean;
+  sort_order?: number;
   children?: Category[];
 }
 

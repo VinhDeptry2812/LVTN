@@ -35,6 +35,12 @@ export class Category {
   @OneToMany(() => Product, (product) => product.category)
   products: Product[];
 
+  @Column({ default: false })
+  is_featured: boolean;
+
+  @Column({ type: 'int', default: 0 })
+  sort_order: number;
+
   @CreateDateColumn()
   created_at: Date;
 

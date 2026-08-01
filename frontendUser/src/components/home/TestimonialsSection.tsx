@@ -61,7 +61,7 @@ export const TestimonialsSection = forwardRef<HTMLDivElement, TestimonialsSectio
         {reviewsToDisplay.length === 0 ? (
           <div className="text-center py-12 bg-surface rounded-2xl border border-outline-variant/30 max-w-md mx-auto shadow-sm">
             <span className="material-symbols-outlined text-4xl text-primary/60 mb-2">rate_review</span>
-            <p className="text-on-surface-variant font-body-md">Chưa có đánh giá 5 sao nào từ khách hàng.</p>
+            <p className="text-on-surface-variant font-body-md">Chưa có đánh giá nào từ khách hàng.</p>
           </div>
         ) : (
           <div
@@ -148,11 +148,10 @@ export const TestimonialsSection = forwardRef<HTMLDivElement, TestimonialsSectio
                     key={idx}
                     onClick={() => setReviewCarouselIndex(idx)}
                     aria-label={`Chuyển tới đánh giá ${idx + 1}`}
-                    className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
-                      reviewCarouselIndex === idx
+                    className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${reviewCarouselIndex === idx
                         ? 'w-6 sm:w-8 bg-primary shadow-sm'
                         : 'w-2 sm:w-2.5 bg-outline-variant/40 hover:bg-outline-variant'
-                    }`}
+                      }`}
                   />
                 ))}
               </div>
