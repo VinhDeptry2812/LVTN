@@ -281,7 +281,7 @@ export default function Header() {
     <header className={`fixed top-0 left-0 w-full z-50 bg-surface/90 backdrop-blur-md shadow-[0_20px_40px_rgba(83,98,87,0.05)] transition-transform duration-300 ease-in-out ${
       isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
     }`}>
-      <nav className="max-w-container-max mx-auto px-sp-md md:px-lg flex items-center justify-between h-20">
+      <nav className="max-w-container-max mx-auto px-sp-md md:px-lg flex items-center justify-between h-20 relative">
         <div className="flex items-center gap-4 md:gap-6 lg:gap-sp-xl">
           <Link to="/" className="flex items-center hover:opacity-90 transition-opacity py-1 shrink-0">
             <img
@@ -310,24 +310,24 @@ export default function Header() {
 
 
             {/* Dropdown: Sản phẩm (Mega Menu) */}
-            <div className="relative group py-6">
+            <div className="group py-6">
               <Link to="/shop" className="font-label-md text-label-md text-on-surface-variant group-hover:text-primary transition-colors cursor-pointer flex items-center gap-1">
                 Sản phẩm <span className="material-symbols-outlined text-[18px]">expand_more</span>
               </Link>
 
               {/* Mega Menu Container */}
-              <div className="absolute top-[80%] left-1/2 -translate-x-1/2 w-max max-w-[90vw] bg-surface-container-lowest border border-outline-variant shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 p-8">
-                <div className="flex gap-12">
+              <div className="absolute top-full left-0 right-0 w-full bg-surface-container-lowest border border-outline-variant/60 shadow-[0_25px_60px_rgba(0,0,0,0.15)] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 p-8 rounded-b-2xl max-h-[85vh] overflow-y-auto">
+                <div className="columns-5 gap-8 space-y-6">
                   {categories.productTree.map((parent) => (
-                    <div key={parent.id} className="flex flex-col min-w-[120px]">
+                    <div key={parent.id} className="break-inside-avoid flex flex-col mb-6">
                       <Link
                         to={`/shop?category=${parent.slug}`}
-                        className="relative group/link w-fit font-headline-sm text-sm font-bold text-on-surface hover:text-primary mb-4 uppercase tracking-wider"
+                        className="relative group/link font-headline-sm text-xs font-bold text-primary hover:text-primary-dark mb-2.5 uppercase tracking-wider border-b border-primary/20 pb-1.5 flex items-center justify-between"
                       >
-                        {parent.name}
-                        <span className="absolute -bottom-1 left-0 w-full h-[2px] bg-primary origin-right scale-x-0 transition-transform duration-300 ease-out group-hover/link:origin-left group-hover/link:scale-x-100"></span>
+                        <span>{parent.name}</span>
+                        <span className="text-[10px] text-outline opacity-0 group-hover/link:opacity-100 transition-opacity">→</span>
                       </Link>
-                      <div className="flex flex-col gap-3">
+                      <div className="flex flex-col gap-1.5">
                         {parent.children && parent.children.length > 0 && (
                           parent.children
                             .filter(child => !child.name.toLowerCase().includes('phòng'))
@@ -335,10 +335,9 @@ export default function Header() {
                               <Link
                                 key={child.id}
                                 to={`/shop?category=${child.slug}`}
-                                className="relative group/link w-fit font-body-md text-on-surface-variant hover:text-primary transition-colors py-0.5"
+                                className="font-body-md text-xs text-on-surface-variant hover:text-primary hover:translate-x-1 transition-all py-0.5 truncate"
                               >
                                 {child.name}
-                                <span className="absolute bottom-0 left-0 w-full h-[1.5px] bg-primary origin-right scale-x-0 transition-transform duration-300 ease-out group-hover/link:origin-left group-hover/link:scale-x-100"></span>
                               </Link>
                             ))
                         )}
