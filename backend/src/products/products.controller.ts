@@ -37,12 +37,22 @@ export class ProductsController {
     @Query('maxPrice') maxPrice?: string,
     @Query('onlySale') onlySale?: string,
     @Query('sortBy') sortBy?: string,
+    @Query('isActive') isActive?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : undefined;
     const limitNum = limit ? parseInt(limit, 10) : undefined;
     const min = minPrice ? parseFloat(minPrice) : undefined;
     const max = maxPrice ? parseFloat(maxPrice) : undefined;
     const isSale = onlySale === 'true';
+
+    let isActiveBool: boolean | undefined = true;
+    if (isActive === 'all') {
+      isActiveBool = undefined;
+    } else if (isActive === 'false') {
+      isActiveBool = false;
+    } else if (isActive === 'true') {
+      isActiveBool = true;
+    }
 
     return this.productsService.findAll({
       page: pageNum,
@@ -53,6 +63,7 @@ export class ProductsController {
       maxPrice: max,
       onlySale: isSale,
       sortBy,
+      isActive: isActiveBool,
     });
   }
 

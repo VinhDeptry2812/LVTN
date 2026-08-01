@@ -82,7 +82,7 @@ export default function ProductListPage() {
 
   const fetchProducts = async () => {
     try {
-      const res = await api.get('/products');
+      const res = await api.get('/products?isActive=all');
       setProducts(res.data);
     } catch {
       toast.error('Không thể tải danh sách sản phẩm');

@@ -14,6 +14,7 @@ export interface ProductFrontend {
   badge?: string;
   isNew?: boolean;
   isFeatured?: boolean;
+  is_active?: boolean;
   soldCount?: number;
   discount?: string;
   oldPrice?: string;
@@ -112,6 +113,7 @@ export const mapBackendProductToFrontend = (p: any): ProductFrontend => {
     specs: specs,
     isNew,
     isFeatured,
+    is_active: p.is_active !== undefined ? p.is_active : true,
     soldCount: p.soldCount || p.sold_count || 0,
     variants: p.variants || [],
     createdAt: p.created_at || undefined,

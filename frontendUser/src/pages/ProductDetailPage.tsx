@@ -548,12 +548,12 @@ export default function ProductDetailPage() {
     );
   }
 
-  if (!product) {
+  if (!product || !product.is_active) {
     return (
       <div className="bg-surface text-on-surface min-h-screen flex flex-col font-body-md antialiased">
         <Header />
         <main className="flex-1 flex flex-col items-center justify-center pt-32 md:pt-24 pb-sp-xl">
-          <p className="text-on-surface-variant font-label-md mb-4">Không tìm thấy sản phẩm.</p>
+          <p className="text-on-surface-variant font-label-md mb-4">Sản phẩm này tạm thời ngưng kinh doanh hoặc không tồn tại.</p>
           <button onClick={() => navigate('/shop')} className="px-6 py-3 bg-primary text-on-primary rounded-full font-label-md cursor-pointer hover:opacity-90">
             Quay lại cửa hàng
           </button>

@@ -131,8 +131,9 @@ export class ProductsService {
     maxPrice?: number;
     onlySale?: boolean;
     sortBy?: string;
+    isActive?: boolean;
   }): Promise<Product[] | { data: Product[]; total: number; page: number; totalPages: number }> {
-    const { page, limit, search, category, minPrice, maxPrice, onlySale, sortBy } = queryParams || {};
+    const { page, limit, search, category, minPrice, maxPrice, onlySale, sortBy, isActive } = queryParams || {};
 
     try {
       const query = this.productsRepository
@@ -144,6 +145,10 @@ export class ProductsService {
         .leftJoinAndSelect('product.images', 'images')
         .leftJoinAndSelect('product.collections', 'collections')
         .leftJoinAndSelect('product.reviews', 'reviews');
+
+      if (isActive !== undefined) {
+        query.andWhere('product.is_active = :isActive', { isActive });
+      }
 
     // 1. Tìm kiếm sản phẩm thông minh (Khớp Tên, SKU, Mô tả, Danh mục & Thuộc tính)
     if (search && search.trim() !== '') {
@@ -389,6 +394,7 @@ export class ProductsService {
       where: {
         category: { id: product.category?.id },
         id: Not(id),
+        is_active: true,
       },
       relations: {
         category: true,
@@ -422,6 +428,7 @@ export class ProductsService {
       const diffCategory = await this.productsRepository.find({
         where: {
           id: Not(In(excludedIds)),
+          is_active: true,
         },
         relations: {
           category: true,
@@ -485,6 +492,7 @@ export class ProductsService {
       recommendations = await this.productsRepository.find({
         where: {
           id: In(ids),
+          is_active: true,
         },
         relations: {
           category: true,
@@ -504,6 +512,7 @@ export class ProductsService {
         where: {
           category: { id: product.category?.id },
           id: Not(In(excludedIds)),
+          is_active: true,
         },
         relations: {
           category: true,
@@ -524,6 +533,7 @@ export class ProductsService {
       const padProducts = await this.productsRepository.find({
         where: {
           id: Not(In(excludedIds)),
+          is_active: true,
         },
         relations: {
           category: true,
@@ -638,6 +648,7 @@ export class ProductsService {
       products = await this.productsRepository.find({
         where: {
           id: In(productIds),
+          is_active: true,
         },
         relations: {
           category: true,
@@ -674,7 +685,7 @@ export class ProductsService {
     if (products.length < limit) {
       const excludedIds = products.map((p) => p.id);
       const padProducts = await this.productsRepository.find({
-        where: excludedIds.length > 0 ? { id: Not(In(excludedIds)) } : {},
+        where: excludedIds.length > 0 ? { id: Not(In(excludedIds)), is_active: true } : { is_active: true },
         relations: {
           category: true,
           detail: true,
