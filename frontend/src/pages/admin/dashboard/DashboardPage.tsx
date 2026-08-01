@@ -498,7 +498,7 @@ export default function DashboardPage() {
                       fontWeight: 600
                     }}
                     labelStyle={{ color: '#94A3B8', fontWeight: 700 }}
-                    formatter={(value: number) => [formatPrice(value), 'Doanh thu']}
+                    formatter={(value: any) => [formatPrice(Number(value) || 0), 'Doanh thu']}
                   />
                   <Bar 
                     dataKey="revenue" 
