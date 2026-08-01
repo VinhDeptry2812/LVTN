@@ -1,7 +1,14 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 export enum UserRole {
   ADMIN = 'admin',
+  STAFF = 'staff',
   CUSTOMER = 'customer',
 }
 
@@ -27,6 +34,12 @@ export class User {
   @Column({ nullable: true })
   phone: string;
 
+  @Column({ nullable: true })
+  gender: string;
+
+  @Column({ type: 'date', nullable: true })
+  birthday: string;
+
   @Column({
     type: 'enum',
     enum: UserRole,
@@ -40,6 +53,15 @@ export class User {
     default: UserStatus.ACTIVE,
   })
   status: UserStatus;
+
+  @Column({ type: 'varchar', nullable: true })
+  current_hashed_refresh_token: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  otp_code: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  otp_expires_at: Date | null;
 
   @CreateDateColumn()
   created_at: Date;

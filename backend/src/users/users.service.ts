@@ -23,12 +23,92 @@ export class UsersService {
     return this.usersRepository.save(newUser);
   }
 
-  async updateProfile(id: number, updateData: Partial<User>): Promise<User | null> {
+  async updateProfile(
+    id: number,
+    updateData: Partial<User>,
+  ): Promise<User | null> {
     await this.usersRepository.update(id, updateData);
     return this.findById(id);
   }
 
   async updatePassword(id: number, password_hash: string): Promise<void> {
     await this.usersRepository.update(id, { password_hash });
+  }
+
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    role?: string,
+    status?: string,
+  ) {
+    const query = this.usersRepository
+      .createQueryBuilder('user')
+      .select([
+        'user.id',
+        'user.email',
+        'user.name',
+        'user.phone',
+        'user.gender',
+        'user.birthday',
+        'user.role',
+        'user.status',
+        'user.created_at',
+      ]);
+
+    if (search) {
+      query.andWhere(
+        '(user.name LIKE :search OR user.email LIKE :search OR user.phone LIKE :search)',
+        {
+          search: `%${search}%`,
+        },
+      );
+    }
+
+    if (role && role !== 'all') {
+      const roles = role
+        .split(',')
+        .map((r) => r.trim())
+        .filter((r) => Boolean(r) && r !== 'all');
+      if (roles.length > 0) {
+        query.andWhere('user.role IN (:...roles)', { roles });
+      }
+    }
+
+    if (status && status !== 'all') {
+      query.andWhere('user.status = :status', { status });
+    }
+
+    const [data, total] = await query
+      .orderBy('user.created_at', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    const totalPages = Math.ceil(total / limit) || 1;
+
+    return {
+      data,
+      total,
+      page,
+      lastPage: totalPages,
+      meta: {
+        totalItems: total,
+        itemCount: data.length,
+        itemsPerPage: limit,
+        totalPages,
+        currentPage: page,
+      },
+    };
+  }
+
+  async updateStatus(id: number, status: string): Promise<User | null> {
+    await this.usersRepository.update(id, { status: status as any });
+    return this.findById(id);
+  }
+
+  async updateRole(id: number, role: string): Promise<User | null> {
+    await this.usersRepository.update(id, { role: role as any });
+    return this.findById(id);
   }
 }

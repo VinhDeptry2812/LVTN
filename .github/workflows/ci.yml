@@ -38,3 +38,19 @@ jobs:
         cache-dependency-path: './backend/package-lock.json'
     - run: npm ci
     - run: npm run build
+
+  build-frontendUser:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontendUser
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: './frontendUser/package-lock.json'
+    - run: npm ci
+    - run: npm run build

@@ -1,0 +1,393 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* ============================================
+   NORDIC HEARTH — Design System
+   Aesthetic: Nordic Serenity / Luxury Minimal
+   Colors: Anthem Lux Palette
+   ============================================ */
+
+@theme {
+  /* Colors */
+  --color-surface-container-highest: #e4e2dd;
+  --color-surface: #fbf9f4;
+  --color-on-tertiary-fixed: #071d2d;
+  --color-secondary-fixed: #f4dfcb;
+  --color-on-surface: #1b1c19;
+  --color-surface-container-high: #eae8e3;
+  --color-secondary: #6b5c4c;
+  --color-secondary-container: #f4dfcb;
+  --color-primary-container: #8a9a8e;
+  --color-error-container: #ffdad6;
+  --color-on-error: #ffffff;
+  --color-on-primary: #ffffff;
+  --color-surface-container: #f0eee9;
+  --color-surface-variant: #e4e2dd;
+  --color-primary-fixed: #d6e7d9;
+  --color-on-surface-variant: #434844;
+  --color-on-tertiary-fixed-variant: #35495b;
+  --color-on-secondary-fixed: #241a0e;
+  --color-tertiary-container: #8498ac;
+  --color-inverse-primary: #bacbbe;
+  --color-inverse-surface: #30312e;
+  --color-background: #fbf9f4;
+  --color-tertiary: #4d6073;
+  --color-on-tertiary-container: #1c3041;
+  --color-primary-fixed-dim: #bacbbe;
+  --color-secondary-fixed-dim: #d7c3b0;
+  --color-on-secondary: #ffffff;
+  --color-surface-container-lowest: #ffffff;
+  --color-outline-variant: #c3c8c2;
+  --color-tertiary-fixed: #d0e5fb;
+  --color-inverse-on-surface: #f2f1ec;
+  --color-error: #ba1a1a;
+  --color-on-primary-container: #243229;
+  --color-on-background: #1b1c19;
+  --color-surface-bright: #fbf9f4;
+  --color-primary: #536257;
+  --color-on-tertiary: #ffffff;
+  --color-surface-dim: #dbdad5;
+  --color-on-secondary-container: #716252;
+  --color-outline: #737873;
+  --color-on-secondary-fixed-variant: #524436;
+  --color-on-error-container: #93000a;
+  --color-on-primary-fixed: #111e16;
+  --color-tertiary-fixed-dim: #b4c9de;
+  --color-surface-tint: #536257;
+  --color-surface-container-low: #f5f3ee;
+  --color-on-primary-fixed-variant: #3b4a40;
+
+  /* Border Radius */
+  --radius-DEFAULT: 0px;
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+
+  /* Spacing — prefixed with sp- to avoid conflicts with Tailwind v4 built-ins */
+  --spacing-sp-xl: 80px;
+  --spacing-container-max: 1280px;
+  --spacing-sp-base: 8px;
+  --spacing-sp-md: 24px;
+  --spacing-sp-sm: 12px;
+  --spacing-gutter: 24px;
+  --spacing-sp-xs: 4px;
+  --spacing-sp-lg: 48px;
+
+  /* Ken Burns Carousel Animations */
+  --animate-kenburns: kenburns 6s ease-out forwards;
+  --animate-fadeIn: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
+  @keyframes kenburns {
+    0% {
+      transform: scale(1.08);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* Base resets & styles */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  background-color: #fbf9f4;
+  color: #1b1c19;
+  font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+}
+
+/* Material symbols utility styling */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Hero gradient used in Stitch */
+.hero-gradient {
+  background: linear-gradient(to right, rgba(251, 249, 244, 0.9) 0%, rgba(251, 249, 244, 0.4) 50%, transparent 100%);
+}
+
+/* Custom scrollbar matching Sage green theme */
+::-webkit-scrollbar {
+  width: 2px;
+  height: 2px;
+}
+
+::-webkit-scrollbar-track {
+  background: #fbf9f4;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #536257;
+  border-radius: 0px;
+}
+
+/* Utility to completely hide scrollbar across all browsers */
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Selection highlight color */
+::selection {
+  background: rgba(83, 98, 87, 0.2);
+  color: #1b1c19;
+}
+
+/* Typography Utilities matching design system exactly */
+@utility font-label-sm {
+  font-family: 'Be Vietnam Pro', sans-serif;
+}
+@utility text-label-sm {
+  font-size: 12px;
+  line-height: 14px;
+  font-weight: 500;
+}
+
+@utility font-headline-lg {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+@utility text-headline-lg {
+  font-size: 32px;
+  line-height: 40px;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+
+@utility font-label-md {
+  font-family: 'Be Vietnam Pro', sans-serif;
+}
+@utility text-label-md {
+  font-size: 14px;
+  line-height: 16px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+@utility font-body-sm {
+  font-family: 'Be Vietnam Pro', sans-serif;
+}
+@utility text-body-sm {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+}
+
+@utility font-headline-md {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+
+@utility text-headline-mobile {
+  font-size: 14px;
+  line-height: 16px;
+  font-weight: 600;
+}
+
+@utility font-body-lg {
+  font-family: 'Be Vietnam Pro', sans-serif;
+}
+@utility text-body-lg {
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 400;
+}
+
+@utility font-headline-lg-mobile {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+@utility text-headline-lg-mobile {
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 600;
+}
+
+@utility font-body-md {
+  font-family: 'Be Vietnam Pro', sans-serif;
+}
+@utility text-body-md {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+}
+
+@utility font-headline-xl {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+@utility text-headline-xl {
+  font-size: 48px;
+  line-height: 56px;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+/* Search Overlay Animations */
+@keyframes slideDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@utility animate-slide-down {
+  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@utility animate-slideInRight {
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@utility animate-fadeIn {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+@utility animate-slide-up {
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ==========================================================================
+   PREMIUM BUTTON HOVER EFFECTS (SLIDE-IN FROM LEFT) & SHARP EDGES
+   ========================================================================== */
+
+/* 1. Reset border radius for non-circular buttons and action links */
+button:not(.rounded-full):not(.rounded-xl):not(.no-slide-effect),
+a.bg-primary:not(.rounded-full):not(.rounded-xl):not(.no-slide-effect),
+a.border:not(.rounded-full):not(.rounded-xl):not(.no-slide-effect),
+.btn-slide-dark,
+.btn-slide-light {
+  border-radius: 0px !important;
+}
+
+/* 2. Primary Buttons hover effect (Slide-in high-contrast sand color) */
+:is(button, a).bg-primary:is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(.rounded-full):not(.rounded-xl):not(.no-slide-effect),
+.btn-slide-dark {
+  position: relative !important;
+  overflow: hidden !important;
+  z-index: 1 !important;
+  transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease !important;
+}
+
+:is(button, a).bg-primary:is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(.rounded-full):not(.rounded-xl):not(.no-slide-effect)::before,
+.btn-slide-dark::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background-color: var(--color-surface-container-highest, #e4e2dd) !important;
+  z-index: -1 !important;
+  transform: scaleX(0) !important;
+  transform-origin: left !important;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+:is(button, a).bg-primary:is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(.rounded-full):not(.rounded-xl):not(.no-slide-effect):not(:disabled):hover,
+.btn-slide-dark:not(:disabled):hover {
+  color: var(--color-primary, #536257) !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+:is(button, a).bg-primary:is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(.rounded-full):not(.rounded-xl):not(.no-slide-effect):not(:disabled):hover::before,
+.btn-slide-dark:not(:disabled):hover::before {
+  transform: scaleX(1) !important;
+}
+
+/* 3. Outline/Secondary/Border Buttons hover effect (Slide-in primary brand color) */
+:is(button, a).border:not(.bg-primary):is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(.rounded-full):not(.rounded-xl):not(.no-slide-effect),
+.btn-slide-light {
+  position: relative !important;
+  overflow: hidden !important;
+  z-index: 1 !important;
+  transition: color 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease !important;
+}
+
+:is(button, a).border:not(.bg-primary):is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(.rounded-full):not(.rounded-xl):not(.no-slide-effect)::before,
+.btn-slide-light::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background-color: var(--color-primary, #536257) !important;
+  z-index: -1 !important;
+  transform: scaleX(0) !important;
+  transform-origin: left !important;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+:is(button, a).border:not(.bg-primary):is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(.rounded-full):not(.rounded-xl):not(.no-slide-effect):not(:disabled):hover,
+.btn-slide-light:not(:disabled):hover {
+  color: var(--color-on-primary, #ffffff) !important;
+  border-color: var(--color-primary, #536257) !important;
+  background-color: transparent !important;
+}
+
+:is(button, a).border:not(.bg-primary):is(.py-2\.5, .py-3, .py-3\.5, .py-4, [type="submit"]):not(.w-8):not(.w-9):not(.w-10):not(.w-11):not(.w-12):not([style*="background-color"]):not(.rounded-full):not(.rounded-xl):not(.no-slide-effect):not(:disabled):hover::before,
+.btn-slide-light:not(:disabled):hover::before {
+  transform: scaleX(1) !important;
+}

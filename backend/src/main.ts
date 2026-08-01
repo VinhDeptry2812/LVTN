@@ -1,22 +1,40 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
-  // Bật CORS để Frontend (port 5173) có thể gọi API
-  app.enableCors();
-  
-  // Bật ValidationPipe để tự động kiểm tra dữ liệu đầu vào theo DTO
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-  }));
+  const configService = app.get(ConfigService);
+
+  // Cấu hình CORS an toàn từ môi trường
+  const originsStr = configService.get<string>(
+    'CORS_ORIGINS',
+    'http://localhost:5173,http://localhost:5174,http://localhost:3000',
+  );
+  const allowedOrigins = originsStr
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  app.enableCors({
+    origin: allowedOrigins,
+    credentials: true,
+  });
+
+  // Bật ValidationPipe tự động ép kiểu dữ liệu DTO/Query Parameters
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
+  );
 
   // Cấu hình Swagger
   const config = new DocumentBuilder()
-    .setTitle('FurniShop API')
+    .setTitle('Web Nội thất API')
     .setDescription('Tài liệu API cho dự án E-commerce đồ nội thất tích hợp AI')
     .setVersion('1.0')
     .addBearerAuth() // Kích hoạt nút điền JWT Token trên UI
@@ -24,6 +42,8 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document); // Đường dẫn truy cập Swagger UI
 
-  await app.listen(process.env.PORT ?? 3000);
+  const port = configService.get<number>('PORT', 3000);
+  await app.listen(port);
 }
 bootstrap();
+
