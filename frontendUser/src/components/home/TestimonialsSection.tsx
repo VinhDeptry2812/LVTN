@@ -89,6 +89,8 @@ export const TestimonialsSection = forwardRef<HTMLDivElement, TestimonialsSectio
                           <img
                             src={item.images[0]}
                             alt="Ảnh đánh giá"
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                           />
                         </div>

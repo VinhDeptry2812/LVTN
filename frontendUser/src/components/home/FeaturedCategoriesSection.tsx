@@ -35,6 +35,8 @@ export const FeaturedCategoriesSection = forwardRef<HTMLDivElement, FeaturedCate
               >
                 <img
                   alt={cat.name}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   src={categoryCardImage(cat.image_url) || 'https://via.placeholder.com/600x400?text=No+Image'}
                 />

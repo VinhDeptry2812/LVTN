@@ -4,6 +4,9 @@ import api from '@/services/api';
 import toast from 'react-hot-toast';
 import { Upload, Sparkles, ArrowLeft, Loader2, Plus, Trash2, Star, Eye, Copy, FileText, Settings, Palette, Rocket, Banknote, Tags, ImageIcon, Save, AlertCircle } from 'lucide-react';
 import TiptapEditor from '@/components/TiptapEditor';
+import UploadProgressWidget from '@/components/UploadProgressWidget';
+import type { UploadProgress } from '@/components/UploadProgressWidget';
+
 
 interface SpecRow { key: string; value: string; }
 
@@ -126,6 +129,7 @@ export default function ProductCreatePage() {
   const [submitting, setSubmitting] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [descTab, setDescTab] = useState<'edit' | 'preview'>('edit');
   const [skuManuallyEdited, setSkuManuallyEdited] = useState(false);
   const [isFileDragOver, setIsFileDragOver] = useState(false);
@@ -656,23 +660,60 @@ export default function ProductCreatePage() {
     try {
       toast.loading('Đang xử lý nén và tải lên hình ảnh...', { id: 'submit-upload' });
 
+      const localProductImages = productImages.filter(img => img.is_local && img.file);
+      const localVariantImages = variants.filter(v => v.local_file);
+      const totalToUpload = localProductImages.length + localVariantImages.length;
+      let completedUploads = 0;
+      let failedUploads = 0;
+
+      if (totalToUpload > 0) {
+        setUploadProgress({ total: totalToUpload, completed: 0, failed: 0, percent: 0 });
+      }
+
+      const incrementProgress = (fileName?: string, isSuccess = true) => {
+        if (totalToUpload <= 0) return;
+        completedUploads++;
+        if (!isSuccess) failedUploads++;
+        const percent = Math.round((completedUploads / totalToUpload) * 100);
+        setUploadProgress({
+          total: totalToUpload,
+          completed: completedUploads,
+          failed: failedUploads,
+          percent,
+          currentFileName: fileName,
+          isError: failedUploads > 0,
+        });
+      };
+
       const processedDescription = await processDescriptionImages(form.description);
 
       // 1. Upload ảnh chính sản phẩm song song
       const uploadedProductImages = await Promise.all(
         productImages.map(async (img) => {
           if (img.is_local && img.file) {
-            const formData = new FormData();
-            formData.append('file', img.file);
-            const res = await api.post('/upload/image', formData, {
-              headers: { 'Content-Type': 'multipart/form-data' },
-            });
-            return {
-              image_url: res.data.url,
-              is_primary: img.is_primary,
-              is_hover: img.is_hover,
-              variant_index: img.variant_index,
-            };
+            try {
+              const formData = new FormData();
+              formData.append('file', img.file);
+              const res = await api.post('/upload/image', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+              });
+              incrementProgress(img.file.name, true);
+              return {
+                image_url: res.data.url,
+                is_primary: img.is_primary,
+                is_hover: img.is_hover,
+                variant_index: img.variant_index,
+              };
+            } catch (err) {
+              console.error(`Lỗi khi tải ảnh ${img.file.name}:`, err);
+              incrementProgress(img.file.name, false);
+              return {
+                image_url: '',
+                is_primary: img.is_primary,
+                is_hover: img.is_hover,
+                variant_index: img.variant_index,
+              };
+            }
           }
           return {
             image_url: img.image_url,
@@ -682,6 +723,13 @@ export default function ProductCreatePage() {
           };
         })
       );
+
+      // Filter out any image upload failures that returned empty string
+      const validProductImages = uploadedProductImages.filter(img => img.image_url !== '');
+
+      if (failedUploads > 0) {
+        throw new Error(`Có ${failedUploads} ảnh tải lên thất bại. Vui lòng kiểm tra lại.`);
+      }
 
       // 2. Upload ảnh của biến thể song song
       let uploadedVariants = [];
@@ -698,12 +746,18 @@ export default function ProductCreatePage() {
           variants.map(async (v) => {
             let imageUrl = v.image_url;
             if (v.local_file) {
-              const formData = new FormData();
-              formData.append('file', v.local_file);
-              const res = await api.post('/upload/image', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-              });
-              imageUrl = res.data.url;
+              try {
+                const formData = new FormData();
+                formData.append('file', v.local_file);
+                const res = await api.post('/upload/image', formData, {
+                  headers: { 'Content-Type': 'multipart/form-data' },
+                });
+                incrementProgress(v.local_file.name, true);
+                imageUrl = res.data.url;
+              } catch (err) {
+                console.error(`Lỗi khi tải ảnh biến thể ${v.local_file.name}:`, err);
+                incrementProgress(v.local_file.name, false);
+              }
             }
             return {
               sku: v.sku || null,
@@ -730,7 +784,7 @@ export default function ProductCreatePage() {
           specifications: Object.keys(specsObj).length > 0 ? specsObj : null,
         },
         variants: uploadedVariants,
-        images: uploadedProductImages,
+        images: validProductImages,
         collection_ids: selectedCollectionIds,
       };
 
@@ -739,11 +793,17 @@ export default function ProductCreatePage() {
       toast.success('Thêm sản phẩm thành công!');
       localStorage.removeItem('product_create_draft');
       navigate('/admin/products');
-    } catch {
+    } catch (error: any) {
+      console.error(error);
+      const serverMsg = error.response?.data?.message;
+      const errorMsg = Array.isArray(serverMsg) ? serverMsg.join(', ') : serverMsg || error.message || 'Thêm sản phẩm thất bại (Lỗi tải ảnh hoặc lưu thông tin)';
       toast.dismiss('submit-upload');
-      toast.error('Thêm sản phẩm thất bại (Lỗi tải ảnh hoặc lưu thông tin)');
+      toast.error(errorMsg);
     } finally {
       setSubmitting(false);
+      setTimeout(() => {
+        setUploadProgress(null);
+      }, 2500);
     }
   };
 
@@ -1373,7 +1433,7 @@ export default function ProductCreatePage() {
       </form>
 
       {/* STICKY ACTION BAR */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-slate-200 px-8 py-3 flex items-center justify-between z-30 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+      <div className="sticky bottom-0 -mx-6 md:-mx-8 -mb-6 md:-mb-8 px-6 md:px-8 py-3.5 mt-8 bg-white/95 backdrop-blur-sm border-t border-slate-200 flex items-center justify-between z-30 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
         <div className="text-xs text-slate-400 font-medium">
           {draftSavedAt && !hasDraft && (
             <span className="flex items-center gap-1.5"><Save size={12} className="text-emerald-500" />Lưu nháp tự động lúc {draftSavedAt}</span>
@@ -1398,6 +1458,9 @@ export default function ProductCreatePage() {
           </button>
         </div>
       </div>
+
+      {/* Upload Floating Progress Widget */}
+      <UploadProgressWidget progress={uploadProgress} positionClass="bottom-16 right-6" />
     </div>
   );
 }

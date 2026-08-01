@@ -14,6 +14,8 @@ export const AboutUsSection = forwardRef<HTMLDivElement>((_, ref) => {
               <img
                 src="https://images.unsplash.com/photo-1541123437800-1bb1317badc2?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80"
                 alt="Nhà máy FurniShop"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-black/5 transition-opacity duration-500 group-hover:opacity-10"></div>

@@ -502,6 +502,8 @@ export default function Header() {
                               <img
                                 src={productCardImage(prod.image)}
                                 alt={prod.name}
+                                loading="lazy"
+                                decoding="async"
                                 className="w-full h-full object-contain"
                               />
                             </div>

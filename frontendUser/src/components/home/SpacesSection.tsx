@@ -29,6 +29,8 @@ export const SpacesSection = forwardRef<HTMLDivElement, SpacesSectionProps>(({ c
               <img
                 src={heroBannerImage(col.cover_image) || 'https://via.placeholder.com/600x800?text=Room'}
                 alt={col.name}
+                loading="lazy"
+                decoding="async"
                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity"></div>

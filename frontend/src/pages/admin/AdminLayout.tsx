@@ -385,7 +385,7 @@ export default function AdminLayout() {
         <div className="h-16 flex items-center justify-between px-5 border-b border-slate-800">
           {!isCollapsed && (
             <div className="flex items-center gap-2.5 animate-fadeIn">
-              <span className="text-2xl">🛋️</span>
+              <img src="/logo.png" alt="Logo Nội Thất" className="w-8 h-8 object-contain rounded-md bg-white/10 p-1 shadow-sm" />
               <div>
                 <h1 className="text-base font-extrabold tracking-wider bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">NỘI THẤT</h1>
                 <p className="text-[10px] text-slate-400 font-semibold tracking-widest uppercase">Quản trị hệ thống</p>
@@ -393,7 +393,7 @@ export default function AdminLayout() {
             </div>
           )}
           {isCollapsed && (
-            <span className="text-2xl mx-auto">🛋️</span>
+            <img src="/logo.png" alt="Logo Nội Thất" className="w-8 h-8 object-contain mx-auto rounded-md bg-white/10 p-1 shadow-sm" />
           )}
           {!isCollapsed && (
             <button

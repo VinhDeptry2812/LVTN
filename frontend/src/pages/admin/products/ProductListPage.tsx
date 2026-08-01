@@ -543,6 +543,8 @@ export default function ProductListPage() {
                             <img
                               src={primaryImg}
                               alt={p.name}
+                              loading="lazy"
+                              decoding="async"
                               className="w-10 h-10 rounded-none object-cover border border-slate-200/50 shrink-0"
                             />
                           ) : (

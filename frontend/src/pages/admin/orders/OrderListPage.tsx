@@ -653,6 +653,8 @@ export default function OrderListPage() {
                                   <img
                                     src={primaryImg}
                                     alt={item.product?.name || 'Sản phẩm'}
+                                    loading="lazy"
+                                    decoding="async"
                                     className="w-full h-full object-cover"
                                   />
                                 ) : (
@@ -719,6 +721,8 @@ export default function OrderListPage() {
                                   <img
                                     src={imgUrl}
                                     alt={`return-evidence-${idx}`}
+                                    loading="lazy"
+                                    decoding="async"
                                     className="w-16 h-16 object-cover border border-slate-200 hover:border-amber-500 rounded-none transition-all shadow-sm"
                                   />
                                 </a>

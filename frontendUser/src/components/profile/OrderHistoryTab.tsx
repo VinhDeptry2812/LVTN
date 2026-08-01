@@ -723,6 +723,8 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                       <img
                         src={getProductImage(item)}
                         alt={item.product?.name}
+                        loading="lazy"
+                        decoding="async"
                         className="w-14 h-14 object-cover bg-surface-container-low rounded-sm border border-outline-variant/20 shrink-0"
                         onError={(e: any) => {
                           e.target.src =
@@ -863,6 +865,8 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                   <img
                     src={reviewProductImage}
                     alt={selectedProductToReview?.name || 'Sản phẩm'}
+                    loading="lazy"
+                    decoding="async"
                     className="w-12 h-12 object-cover bg-surface-container-low rounded-sm border border-outline-variant/20 shrink-0"
                     onError={(e: any) => {
                       e.target.src =
@@ -1163,6 +1167,8 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                         <img
                           src={getProductImage(item)}
                           alt={item.product?.name || 'Sản phẩm'}
+                          loading="lazy"
+                          decoding="async"
                           className="w-16 h-16 object-cover bg-surface-container-low rounded-sm border border-outline-variant/20 shrink-0"
                           onError={(e: any) => {
                             e.target.src =
@@ -1359,6 +1365,8 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                         <img
                           src={getProductImage(item)}
                           alt={item.product?.name || 'Sản phẩm'}
+                          loading="lazy"
+                          decoding="async"
                           className="w-12 h-12 object-cover rounded-sm border border-outline-variant/15 shrink-0 bg-surface-container-low"
                         />
                         <div className="flex-1 min-w-0">

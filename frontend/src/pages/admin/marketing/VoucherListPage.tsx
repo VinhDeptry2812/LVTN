@@ -320,97 +320,137 @@ export default function VoucherListPage() {
           <TableLoader />
         ) : (
           <>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="text-left px-6 py-4 font-semibold text-slate-600">Mã</th>
-                  <th className="text-left px-6 py-4 font-semibold text-slate-600">Loại giảm giá</th>
-                  <th className="text-left px-6 py-4 font-semibold text-slate-600">Phạm vi áp dụng</th>
-                  <th className="text-left px-6 py-4 font-semibold text-slate-600">Giá trị giảm</th>
-                  <th className="text-left px-6 py-4 font-semibold text-slate-600">Đơn tối thiểu</th>
-                  <th className="text-left px-6 py-4 font-semibold text-slate-600">Đã dùng / Giới hạn</th>
-                  <th className="text-left px-6 py-4 font-semibold text-slate-600">Thời hạn</th>
-                  <th className="text-left px-6 py-4 font-semibold text-slate-600">Trạng thái</th>
-                  <th className="text-center px-6 py-4 font-semibold text-slate-600">Hành động</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedVouchers.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="text-center py-12 text-slate-400">
-                      <Ticket size={32} className="mx-auto mb-2 opacity-40" />
-                      Chưa có mã giảm giá nào. Hãy thêm mã giảm giá đầu tiên!
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 whitespace-nowrap">Mã Voucher</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Mức giảm</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Áp dụng</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Đơn tối thiểu</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Sử dụng</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Thời hạn</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Trạng thái</th>
+                    <th className="px-4 py-3 text-center whitespace-nowrap">Hành động</th>
                   </tr>
-                ) : (
-                  paginatedVouchers.map((v) => (
-                    <tr key={v.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4 font-mono font-bold text-slate-800">{v.code}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 text-xs font-semibold uppercase ${v.discount_type === 'percentage' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>
-                          {v.discount_type === 'percentage' ? 'Phần trăm (%)' : 'Số tiền cố định'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        {v.apply_type === 'category' ? (
-                          <span className="px-2.5 py-1 text-xs font-semibold bg-purple-100 text-purple-800">
-                            {v.categories?.length || 0} Danh mục
-                          </span>
-                        ) : v.apply_type === 'product' ? (
-                          <span className="px-2.5 py-1 text-xs font-semibold bg-teal-100 text-teal-800">
-                            {v.products?.length || 0} Sản phẩm
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-1 text-xs font-semibold bg-slate-100 text-slate-700">
-                            Toàn sàn
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 font-semibold text-slate-900">
-                        {v.discount_type === 'percentage' ? `${v.discount_value}%` : `${Number(v.discount_value).toLocaleString('vi-VN')}₫`}
-                      </td>
-                      <td className="px-6 py-4 text-slate-600">
-                        {v.min_order_value ? `${Number(v.min_order_value).toLocaleString('vi-VN')}đ` : 'Không có'}
-                      </td>
-                      <td className="px-6 py-4 text-slate-600 font-mono text-xs">
-                        {v.used_count} / {v.usage_limit ?? '∞'}
-                      </td>
-                      <td className="px-6 py-4 text-xs text-slate-500">
-                        <div className="flex items-center gap-1">
-                          <Calendar size={14} className="text-slate-400" />
-                          <span>{v.start_date ? new Date(v.start_date).toLocaleDateString('vi-VN') : 'Bắt đầu'} - {v.end_date ? new Date(v.end_date).toLocaleDateString('vi-VN') : 'Không hạn'}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        {v.is_active ? (
-                          <span className="text-xs px-2 py-0.5 bg-green-100 text-green-800 font-semibold">Hoạt động</span>
-                        ) : (
-                          <span className="text-xs px-2 py-0.5 bg-red-100 text-red-800 font-semibold">Khóa</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => openEditModal(v)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-none transition-all cursor-pointer"
-                            title="Sửa"
-                          >
-                            <Pencil size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(v.id)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-none transition-all cursor-pointer"
-                            title="Xóa"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {paginatedVouchers.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-12 text-slate-400">
+                        <Ticket size={36} className="mx-auto mb-2 opacity-30" />
+                        Chưa có mã giảm giá nào. Hãy thêm mã giảm giá đầu tiên!
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    paginatedVouchers.map((v) => {
+                      const isExpired = v.end_date ? new Date(v.end_date) < new Date() : false;
+
+                      return (
+                        <tr key={v.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50/80 border border-indigo-200/80 text-indigo-700 font-mono font-bold text-xs rounded tracking-wider shadow-2xs">
+                              <Ticket size={13} className="text-indigo-500 shrink-0" />
+                              {v.code}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex flex-col">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded border w-fit whitespace-nowrap ${
+                                v.discount_type === 'percentage' 
+                                  ? 'bg-amber-50 text-amber-700 border-amber-200/80' 
+                                  : 'bg-blue-50 text-blue-700 border-blue-200/80'
+                              }`}>
+                                {v.discount_type === 'percentage' 
+                                  ? `Giảm ${v.discount_value}%` 
+                                  : `Giảm ${Number(v.discount_value).toLocaleString('vi-VN')}₫`
+                                }
+                              </span>
+                              {v.discount_type === 'percentage' && v.max_discount_amount && (
+                                <span className="text-[11px] text-slate-400 font-normal mt-0.5">
+                                  Tối đa: {Number(v.max_discount_amount).toLocaleString('vi-VN')}₫
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {v.apply_type === 'category' ? (
+                              <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200/80 rounded whitespace-nowrap">
+                                {v.categories?.length || 0} Danh mục
+                              </span>
+                            ) : v.apply_type === 'product' ? (
+                              <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200/80 rounded whitespace-nowrap">
+                                {v.products?.length || 0} Sản phẩm
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200/80 rounded whitespace-nowrap">
+                                Toàn sàn
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-slate-700 font-medium text-xs">
+                            {v.min_order_value && Number(v.min_order_value) > 0 ? `${Number(v.min_order_value).toLocaleString('vi-VN')}₫` : '0₫'}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="flex items-center gap-1 text-xs font-medium">
+                              <span className="font-bold text-slate-800">{v.used_count}</span>
+                              <span className="text-slate-400">/</span>
+                              <span className="text-slate-600 font-semibold">{v.usage_limit !== null && v.usage_limit !== undefined ? v.usage_limit : '∞'}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600">
+                            <div className="flex items-center gap-1.5">
+                              <Calendar size={13} className="text-slate-400 shrink-0" />
+                              <span>
+                                {v.start_date ? new Date(v.start_date).toLocaleDateString('vi-VN') : 'Từ đầu'}
+                                <span className="mx-1 text-slate-400">-</span>
+                                {v.end_date ? new Date(v.end_date).toLocaleDateString('vi-VN') : 'Không hạn'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {isExpired ? (
+                              <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 font-medium rounded-full whitespace-nowrap">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                Hết hạn
+                              </span>
+                            ) : v.is_active ? (
+                              <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-medium rounded-full whitespace-nowrap">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Hoạt động
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-0.5 bg-rose-50 text-rose-700 border border-rose-200/80 font-medium rounded-full whitespace-nowrap">
+                                <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                Đã khóa
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => openEditModal(v)}
+                                className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-all cursor-pointer"
+                                title="Sửa"
+                              >
+                                <Pencil size={15} />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(v.id)}
+                                className="p-1.5 text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded transition-all cursor-pointer"
+                                title="Xóa"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
             <AdminPagination
               currentPage={page}
               totalItems={vouchers.length}
