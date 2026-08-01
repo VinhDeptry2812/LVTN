@@ -48,6 +48,10 @@ import { PromotionsModule } from './promotions/promotions.module';
         username: configService.get<string>('DB_USERNAME', 'postgres'),
         password: configService.get<string>('DB_PASSWORD', 'password123'),
         database: configService.get<string>('DB_DATABASE', 'furnishop'),
+        ssl:
+          configService.get<string>('DB_SSL') === 'true'
+            ? { rejectUnauthorized: false }
+            : false,
         autoLoadEntities: true,
         synchronize:
           configService.get<string>('DB_SYNCHRONIZE', 'false') === 'true',

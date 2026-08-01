@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # 1. CƠ SỞ DỮ LIỆU POSTGRESQL + PGVECTOR
+  # ==========================================
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: furnishop_db_prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password123}
+      POSTGRES_DB: ${DB_DATABASE:-furnishop}
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_DATABASE:-furnishop}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # 2. BACKEND API SERVER (NESTJS)
+  # ==========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: furnishop_backend_prod
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '3000:3000'
+    env_file:
+      - ./backend/.env
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+
+  # ==========================================
+  # 3. FRONTEND ADMIN (REACT VITE + NGINX)
+  # ==========================================
+  frontend_admin:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_ADMIN_API_URL:-http://localhost:3000}
+    container_name: furnishop_admin_prod
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - '5173:80'
+
+  # ==========================================
+  # 4. FRONTEND KHÁCH HÀNG (REACT VITE + NGINX)
+  # ==========================================
+  frontend_user:
+    build:
+      context: ./frontendUser
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_USER_API_URL:-http://localhost:3000}
+    container_name: furnishop_user_prod
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - '5174:80'
+
+volumes:
+  postgres_prod_data:
