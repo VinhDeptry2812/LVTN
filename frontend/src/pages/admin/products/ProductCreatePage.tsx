@@ -490,10 +490,73 @@ export default function ProductCreatePage() {
     }));
   };
 
+  const generateVariantSku = (mainSku: string, attributes: Record<string, string>, index: number, attrKeys: string[]) => {
+    const cleanVal = (val: string) => {
+      if (!val) return '';
+      const textOnly = val.includes('|') ? val.split('|')[0] : val;
+      return textOnly
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .toUpperCase();
+    };
+
+    let basePrefix = mainSku ? mainSku.toUpperCase() : '';
+    if (!basePrefix && form.category_id && form.name) {
+      const selectedCategory = categories.find(c => c.id === Number(form.category_id));
+      if (selectedCategory) {
+        const getPrefix = (str: string) => str
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/đ/g, 'd')
+          .replace(/Đ/g, 'D')
+          .replace(/[^a-zA-Z0-9\s]/g, '')
+          .split(/\s+/)
+          .map(w => w.charAt(0))
+          .join('')
+          .toUpperCase();
+        const catPrefix = getPrefix(selectedCategory.name);
+        const prodPrefix = getPrefix(form.name);
+        if (catPrefix && prodPrefix) {
+          basePrefix = `${catPrefix}-${prodPrefix}`;
+        }
+      }
+    }
+    if (!basePrefix) basePrefix = 'SKU';
+
+    const suffix = attrKeys.map(k => cleanVal(attributes[k] || '')).filter(Boolean).join('-');
+    return suffix ? `${basePrefix}-${suffix}` : `${basePrefix}-V${index + 1}`;
+  };
+
   const addVariant = () => {
     const attrs: Record<string, string> = {};
     variantAttrKeys.forEach(k => attrs[k] = '');
-    setVariants(prev => [...prev, { sku: '', attributes: attrs, stock: '0', import_price: '0', price_adjustment: '', image_url: '', preview_url: '' }]);
+    const newIndex = variants.length;
+    const autoSku = generateVariantSku(form.sku, attrs, newIndex, variantAttrKeys);
+    setVariants(prev => [...prev, { sku: autoSku, attributes: attrs, stock: '0', import_price: '0', price_adjustment: '', image_url: '', preview_url: '' }]);
+  };
+
+  const handleAutoSyncAllVariantSkus = () => {
+    if (variants.length === 0) return;
+    setVariants(prev => prev.map((v, idx) => ({
+      ...v,
+      sku: generateVariantSku(form.sku, v.attributes, idx, variantAttrKeys)
+    })));
+    toast.success('Đã tự động tạo lại mã SKU cho tất cả biến thể');
+  };
+
+  const handleAutoSyncVariantSku = (index: number) => {
+    setVariants(prev => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        sku: generateVariantSku(form.sku, updated[index].attributes, index, variantAttrKeys)
+      };
+      return updated;
+    });
+    toast.success(`Đã cập nhật SKU biến thể #${index + 1}`);
   };
 
   const removeVariant = (index: number) => setVariants(prev => prev.filter((_, i) => i !== index));
@@ -502,7 +565,7 @@ export default function ProductCreatePage() {
     setVariants(prev => {
       const source = prev[index];
       const duplicated: VariantInput = {
-        sku: source.sku ? `${source.sku}-copy` : '',
+        sku: source.sku ? `${source.sku}-copy` : generateVariantSku(form.sku, source.attributes, prev.length, variantAttrKeys),
         attributes: { ...source.attributes },
         stock: source.stock,
         import_price: source.import_price,
@@ -517,6 +580,7 @@ export default function ProductCreatePage() {
     });
     toast.success(`Đã nhân bản biến thể #${index + 1}`);
   };
+
 
   const handleVariantFieldChange = (index: number, field: 'sku' | 'stock' | 'import_price' | 'price_adjustment', value: string) => {
     setVariants(prev => { const u = [...prev]; u[index] = { ...u[index], [field]: value }; return u; });
@@ -1297,6 +1361,13 @@ export default function ProductCreatePage() {
                     <Plus size={14} /> Thêm thuộc tính
                   </button>
                 )}
+                {variants.length > 0 && (
+                  <button type="button" onClick={handleAutoSyncAllVariantSkus}
+                    title="Tự động sinh mã SKU cho tất cả biến thể"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-none text-xs font-semibold transition-all cursor-pointer border border-indigo-200">
+                    <RotateCcw size={13} /> Auto SKU toàn bộ
+                  </button>
+                )}
                 <button type="button" onClick={addVariant}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-none text-xs font-semibold transition-all cursor-pointer">
                   <Plus size={14} /> Thêm biến thể
@@ -1422,7 +1493,17 @@ export default function ProductCreatePage() {
                               className={smallInputCls} placeholder="0" />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-slate-500 mb-1">Mã SKU</label>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="block text-xs font-medium text-slate-500">Mã SKU</label>
+                              <button
+                                type="button"
+                                onClick={() => handleAutoSyncVariantSku(idx)}
+                                className="flex items-center gap-0.5 text-[10px] text-blue-600 hover:text-blue-700 font-semibold hover:underline cursor-pointer"
+                                title="Tự động sinh mã SKU cho biến thể này"
+                              >
+                                <RotateCcw size={10} /> Auto
+                              </button>
+                            </div>
                             <input value={v.sku} onChange={e => handleVariantFieldChange(idx, 'sku', e.target.value)}
                               className={smallInputCls} placeholder="Tự sinh/Tự nhập" />
                           </div>
@@ -1433,6 +1514,7 @@ export default function ProductCreatePage() {
                 ))}
               </div>
             )}
+
           </section>
 
         </div>

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
-import { Upload, Sparkles, ArrowLeft, Loader2, Plus, Trash2, Star, Eye, Copy, ChevronDown, Check, X, ImageIcon } from 'lucide-react';
+import { Upload, Sparkles, ArrowLeft, Loader2, Plus, Trash2, Star, Eye, Copy, ChevronDown, Check, X, ImageIcon, RotateCcw } from 'lucide-react';
 import TiptapEditor from '@/components/TiptapEditor';
 import UploadProgressWidget from '@/components/UploadProgressWidget';
 import type { UploadProgress } from '@/components/UploadProgressWidget';
@@ -422,10 +422,73 @@ export default function ProductEditPage() {
     }));
   };
 
+  const generateVariantSku = (mainSku: string, attributes: Record<string, string>, index: number, attrKeys: string[]) => {
+    const cleanVal = (val: string) => {
+      if (!val) return '';
+      const textOnly = val.includes('|') ? val.split('|')[0] : val;
+      return textOnly
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .toUpperCase();
+    };
+
+    let basePrefix = mainSku ? mainSku.toUpperCase() : '';
+    if (!basePrefix && form.category_id && form.name) {
+      const selectedCategory = categories.find(c => c.id === Number(form.category_id));
+      if (selectedCategory) {
+        const getPrefix = (str: string) => str
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/đ/g, 'd')
+          .replace(/Đ/g, 'D')
+          .replace(/[^a-zA-Z0-9\s]/g, '')
+          .split(/\s+/)
+          .map(w => w.charAt(0))
+          .join('')
+          .toUpperCase();
+        const catPrefix = getPrefix(selectedCategory.name);
+        const prodPrefix = getPrefix(form.name);
+        if (catPrefix && prodPrefix) {
+          basePrefix = `${catPrefix}-${prodPrefix}`;
+        }
+      }
+    }
+    if (!basePrefix) basePrefix = 'SKU';
+
+    const suffix = attrKeys.map(k => cleanVal(attributes[k] || '')).filter(Boolean).join('-');
+    return suffix ? `${basePrefix}-${suffix}` : `${basePrefix}-V${index + 1}`;
+  };
+
   const addVariant = () => {
     const attrs: Record<string, string> = {};
     variantAttrKeys.forEach(k => attrs[k] = '');
-    setVariants(prev => [...prev, { sku: '', attributes: attrs, stock: '0', import_price: '0', price_adjustment: '', image_url: '', preview_url: '' }]);
+    const newIndex = variants.length;
+    const autoSku = generateVariantSku(form.sku, attrs, newIndex, variantAttrKeys);
+    setVariants(prev => [...prev, { sku: autoSku, attributes: attrs, stock: '0', import_price: '0', price_adjustment: '', image_url: '', preview_url: '' }]);
+  };
+
+  const handleAutoSyncAllVariantSkus = () => {
+    if (variants.length === 0) return;
+    setVariants(prev => prev.map((v, idx) => ({
+      ...v,
+      sku: generateVariantSku(form.sku, v.attributes, idx, variantAttrKeys)
+    })));
+    toast.success('Đã tự động tạo lại mã SKU cho tất cả biến thể');
+  };
+
+  const handleAutoSyncVariantSku = (index: number) => {
+    setVariants(prev => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        sku: generateVariantSku(form.sku, updated[index].attributes, index, variantAttrKeys)
+      };
+      return updated;
+    });
+    toast.success(`Đã cập nhật SKU biến thể #${index + 1}`);
   };
 
   const removeVariant = (index: number) => setVariants(prev => prev.filter((_, i) => i !== index));
@@ -434,7 +497,7 @@ export default function ProductEditPage() {
     setVariants(prev => {
       const source = prev[index];
       const duplicated: VariantInput = {
-        sku: source.sku ? `${source.sku}-copy` : '',
+        sku: source.sku ? `${source.sku}-copy` : generateVariantSku(form.sku, source.attributes, prev.length, variantAttrKeys),
         attributes: { ...source.attributes },
         stock: source.stock,
         import_price: source.import_price,
@@ -498,15 +561,12 @@ export default function ProductEditPage() {
   const handleVariantAttrChange = (index: number, attrKey: string, value: string) => {
     setVariants(prev => {
       const u = [...prev];
-      u[index] = { ...u[index], attributes: { ...u[index].attributes, [attrKey]: value } };
-
-      // Auto-generate variant SKU
-      const cleanVal = (val: string) => val.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-      const suffix = variantAttrKeys.map(k => cleanVal(u[index].attributes[k] || '')).filter(Boolean).join('-');
-      if (form.sku) {
-        u[index].sku = suffix ? `${form.sku.toUpperCase()}-${suffix}` : form.sku.toUpperCase();
-      }
+      const updatedAttrs = { ...u[index].attributes, [attrKey]: value };
+      u[index] = {
+        ...u[index],
+        attributes: updatedAttrs,
+        sku: generateVariantSku(form.sku, updatedAttrs, index, variantAttrKeys)
+      };
       return u;
     });
   };
@@ -1328,6 +1388,13 @@ export default function ProductEditPage() {
                 className="flex items-center gap-1 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-none text-sm font-medium transition-all cursor-pointer border border-blue-200">
                 <Plus size={14} /> Thêm thuộc tính
               </button>
+              {variants.length > 0 && (
+                <button type="button" onClick={handleAutoSyncAllVariantSkus}
+                  title="Tự động sinh mã SKU cho tất cả biến thể"
+                  className="flex items-center gap-1 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-none text-sm font-semibold transition-all cursor-pointer border border-indigo-200">
+                  <RotateCcw size={14} /> Auto SKU toàn bộ
+                </button>
+              )}
               <button type="button" onClick={addVariant}
                 className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-none text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer">
                 <Plus size={16} /> Thêm biến thể
@@ -1456,7 +1523,17 @@ export default function ProductEditPage() {
                             className={smallInputCls} />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-slate-500 mb-1">SKU biến thể</label>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="block text-xs font-medium text-slate-500">SKU biến thể</label>
+                            <button
+                              type="button"
+                              onClick={() => handleAutoSyncVariantSku(idx)}
+                              className="flex items-center gap-0.5 text-[10px] text-blue-600 hover:text-blue-700 font-semibold hover:underline cursor-pointer"
+                              title="Tự động sinh mã SKU cho biến thể này"
+                            >
+                              <RotateCcw size={10} /> Auto
+                            </button>
+                          </div>
                           <input value={v.sku} onChange={e => handleVariantFieldChange(idx, 'sku', e.target.value)}
                             className={smallInputCls} placeholder="Tự động / nhập tay" />
                         </div>

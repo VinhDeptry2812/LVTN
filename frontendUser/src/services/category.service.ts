@@ -10,7 +10,29 @@ export interface Category {
   children?: Category[];
 }
 
+let cachedCategories: Category[] | null = null;
+let categoryPromise: Promise<Category[]> | null = null;
+
 export const getCategories = async (): Promise<Category[]> => {
-  const response = await api.get('/categories');
-  return response.data;
+  if (cachedCategories) return cachedCategories;
+  if (categoryPromise) return categoryPromise;
+
+  categoryPromise = api
+    .get('/categories')
+    .then((response) => {
+      cachedCategories = response.data;
+      categoryPromise = null;
+      return response.data;
+    })
+    .catch((error) => {
+      categoryPromise = null;
+      throw error;
+    });
+
+  return categoryPromise;
 };
+
+export const clearCategoriesCache = () => {
+  cachedCategories = null;
+};
+
