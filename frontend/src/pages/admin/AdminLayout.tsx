@@ -120,7 +120,10 @@ export default function AdminLayout() {
         api.get('/notifications'),
         api.get('/notifications/unread-count')
       ]);
-      setNotifications(listRes.data || []);
+      const notiData = Array.isArray(listRes.data)
+        ? listRes.data
+        : (listRes.data?.data || []);
+      setNotifications(notiData);
       setUnreadCount(typeof countRes.data === 'number' ? countRes.data : countRes.data?.count || (typeof countRes.data === 'string' ? parseInt(countRes.data, 10) : 0));
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -133,29 +136,46 @@ export default function AdminLayout() {
 
     fetchNotifications();
 
-    // Kết nối Realtime SSE Stream từ Backend qua Vite proxy
-    const sseUrl = '/api/notifications/stream';
-    const eventSource = new EventSource(sseUrl);
+    // Kết nối Realtime SSE Stream từ Backend (Hỗ trợ cả môi trường Dev và Production đã deploy)
+    const baseUrl = import.meta.env.VITE_API_URL
+      ? import.meta.env.VITE_API_URL.replace(/\/+$/, '')
+      : '/api';
+    const sseUrl = `${baseUrl}/notifications/stream`;
 
-    eventSource.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (!payload || payload.type === 'ping') return;
+    let eventSource: EventSource | null = null;
+    try {
+      eventSource = new EventSource(sseUrl);
 
-        // Thêm vào danh sách thông báo và tăng số chưa đọc (không bật Pop-up nổi)
-        setNotifications((prev) => [payload, ...prev]);
-        setUnreadCount((prev) => prev + 1);
-      } catch (err) {
-        console.error('Lỗi xử lý tin nhắn SSE:', err);
-      }
-    };
+      eventSource.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (!payload || payload.type === 'ping') return;
 
-    eventSource.onerror = () => {
-      // Tự động Reconnect của EventSource
-    };
+          // Thêm vào danh sách thông báo và tăng số chưa đọc
+          setNotifications((prev) => [payload, ...prev]);
+          setUnreadCount((prev) => prev + 1);
+        } catch (err) {
+          console.error('Lỗi xử lý tin nhắn SSE:', err);
+        }
+      };
+
+      eventSource.onerror = () => {
+        // Tự động Reconnect của EventSource hoặc giữ im lặng nếu proxy production tự ngắt
+      };
+    } catch (err) {
+      console.error('Lỗi kết nối SSE Stream:', err);
+    }
+
+    // Cơ chế Polling dự phòng 30s/lần để đảm bảo thông báo luôn cập nhật kể cả khi SSE bị ngắt kết nối
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 30000);
 
     return () => {
-      eventSource.close();
+      if (eventSource) {
+        eventSource.close();
+      }
+      clearInterval(interval);
     };
   }, []);
 

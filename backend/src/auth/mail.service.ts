@@ -8,15 +8,35 @@ export class MailService {
   private transporter: nodemailer.Transporter;
 
   constructor(private configService: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('SMTP_HOST'),
-      port: parseInt(this.configService.get<string>('SMTP_PORT', '587'), 10),
-      secure: this.configService.get<string>('SMTP_SECURE') === 'true', // true for 465, false for other ports
-      auth: {
-        user: this.configService.get<string>('SMTP_USER'),
-        pass: this.configService.get<string>('SMTP_PASS'),
-      },
-    });
+    const host = this.configService.get<string>('SMTP_HOST');
+    const user = this.configService.get<string>('SMTP_USER');
+    const pass = this.configService.get<string>('SMTP_PASS');
+    const port = parseInt(this.configService.get<string>('SMTP_PORT', '587'), 10);
+    const secure = this.configService.get<string>('SMTP_SECURE') === 'true';
+
+    // Tự động nhận diện cấu hình Gmail để sử dụng Service Gmail tối ưu của Nodemailer cho môi trường Cloud
+    if (host === 'smtp.gmail.com' || (!host && user?.endsWith('@gmail.com'))) {
+      this.transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user,
+          pass,
+        },
+      });
+    } else {
+      this.transporter = nodemailer.createTransport({
+        host: host || 'smtp.gmail.com',
+        port,
+        secure,
+        auth: {
+          user,
+          pass,
+        },
+        tls: {
+          rejectUnauthorized: false, // Ngăn ngừa lỗi tự ngắt kết nối TLS trên môi trường Cloud Server (Render/Vercel)
+        },
+      });
+    }
   }
 
   async sendOtpEmail(to: string, otp: string, userName: string) {

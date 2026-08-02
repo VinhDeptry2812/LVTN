@@ -14,7 +14,7 @@ export class VnpayController {
   constructor(
     private readonly vnpayService: VnpayService,
     private readonly ordersService: OrdersService,
-  ) {}
+  ) { }
 
   /**
    * Endpoint nhận kết quả thanh toán khi VNPAY redirect người dùng về
