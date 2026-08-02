@@ -584,8 +584,6 @@ export default function ProductEditPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      toast.loading('Đang xử lý nén và tải lên hình ảnh...', { id: 'submit-upload' });
-
       const localProductImages = productImages.filter(img => img.is_local && img.file);
       const localVariantImages = variants.filter(v => v.local_file);
       const totalToUpload = localProductImages.length + localVariantImages.length;
@@ -721,7 +719,6 @@ export default function ProductEditPage() {
         collection_ids: selectedCollectionIds,
       };
       await api.patch(`/products/${id}`, payload);
-      toast.dismiss('submit-upload');
       toast.success('Cập nhật sản phẩm thành công!');
       originalDataRef.current = null;
       navigate('/admin/products');
@@ -729,7 +726,6 @@ export default function ProductEditPage() {
       console.error(error);
       const serverMsg = error.response?.data?.message;
       const errorMsg = Array.isArray(serverMsg) ? serverMsg.join(', ') : serverMsg || error.message || 'Cập nhật thất bại (Lỗi tải ảnh hoặc lưu thông tin)';
-      toast.dismiss('submit-upload');
       toast.error(errorMsg);
     } finally {
       setSubmitting(false);

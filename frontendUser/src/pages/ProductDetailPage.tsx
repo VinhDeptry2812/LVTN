@@ -165,6 +165,25 @@ export default function ProductDetailPage() {
     }
   }, [id]);
 
+  // Effect tải trước (preload) tất cả ảnh kích thước lớn để khi người dùng click vào thumbnail thì ảnh chuyển tức thì (0ms)
+  useEffect(() => {
+    if (product) {
+      const urlsToPreload = new Set<string>();
+      if (product.image) urlsToPreload.add(product.image);
+      if (product.gallery && product.gallery.length > 0) {
+        product.gallery.forEach(g => { if (g.url) urlsToPreload.add(g.url); });
+      }
+      if (product.variants && product.variants.length > 0) {
+        product.variants.forEach(v => { if (v.image_url) urlsToPreload.add(v.image_url); });
+      }
+
+      urlsToPreload.forEach(url => {
+        const imgDetail = new Image();
+        imgDetail.src = productDetailImage(url);
+      });
+    }
+  }, [product]);
+
   // Effect quản lý và lưu danh sách sản phẩm vừa xem vào localStorage
   useEffect(() => {
     if (product) {
@@ -433,43 +452,42 @@ export default function ProductDetailPage() {
   }, { scope: detailContainerRef });
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [startY, setStartY] = useState(0);
-  const [scrollLeft, setScrollLeft] = useState(0);
-  const [scrollTop, setScrollTop] = useState(0);
-  const [dragged, setDragged] = useState(false);
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const startYRef = useRef(0);
+  const scrollLeftRef = useRef(0);
+  const scrollTopRef = useRef(0);
+  const hasDraggedRef = useRef(false);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!scrollContainerRef.current) return;
-    setIsDragging(true);
-    setDragged(false);
-    setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
-    setStartY(e.pageY - scrollContainerRef.current.offsetTop);
-    setScrollLeft(scrollContainerRef.current.scrollLeft);
-    setScrollTop(scrollContainerRef.current.scrollTop);
+    isDraggingRef.current = true;
+    hasDraggedRef.current = false;
+    startXRef.current = e.pageX - scrollContainerRef.current.offsetLeft;
+    startYRef.current = e.pageY - scrollContainerRef.current.offsetTop;
+    scrollLeftRef.current = scrollContainerRef.current.scrollLeft;
+    scrollTopRef.current = scrollContainerRef.current.scrollTop;
   };
 
   const handleMouseLeave = () => {
-    setIsDragging(false);
+    isDraggingRef.current = false;
   };
 
   const handleMouseUp = () => {
-    setIsDragging(false);
+    isDraggingRef.current = false;
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || !scrollContainerRef.current) return;
-    e.preventDefault();
+    if (!isDraggingRef.current || !scrollContainerRef.current) return;
     const x = e.pageX - scrollContainerRef.current.offsetLeft;
     const y = e.pageY - scrollContainerRef.current.offsetTop;
-    const walkX = (x - startX) * 1.5; // Adjust scroll speed here
-    const walkY = (y - startY) * 1.5;
-    if (Math.abs(walkX) > 5 || Math.abs(walkY) > 5) {
-      setDragged(true);
+    const walkX = (x - startXRef.current) * 1.5;
+    const walkY = (y - startYRef.current) * 1.5;
+    if (Math.abs(walkX) > 12 || Math.abs(walkY) > 12) {
+      hasDraggedRef.current = true;
     }
-    scrollContainerRef.current.scrollLeft = scrollLeft - walkX;
-    scrollContainerRef.current.scrollTop = scrollTop - walkY;
+    scrollContainerRef.current.scrollLeft = scrollLeftRef.current - walkX;
+    scrollContainerRef.current.scrollTop = scrollTopRef.current - walkY;
   };
 
   const handleQuantityChange = (amount: number) => {
@@ -602,7 +620,7 @@ export default function ProductDetailPage() {
               </div>
               {filteredGallery && filteredGallery.length > 1 && (
                 <div
-                  className={`flex md:flex-col space-x-sp-md md:space-x-0 md:space-y-sp-md overflow-x-auto md:overflow-y-auto scroll-hide py-2 md:py-0 px-1 w-full md:w-20 order-2 md:order-1 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                  className="flex md:flex-col space-x-sp-md md:space-x-0 md:space-y-sp-md overflow-x-auto md:overflow-y-auto scroll-hide py-2 md:py-0 px-1 w-full md:w-20 order-2 md:order-1 cursor-grab active:cursor-grabbing select-none"
                   ref={scrollContainerRef}
                   onMouseDown={handleMouseDown}
                   onMouseLeave={handleMouseLeave}
@@ -612,14 +630,21 @@ export default function ProductDetailPage() {
                   {filteredGallery.map((imgObj, idx) => (
                     <button
                       key={idx}
+                      onMouseEnter={() => {
+                        // Preload ảnh lớn khi rề chuột vào thumbnail
+                        if (imgObj.url) {
+                          const img = new Image();
+                          img.src = productDetailImage(imgObj.url);
+                        }
+                      }}
                       onClick={(e) => {
-                        if (dragged) {
+                        if (hasDraggedRef.current) {
                           e.preventDefault();
                           return;
                         }
                         setActiveImage(imgObj.url);
                       }}
-                      className={`flex-shrink-0 w-20 h-20 md:w-full md:h-20 rounded-none overflow-hidden shadow-sm transition-colors border-2 ${activeImage === imgObj.url ? 'border-primary' : 'border-transparent hover:border-primary/50'
+                      className={`flex-shrink-0 w-20 h-20 md:w-full md:h-20 rounded-none overflow-hidden shadow-sm transition-all duration-200 border-2 cursor-pointer ${activeImage === imgObj.url ? 'border-primary scale-[0.98]' : 'border-transparent hover:border-primary/50 hover:opacity-90'
                         }`}
                     >
                       <img className="w-full h-full object-cover pointer-events-none" src={productCardImage(imgObj.url)} alt={`Gallery index ${idx}`} />

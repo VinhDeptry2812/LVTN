@@ -81,6 +81,24 @@ export class VouchersService {
     });
   }
 
+  async findActiveVouchers(): Promise<Voucher[]> {
+    const now = new Date();
+    const vouchers = await this.voucherRepository.find({
+      where: { is_active: true },
+      relations: { categories: true, products: true },
+      order: { created_at: 'DESC' },
+    });
+
+    return vouchers.filter((v) => {
+      const start = new Date(v.start_date);
+      const end = new Date(v.end_date);
+      const isNotExpired = now >= start && now <= end;
+      const hasUsageLeft =
+        v.usage_limit === null || v.used_count < v.usage_limit;
+      return isNotExpired && hasUsageLeft;
+    });
+  }
+
   async findOne(id: number): Promise<Voucher> {
     const voucher = await this.voucherRepository.findOne({
       where: { id },

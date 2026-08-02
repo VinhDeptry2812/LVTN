@@ -59,6 +59,12 @@ export class VouchersController {
     return this.vouchersService.create(createVoucherDto);
   }
 
+  @ApiOperation({ summary: 'Lấy các mã voucher đang hoạt động (Khách hàng)' })
+  @Get('active')
+  findActive() {
+    return this.vouchersService.findActiveVouchers();
+  }
+
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.STAFF)

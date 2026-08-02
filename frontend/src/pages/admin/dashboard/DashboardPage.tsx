@@ -229,16 +229,6 @@ export default function DashboardPage() {
     },
   ];
 
-  // Dữ liệu cho Biểu đồ dạng cột (Bar Chart)
-  const monthlyRevenueData = [
-    { month: 'Tháng 1', amount: '45.000.000 ₫', rawValue: 45000000, percentage: 30 },
-    { month: 'Tháng 2', amount: '78.500.000 ₫', rawValue: 78500000, percentage: 52 },
-    { month: 'Tháng 3', amount: '62.000.000 ₫', rawValue: 62000000, percentage: 41 },
-    { month: 'Tháng 4', amount: '95.000.000 ₫', rawValue: 95000000, percentage: 63 },
-    { month: 'Tháng 5', amount: '135.000.000 ₫', rawValue: 135000000, percentage: 88 },
-    { month: 'Tháng 6', amount: '158.000.000 ₫', rawValue: 158000000, percentage: 100 },
-  ];
-
   // Thống kê phân tích chuyên sâu (KPIs vận hành thực tế)
   const completedCount =
     stats?.completedOrdersCount ??

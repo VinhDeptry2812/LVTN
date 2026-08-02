@@ -17,7 +17,7 @@ interface UploadProgressWidgetProps {
 
 export default function UploadProgressWidget({
   progress,
-  positionClass = 'bottom-6 right-6',
+  positionClass = 'top-20 right-6',
 }: UploadProgressWidgetProps) {
   if (!progress) return null;
 

@@ -707,8 +707,6 @@ export default function ProductCreatePage() {
     if (!validateForm()) return;
     setSubmitting(true);
     try {
-      toast.loading('Đang xử lý nén và tải lên hình ảnh...', { id: 'submit-upload' });
-
       const localProductImages = productImages.filter(img => img.is_local && img.file);
       const localVariantImages = variants.filter(v => v.local_file);
       const totalToUpload = localProductImages.length + localVariantImages.length;
@@ -840,7 +838,6 @@ export default function ProductCreatePage() {
       };
 
       await api.post('/products', payload);
-      toast.dismiss('submit-upload');
       toast.success('Thêm sản phẩm thành công!');
       localStorage.removeItem('product_create_draft');
       navigate('/admin/products');
@@ -848,7 +845,6 @@ export default function ProductCreatePage() {
       console.error(error);
       const serverMsg = error.response?.data?.message;
       const errorMsg = Array.isArray(serverMsg) ? serverMsg.join(', ') : serverMsg || error.message || 'Thêm sản phẩm thất bại (Lỗi tải ảnh hoặc lưu thông tin)';
-      toast.dismiss('submit-upload');
       toast.error(errorMsg);
     } finally {
       setSubmitting(false);
@@ -1560,7 +1556,7 @@ export default function ProductCreatePage() {
       </div>
 
       {/* Upload Floating Progress Widget */}
-      <UploadProgressWidget progress={uploadProgress} positionClass="bottom-16 right-6" />
+      <UploadProgressWidget progress={uploadProgress} />
     </div>
   );
 }
