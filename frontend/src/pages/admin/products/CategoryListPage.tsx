@@ -570,8 +570,7 @@ export default function CategoryListPage() {
                             : 'bg-slate-100 text-slate-500 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200'
                         }`}
                       >
-                        <Star size={14} className={isSelectedForHome ? 'fill-amber-400 text-amber-500' : 'text-slate-400'} />
-                        {isSelectedForHome ? `Vị trí ${homeOrder}` : '+ Chọn hiển thị'}
+                        {isSelectedForHome ? `Vị trí ${homeOrder}` : 'Chọn hiển thị'}
                       </button>
                     </td>
                     <td className="px-6 py-4 text-center">

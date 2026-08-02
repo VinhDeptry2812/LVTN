@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '@/services/api';
 import { toast } from 'react-hot-toast';
+import ConfirmModal from '@/components/ConfirmModal';
+import useConfirmModal from '@/hooks/useConfirmModal';
 
 export interface PromotionCategory {
   id: number;
@@ -222,16 +224,26 @@ export default function PromotionListPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa chương trình khuyến mãi này?')) return;
-    try {
-      await api.delete(`/promotions/${id}`);
-      toast.success('Xóa chương trình khuyến mãi thành công');
-      fetchPromotions();
-    } catch (err) {
-      console.error(err);
-      toast.error('Không thể xóa khuyến mãi này');
-    }
+  const { confirmModal, openConfirm, closeConfirm } = useConfirmModal();
+
+  const handleDelete = (id: number) => {
+    openConfirm({
+      title: 'Xóa chương trình khuyến mãi',
+      message: 'Bạn có chắc chắn muốn xóa chương trình khuyến mãi này? Hành động này không thể hoàn tác.',
+      confirmText: 'Xóa chương trình',
+      type: 'danger',
+      onConfirm: async () => {
+        closeConfirm();
+        try {
+          await api.delete(`/promotions/${id}`);
+          toast.success('Xóa chương trình khuyến mãi thành công');
+          fetchPromotions();
+        } catch (err) {
+          console.error(err);
+          toast.error('Không thể xóa khuyến mãi này');
+        }
+      },
+    });
   };
 
   const handleToggleActive = async (promotion: Promotion) => {
@@ -906,6 +918,8 @@ export default function PromotionListPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal {...confirmModal} onCancel={closeConfirm} />
     </div>
   );
 }
