@@ -27,6 +27,7 @@ const formatAttributes = (attributes: Record<string, any> | undefined) => {
 
 export default function Header() {
   const loginDropdownRef = useRef<HTMLDivElement>(null);
+  const mobileLoginModalRef = useRef<HTMLDivElement>(null);
   const cartDropdownRef = useRef<HTMLDivElement>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -183,7 +184,11 @@ export default function Header() {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (loginDropdownRef.current && !loginDropdownRef.current.contains(event.target as Node)) {
+      if (
+        loginDropdownRef.current &&
+        !loginDropdownRef.current.contains(event.target as Node) &&
+        (!mobileLoginModalRef.current || !mobileLoginModalRef.current.contains(event.target as Node))
+      ) {
         setIsLoginDropdownOpen(false);
       }
       if (desktopSearchContainerRef.current && !desktopSearchContainerRef.current.contains(event.target as Node)) {
@@ -799,7 +804,11 @@ export default function Header() {
                   />
 
                   {/* Card */}
-                  <div className="w-full max-w-sm bg-surface-container-lowest border border-outline-variant/30 shadow-2xl rounded-2xl relative z-10 p-6 transition-all duration-300">
+                  <div
+                    ref={mobileLoginModalRef}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full max-w-sm bg-surface-container-lowest border border-outline-variant/30 shadow-2xl rounded-2xl relative z-10 p-6 transition-all duration-300"
+                  >
                     <div className="text-center mb-5 relative">
                       <button
                         onClick={() => setIsLoginDropdownOpen(false)}
