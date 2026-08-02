@@ -193,6 +193,9 @@ export class PurchaseOrdersService {
 
           const prevStock = variant.stock;
           variant.stock += item.quantity;
+          if (item.import_price !== undefined && item.import_price !== null) {
+            variant.import_price = Number(item.import_price);
+          }
           await queryRunner.manager.save(variant);
 
           // Log inventory transaction

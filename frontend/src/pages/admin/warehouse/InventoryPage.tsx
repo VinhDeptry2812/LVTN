@@ -242,39 +242,56 @@ export default function InventoryPage() {
   // Render transaction type badge
   const renderTxTypeBadge = (type: string) => {
     switch (type) {
-      case 'purchase_order':
+      case 'INITIAL_STOCK':
+      case 'initial_stock':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider text-[10px]">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-wider text-[10px] whitespace-nowrap">
+            Khởi tạo
+          </span>
+        );
+      case 'purchase_order':
+      case 'stock_in':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider text-[10px] whitespace-nowrap">
             Nhập kho
           </span>
         );
       case 'order_sale':
+      case 'sale':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider text-[10px]">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider text-[10px] whitespace-nowrap">
             Bán hàng
           </span>
         );
       case 'order_return':
+      case 'return':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200 uppercase tracking-wider text-[10px]">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200 uppercase tracking-wider text-[10px] whitespace-nowrap">
             Trả hàng
           </span>
         );
       case 'order_cancel':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 uppercase tracking-wider text-[10px]">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 uppercase tracking-wider text-[10px] whitespace-nowrap">
             Hủy đơn
           </span>
         );
-      case 'adjustment':
+      case 'stock_out':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wider text-[10px]">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 uppercase tracking-wider text-[10px] whitespace-nowrap">
+            Xuất kho
+          </span>
+        );
+      case 'adjustment':
+      case 'audit':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wider text-[10px] whitespace-nowrap">
             Điều chỉnh
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200 uppercase tracking-wider text-[10px]">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200 uppercase tracking-wider text-[10px] whitespace-nowrap">
             {type}
           </span>
         );
@@ -629,11 +646,13 @@ export default function InventoryPage() {
                   className="w-full px-3 py-2.5 rounded-none border border-slate-200 text-xs font-bold bg-white text-slate-700 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 cursor-pointer"
                 >
                   <option value="all">Tất cả biến động</option>
-                  <option value="purchase_order">Nhập kho (Nhà cung cấp)</option>
-                  <option value="order_sale">Bán hàng (Đơn hàng)</option>
-                  <option value="order_return">Khách trả hàng</option>
-                  <option value="order_cancel">Hủy đơn hàng</option>
-                  <option value="adjustment">Điều chỉnh thủ công</option>
+                  <option value="INITIAL_STOCK">Khởi tạo</option>
+                  <option value="purchase_order">Nhập kho</option>
+                  <option value="order_sale">Bán hàng</option>
+                  <option value="order_return">Trả hàng</option>
+                  <option value="order_cancel">Hủy đơn</option>
+                  <option value="stock_out">Xuất kho</option>
+                  <option value="adjustment">Điều chỉnh</option>
                 </select>
               </div>
 

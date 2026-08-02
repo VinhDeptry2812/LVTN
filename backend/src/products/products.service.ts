@@ -760,6 +760,22 @@ export class ProductsService {
           .add(collection_ids);
       }
 
+      if (savedProduct.variants && savedProduct.variants.length > 0) {
+        for (const variant of savedProduct.variants) {
+          if (Number(variant.stock) > 0) {
+            await logInventoryTransaction({
+              manager: this.productsRepository.manager,
+              variantId: variant.id,
+              changeQty: Number(variant.stock),
+              prevStock: 0,
+              newStock: Number(variant.stock),
+              type: 'initial_stock',
+              note: 'Khởi tạo tồn kho ban đầu khi tạo sản phẩm mới',
+            });
+          }
+        }
+      }
+
       return savedProduct;
     } catch (error) {
       if (error.code === '23505') {

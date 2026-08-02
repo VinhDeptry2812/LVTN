@@ -31,6 +31,18 @@ export class ProductVariant {
   @Column({ type: 'int', default: 0 })
   stock: number;
 
+  @Column({
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    default: 0,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => parseFloat(value),
+    },
+  })
+  import_price: number;
+
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   price_adjustment: number;
 

@@ -72,6 +72,7 @@ interface VariantInput {
   sku: string;
   attributes: Record<string, string>;
   stock: number | string;
+  import_price?: number | string;
   price_adjustment: number | string;
   image_url?: string;
   preview_url?: string;
@@ -151,6 +152,7 @@ export default function ProductEditPage() {
   const [variantUploadingIndexes, setVariantUploadingIndexes] = useState<number[]>([]);
   const [variantAttrKeys, setVariantAttrKeys] = useState<string[]>([]);
   const [simpleStock, setSimpleStock] = useState<string>('0');
+  const [simpleImportPrice, setSimpleImportPrice] = useState<string>('0');
   const [defaultVariantId, setDefaultVariantId] = useState<number | null>(null);
 
   const [descTab, setDescTab] = useState<'edit' | 'preview'>('edit');
@@ -171,13 +173,15 @@ export default function ProductEditPage() {
           sku: v.sku,
           attributes: v.attributes,
           stock: v.stock,
+          import_price: v.import_price,
           price_adjustment: v.price_adjustment
         })),
         selectedCollectionIds,
-        simpleStock
+        simpleStock,
+        simpleImportPrice
       });
     }
-  }, [loading, form, specs, variants, selectedCollectionIds, simpleStock]);
+  }, [loading, form, specs, variants, selectedCollectionIds, simpleStock, simpleImportPrice]);
 
   // Warn before reload/unload if dirty
   useEffect(() => {
@@ -255,7 +259,7 @@ export default function ProductEditPage() {
   const addVariant = () => {
     const attrs: Record<string, string> = {};
     variantAttrKeys.forEach(k => attrs[k] = '');
-    setVariants(prev => [...prev, { sku: '', attributes: attrs, stock: '', price_adjustment: '', image_url: '', preview_url: '' }]);
+    setVariants(prev => [...prev, { sku: '', attributes: attrs, stock: '0', import_price: '0', price_adjustment: '', image_url: '', preview_url: '' }]);
   };
 
   const removeVariant = (index: number) => setVariants(prev => prev.filter((_, i) => i !== index));
@@ -267,6 +271,7 @@ export default function ProductEditPage() {
         sku: source.sku ? `${source.sku}-copy` : '',
         attributes: { ...source.attributes },
         stock: source.stock,
+        import_price: source.import_price,
         price_adjustment: source.price_adjustment,
         image_url: source.image_url,
         local_file: source.local_file,
@@ -279,7 +284,7 @@ export default function ProductEditPage() {
     toast.success(`Đã nhân bản biến thể #${index + 1}`);
   };
 
-  const handleVariantFieldChange = (index: number, field: 'sku' | 'stock' | 'price_adjustment', value: string) => {
+  const handleVariantFieldChange = (index: number, field: 'sku' | 'stock' | 'import_price' | 'price_adjustment', value: string) => {
     setVariants(prev => { const u = [...prev]; u[index] = { ...u[index], [field]: value }; return u; });
   };
 
@@ -396,6 +401,7 @@ export default function ProductEditPage() {
           if (isSimple) {
             setDefaultVariantId(p.variants[0].id);
             setSimpleStock(String(p.variants[0].stock || 0));
+            setSimpleImportPrice(String(p.variants[0].import_price || 0));
             setVariantAttrKeys([]);
             setVariants([]);
           } else {
@@ -408,6 +414,7 @@ export default function ProductEditPage() {
                 sku: v.sku || '',
                 attributes: attrs,
                 stock: v.stock !== null && v.stock !== undefined ? v.stock : '',
+                import_price: v.import_price !== null && v.import_price !== undefined ? v.import_price : '',
                 price_adjustment: v.price_adjustment !== null && v.price_adjustment !== undefined ? v.price_adjustment : '',
                 image_url: v.image_url || '',
               };
@@ -660,6 +667,7 @@ export default function ProductEditPage() {
           sku: form.sku.trim().toUpperCase(),
           attributes: {},
           stock: Number(simpleStock) || 0,
+          import_price: Number(simpleImportPrice) || 0,
           price_adjustment: 0,
           image_url: null
         }];
@@ -686,6 +694,7 @@ export default function ProductEditPage() {
               sku: v.sku || null,
               attributes: Object.fromEntries(Object.entries(v.attributes).filter(([, val]) => val.trim())),
               stock: Number(v.stock) || 0,
+              import_price: Number(v.import_price) || 0,
               price_adjustment: Number(v.price_adjustment) || 0,
               image_url: imageUrl || null,
             };
@@ -875,23 +884,62 @@ export default function ProductEditPage() {
               <input name="name" value={form.name} onChange={handleChange} required className={inputCls} placeholder="VD: Sofa Văng Da Bò Thật Milano" />
             </div>
             <div>
+              <label className="block text-sm font-medium text-slate-600 mb-1.5">Giá bán niêm yết (VNĐ) *</label>
+              <input
+                type="number"
+                name="base_price"
+                value={form.base_price}
+                onChange={handleChange}
+                required
+                className={inputCls}
+                placeholder="VD: 15000000"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-600 mb-1.5">Giá khuyến mãi hiện tại (VNĐ)</label>
+              <input
+                type="text"
+                value={form.discount_price ? `${Number(form.discount_price).toLocaleString('vi-VN')} đ` : 'Không có khuyến mãi'}
+                disabled
+                className={`${inputCls} bg-slate-100 text-slate-500 cursor-not-allowed`}
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Tự động cập nhật bởi module Chương trình Khuyến mãi.
+              </p>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-slate-600 mb-1.5">Slug (tự động)</label>
               <input name="slug" value={form.slug} onChange={handleChange} className={`${inputCls} bg-slate-50 text-slate-500`} readOnly />
             </div>
             {variants.length === 0 && (
-              <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1.5">Số lượng tồn kho (Chỉ đọc)</label>
-                <input
-                  type="number"
-                  value={simpleStock}
-                  disabled
-                  className={`${inputCls} bg-slate-100 text-slate-500 cursor-not-allowed`}
-                  placeholder="0"
-                />
-                <p className="text-[11px] text-slate-400 mt-1">
-                  💡 Số lượng tồn kho chỉ có thể điều chỉnh qua phiếu Nhập kho hoặc Kiểm kho.
-                </p>
-              </div>
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 mb-1.5">Số lượng tồn kho (Chỉ đọc)</label>
+                  <input
+                    type="number"
+                    value={simpleStock}
+                    disabled
+                    className={`${inputCls} bg-slate-100 text-slate-500 cursor-not-allowed`}
+                    placeholder="0"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    💡 Tồn kho chỉ thay đổi qua phiếu Nhập kho/Kiểm kho.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 mb-1.5">Giá nhập (VNĐ)</label>
+                  <input
+                    type="number"
+                    value={simpleImportPrice}
+                    onChange={e => setSimpleImportPrice(e.target.value)}
+                    className={inputCls}
+                    placeholder="0"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    💡 Giá nhập tự động cập nhật khi hoàn tất đơn nhập kho.
+                  </p>
+                </div>
+              </>
             )}
           </div>
           <div className="mt-5">
@@ -1164,11 +1212,16 @@ export default function ProductEditPage() {
                           );
                         })}
                       </div>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-4 gap-3">
                         <div>
                           <label className="block text-xs font-medium text-slate-500 mb-1">Tồn kho (Chỉ xem)</label>
                           <input type="number" value={v.stock} disabled
                             className={`${smallInputCls} bg-slate-100 text-slate-500 cursor-not-allowed`} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 mb-1">Giá nhập (VNĐ)</label>
+                          <input type="number" value={v.import_price ?? ''} onChange={e => handleVariantFieldChange(idx, 'import_price', e.target.value)}
+                            className={smallInputCls} placeholder="0" />
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-slate-500 mb-1">Phụ giá (VNĐ)</label>

@@ -68,6 +68,7 @@ interface VariantInput {
   sku: string;
   attributes: Record<string, string>;
   stock: number | string;
+  import_price?: number | string;
   price_adjustment: number | string;
   image_url?: string;
   local_file?: File;
@@ -150,6 +151,7 @@ export default function ProductCreatePage() {
   const [variantAttrKeys, setVariantAttrKeys] = useState<string[]>([]);
   const [selectedCollectionIds, setSelectedCollectionIds] = useState<number[]>([]);
   const [simpleStock, setSimpleStock] = useState<string>('0');
+  const [simpleImportPrice, setSimpleImportPrice] = useState<string>('0');
 
   const [hasDraft, setHasDraft] = useState(false);
   const [draftChecked, setDraftChecked] = useState(false);
@@ -176,6 +178,10 @@ export default function ProductCreatePage() {
         case 'category_id':
           if (!value) next.category_id = 'Vui lòng chọn danh mục';
           else delete next.category_id;
+          break;
+        case 'base_price':
+          if (!value || Number(value) <= 0) next.base_price = 'Giá bán niêm yết phải lớn hơn 0';
+          else delete next.base_price;
           break;
       }
       return next;
@@ -210,11 +216,13 @@ export default function ProductCreatePage() {
           sku: v.sku,
           attributes: v.attributes,
           stock: v.stock,
+          import_price: v.import_price,
           price_adjustment: v.price_adjustment
         })),
         variantAttrKeys,
         selectedCollectionIds,
         simpleStock,
+        simpleImportPrice,
         skuManuallyEdited
       };
       localStorage.setItem('product_create_draft', JSON.stringify(draftData));
@@ -222,7 +230,7 @@ export default function ProductCreatePage() {
     } else {
       localStorage.removeItem('product_create_draft');
     }
-  }, [form, specs, variants, variantAttrKeys, selectedCollectionIds, simpleStock, skuManuallyEdited, draftChecked, hasDraft]);
+  }, [form, specs, variants, variantAttrKeys, selectedCollectionIds, simpleStock, simpleImportPrice, skuManuallyEdited, draftChecked, hasDraft]);
 
   // Warn before reload/unload if dirty
   useEffect(() => {
@@ -317,7 +325,7 @@ export default function ProductCreatePage() {
   const addVariant = () => {
     const attrs: Record<string, string> = {};
     variantAttrKeys.forEach(k => attrs[k] = '');
-    setVariants(prev => [...prev, { sku: '', attributes: attrs, stock: '', price_adjustment: '', image_url: '', preview_url: '' }]);
+    setVariants(prev => [...prev, { sku: '', attributes: attrs, stock: '0', import_price: '0', price_adjustment: '', image_url: '', preview_url: '' }]);
   };
 
   const removeVariant = (index: number) => setVariants(prev => prev.filter((_, i) => i !== index));
@@ -329,6 +337,7 @@ export default function ProductCreatePage() {
         sku: source.sku ? `${source.sku}-copy` : '',
         attributes: { ...source.attributes },
         stock: source.stock,
+        import_price: source.import_price,
         price_adjustment: source.price_adjustment,
         image_url: source.image_url,
         local_file: source.local_file,
@@ -341,7 +350,7 @@ export default function ProductCreatePage() {
     toast.success(`Đã nhân bản biến thể #${index + 1}`);
   };
 
-  const handleVariantFieldChange = (index: number, field: 'sku' | 'stock' | 'price_adjustment', value: string) => {
+  const handleVariantFieldChange = (index: number, field: 'sku' | 'stock' | 'import_price' | 'price_adjustment', value: string) => {
     setVariants(prev => { const u = [...prev]; u[index] = { ...u[index], [field]: value }; return u; });
   };
 
@@ -655,6 +664,10 @@ export default function ProductCreatePage() {
       toast.error('Vui lòng chọn danh mục sản phẩm.');
       return false;
     }
+    if (!form.base_price || Number(form.base_price) <= 0) {
+      toast.error('Vui lòng nhập giá bán niêm yết hợp lệ (> 0).');
+      return false;
+    }
     if (productImages.length === 0) {
       toast.error('Vui lòng tải lên ít nhất 1 hình ảnh sản phẩm.');
       return false;
@@ -774,6 +787,7 @@ export default function ProductCreatePage() {
           sku: form.sku.trim().toUpperCase(),
           attributes: {},
           stock: Number(simpleStock) || 0,
+          import_price: Number(simpleImportPrice) || 0,
           price_adjustment: 0,
           image_url: null
         }];
@@ -799,6 +813,7 @@ export default function ProductCreatePage() {
               sku: v.sku || null,
               attributes: Object.fromEntries(Object.entries(v.attributes).filter(([, val]) => val.trim())),
               stock: Number(v.stock) || 0,
+              import_price: Number(v.import_price) || 0,
               price_adjustment: Number(v.price_adjustment) || 0,
               image_url: imageUrl || null,
             };
@@ -1172,11 +1187,16 @@ export default function ProductCreatePage() {
                             );
                           })}
                         </div>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-4 gap-3">
                           <div>
-                            <label className="block text-xs font-medium text-slate-500 mb-1">Tồn kho</label>
-                            <input type="number" value={0} disabled
-                              className={`${smallInputCls} bg-slate-100 text-slate-500 cursor-not-allowed`} placeholder="0" />
+                            <label className="block text-xs font-medium text-slate-500 mb-1">Tồn kho ban đầu</label>
+                            <input type="number" value={v.stock} onChange={e => handleVariantFieldChange(idx, 'stock', e.target.value)}
+                              className={smallInputCls} placeholder="0" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-500 mb-1">Giá nhập (VNĐ)</label>
+                            <input type="number" value={v.import_price ?? ''} onChange={e => handleVariantFieldChange(idx, 'import_price', e.target.value)}
+                              className={smallInputCls} placeholder="0" />
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-slate-500 mb-1">Phụ giá (VNĐ)</label>
@@ -1245,18 +1265,52 @@ export default function ProductCreatePage() {
               <input name="slug" value={form.slug} className={`${inputCls} bg-slate-50 text-slate-500`} readOnly />
             </div>
 
-            {variants.length === 0 && (
-              <div className="pt-2 border-t border-slate-100">
-                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Số lượng tồn kho ban đầu</label>
+            <div className="pt-2 border-t border-slate-100 space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Giá bán niêm yết (VNĐ) *</label>
                 <input
                   type="number"
-                  value={0}
-                  disabled
-                  className={`${inputCls} bg-slate-100 text-slate-500 cursor-not-allowed`}
-                  placeholder="0"
+                  name="base_price"
+                  value={form.base_price}
+                  onChange={handleChange}
+                  onBlur={() => validateField('base_price', form.base_price)}
+                  required
+                  className={`${inputCls} ${validationErrors.base_price ? 'border-red-400 ring-1 ring-red-200' : ''}`}
+                  placeholder="VD: 15000000"
                 />
+                {validationErrors.base_price && (
+                  <p className="flex items-center gap-1 mt-1.5 text-xs text-red-500 font-medium"><AlertCircle size={12} />{validationErrors.base_price}</p>
+                )}
                 <p className="text-[11px] text-slate-400 mt-1">
-                  💡 Số lượng tồn kho mặc định bằng 0. Cần tạo phiếu Nhập kho hoặc Kiểm kho để cập nhật số lượng tồn.
+                  Giá bán niêm yết là giá gốc của sản phẩm. Giá khuyến mãi sẽ do hệ thống Chương trình Khuyến mãi (Promotions) tự động áp dụng.
+                </p>
+              </div>
+            </div>
+
+            {variants.length === 0 && (
+              <div className="pt-2 border-t border-slate-100 space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Số lượng tồn kho ban đầu</label>
+                  <input
+                    type="number"
+                    value={simpleStock}
+                    onChange={e => setSimpleStock(e.target.value)}
+                    className={inputCls}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase tracking-wider">Giá nhập ban đầu (VNĐ)</label>
+                  <input
+                    type="number"
+                    value={simpleImportPrice}
+                    onChange={e => setSimpleImportPrice(e.target.value)}
+                    className={inputCls}
+                    placeholder="0"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Tồn kho và giá nhập ban đầu sẽ được lưu vết vào giao dịch kho.
                 </p>
               </div>
             )}

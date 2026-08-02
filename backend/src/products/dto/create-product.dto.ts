@@ -52,6 +52,11 @@ export class CreateProductVariantDto {
   @IsNumber()
   stock?: number;
 
+  @ApiPropertyOptional({ description: 'Giá nhập của biến thể' })
+  @IsOptional()
+  @IsNumber()
+  import_price?: number;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()

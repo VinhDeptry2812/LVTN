@@ -21,7 +21,8 @@ import {
   Users,
   CheckCircle2,
   Award,
-  Layers
+  Layers,
+  AlertTriangle
 } from 'lucide-react';
 
 interface Product {
@@ -74,6 +75,8 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [, setCategories] = useState<Category[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [lowStockCount, setLowStockCount] = useState<number>(0);
+  const [returnOrdersCount, setReturnOrdersCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [timeframe, setTimeframe] = useState<'7days' | '30days' | '6months' | 'year' | 'custom'>('6months');
@@ -98,11 +101,13 @@ export default function DashboardPage() {
       
       if (isStaff) {
         // Đối với nhân viên: không gọi API lấy doanh thu (/orders/admin/stats)
-        const [prodRes, catRes, recentOrdersRes, pendingOrdersRes] = await Promise.all([
+        const [prodRes, catRes, recentOrdersRes, pendingOrdersRes, invRes, returnRes] = await Promise.all([
           api.get('/products'),
           api.get('/categories'),
           api.get('/orders/admin?page=1&limit=5'),
           api.get('/orders/admin?page=1&limit=1&status=pending'),
+          api.get('/products/admin/inventory?filter=lowStock&limit=1').catch(() => ({ data: { total: 0 } })),
+          api.get('/orders/admin?isReturn=true&limit=1').catch(() => ({ data: { total: 0 } })),
         ]);
         setProducts(prodRes.data);
         setCategories(catRes.data);
@@ -112,6 +117,8 @@ export default function DashboardPage() {
           pendingOrders: pendingOrdersRes.data.total,
           recentOrders: recentOrdersRes.data.data,
         });
+        setLowStockCount(invRes.data?.total || 0);
+        setReturnOrdersCount(returnRes.data?.total || 0);
       } else {
         // Đối với Admin: gọi thống kê doanh thu theo mốc thời gian (timeframe) hoặc tùy chọn ngày (startDate, endDate)
         let url = `/orders/admin/stats?timeframe=${selectedTimeframe}`;
@@ -119,14 +126,18 @@ export default function DashboardPage() {
           url += `&startDate=${sDate}&endDate=${eDate}`;
         }
 
-        const [prodRes, catRes, statsRes] = await Promise.all([
+        const [prodRes, catRes, statsRes, invRes, returnRes] = await Promise.all([
           api.get('/products'),
           api.get('/categories'),
           api.get(url),
+          api.get('/products/admin/inventory?filter=lowStock&limit=1').catch(() => ({ data: { total: 0 } })),
+          api.get('/orders/admin?isReturn=true&limit=1').catch(() => ({ data: { total: 0 } })),
         ]);
         setProducts(prodRes.data);
         setCategories(catRes.data);
         setStats(statsRes.data);
+        setLowStockCount(invRes.data?.total || 0);
+        setReturnOrdersCount(returnRes.data?.total || 0);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -158,13 +169,11 @@ export default function DashboardPage() {
 
   const isStaff = profile?.role === 'staff';
 
-  // 4 thẻ Thống kê cốt lõi
+  // 8 thẻ Thống kê quản trị toàn diện (2 hàng)
   const statCards = [
     ...(isStaff ? [] : [{
       label: 'Tổng doanh thu',
       value: formatPrice(stats?.revenue || 0),
-      trend: '+12.4%',
-      trendUp: true,
       icon: DollarSign,
       color: 'from-emerald-500 to-teal-600',
       shadowColor: 'shadow-emerald-500/20',
@@ -172,8 +181,6 @@ export default function DashboardPage() {
     {
       label: 'Tổng đơn hàng',
       value: stats?.totalOrders || 0,
-      trend: '+8.2%',
-      trendUp: true,
       icon: ShoppingCart,
       color: 'from-blue-500 to-indigo-600',
       shadowColor: 'shadow-blue-500/20',
@@ -181,8 +188,6 @@ export default function DashboardPage() {
     {
       label: 'Đơn chờ xử lý',
       value: stats?.pendingOrders || 0,
-      trend: '-1.5%',
-      trendUp: false,
       icon: Clock,
       color: 'from-amber-500 to-orange-600',
       shadowColor: 'shadow-amber-500/20',
@@ -190,11 +195,37 @@ export default function DashboardPage() {
     {
       label: 'Tổng sản phẩm',
       value: products.length,
-      trend: '+4 mới',
-      trendUp: true,
       icon: Package,
       color: 'from-violet-500 to-purple-600',
       shadowColor: 'shadow-violet-500/20',
+    },
+    ...(isStaff ? [] : [{
+      label: 'Lợi nhuận ước tính',
+      value: formatPrice(Math.round((stats?.revenue || 0) * 0.65)),
+      icon: TrendingUp,
+      color: 'from-teal-500 to-cyan-600',
+      shadowColor: 'shadow-teal-500/20',
+    }]),
+    {
+      label: 'Cảnh báo tồn kho',
+      value: lowStockCount,
+      icon: AlertTriangle,
+      color: 'from-rose-500 to-red-600',
+      shadowColor: 'shadow-rose-500/20',
+    },
+    {
+      label: 'Khách hàng hệ thống',
+      value: stats?.customerCount || 0,
+      icon: Users,
+      color: 'from-fuchsia-500 to-pink-600',
+      shadowColor: 'shadow-fuchsia-500/20',
+    },
+    {
+      label: 'Yêu cầu đổi / trả',
+      value: returnOrdersCount,
+      icon: RotateCw,
+      color: 'from-amber-500 to-orange-600',
+      shadowColor: 'shadow-amber-500/20',
     },
   ];
 

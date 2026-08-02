@@ -378,62 +378,80 @@ export default function AdminLayout() {
       {/* Sidebar */}
       <aside
         className={`bg-slate-900 text-white flex flex-col transition-all duration-300 z-20 overflow-hidden ${
-          isCollapsed ? 'w-0 shadow-none' : 'w-64 shadow-xl'
+          isCollapsed ? 'w-16 shadow-none' : 'w-64 shadow-xl'
         }`}
       >
         {/* Sidebar Header */}
-        <div className="h-16 flex items-center justify-between px-5 border-b border-slate-800">
-          {!isCollapsed && (
-            <div className="flex items-center gap-2.5 animate-fadeIn">
-              <img src="/logo.png" alt="Logo Nội Thất" className="w-8 h-8 object-contain rounded-md bg-white/10 p-1 shadow-sm" />
-              <div>
-                <h1 className="text-base font-extrabold tracking-wider bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">NỘI THẤT</h1>
-                <p className="text-[10px] text-slate-400 font-semibold tracking-widest uppercase">Quản trị hệ thống</p>
+        <div className={`h-16 flex items-center border-b border-slate-800 px-4 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+          {!isCollapsed ? (
+            <>
+              <div className="flex items-center gap-2.5 animate-fadeIn">
+                <img src="/logo.png" alt="Logo Nội Thất" className="w-8 h-8 object-contain rounded-md bg-white/10 p-1 shadow-sm" />
+                <div>
+                  <h1 className="text-base font-extrabold tracking-wider bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">NỘI THẤT</h1>
+                  <p className="text-[10px] text-slate-400 font-semibold tracking-widest uppercase">Quản trị hệ thống</p>
+                </div>
               </div>
-            </div>
-          )}
-          {isCollapsed && (
-            <img src="/logo.png" alt="Logo Nội Thất" className="w-8 h-8 object-contain mx-auto rounded-md bg-white/10 p-1 shadow-sm" />
-          )}
-          {!isCollapsed && (
+              <button
+                onClick={() => setIsCollapsed(true)}
+                className="p-1.5 rounded-none text-slate-400 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer"
+                title="Thu gọn menu"
+              >
+                <ChevronLeft size={16} />
+              </button>
+            </>
+          ) : (
             <button
-              onClick={() => setIsCollapsed(true)}
-              className="p-1.5 rounded-none text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+              onClick={() => setIsCollapsed(false)}
+              className="p-1.5 rounded-none text-slate-400 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer"
+              title="Mở rộng menu"
             >
-              <ChevronLeft size={16} />
+              <img src="/logo.png" alt="Logo Nội Thất" className="w-7 h-7 object-contain rounded-md bg-white/10 p-1 shadow-sm" />
             </button>
           )}
         </div>
 
         {/* Sidebar Profile Card */}
-        {!isCollapsed && (
-          <div className="p-4 mx-3 my-4 bg-slate-800/50 rounded-none border border-slate-800/80 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-none bg-indigo-600 flex items-center justify-center font-bold text-white shadow-inner">
-              {getInitials(profile?.name || profile?.email || '')}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate text-slate-100">{profile?.name || 'Tài khoản'}</p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[11px] text-slate-400 font-medium">
-                  {profile?.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}
-                </span>
+        <div className={`my-3 px-2 ${isCollapsed ? 'flex justify-center' : 'mx-3'}`}>
+          {!isCollapsed ? (
+            <div className="p-3 bg-slate-800/60 rounded-none border border-slate-800 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-none bg-indigo-600 flex items-center justify-center font-bold text-white shadow-inner text-xs shrink-0">
+                {getInitials(profile?.name || profile?.email || '')}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold truncate text-slate-100">{profile?.name || 'Tài khoản'}</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {profile?.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div
+              className="w-9 h-9 rounded-none bg-indigo-600 flex items-center justify-center font-bold text-white text-xs shadow-inner cursor-pointer"
+              title={`${profile?.name || 'Tài khoản'} (${profile?.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'})`}
+            >
+              {getInitials(profile?.name || profile?.email || '')}
+            </div>
+          )}
+        </div>
 
         {/* Sidebar Menu */}
-        <nav className="flex-1 py-3 px-3 space-y-6 overflow-y-auto no-scrollbar">
+        <nav className="flex-1 py-2 px-2 space-y-5 overflow-y-auto no-scrollbar">
           {getFilteredNavigationGroups().map((group) => (
-            <div key={group.title} className="space-y-1.5">
-              {!isCollapsed && (
-                <h3 className="px-3 text-[10px] font-bold text-slate-500 tracking-wider uppercase">
+            <div key={group.title} className="space-y-1">
+              {!isCollapsed ? (
+                <h3 className="px-3 text-[10px] font-bold text-slate-500 tracking-wider uppercase mb-1">
                   {group.title}
                 </h3>
+              ) : (
+                <div className="h-[1px] bg-slate-800/80 my-2 mx-2" />
               )}
               <div className="space-y-1">
                 {group.links.map((link) => {
+                  const LinkIcon = link.icon;
                   if (link.subLinks) {
                     const isSubOpen = openSubMenus[link.label] || false;
                     const hasActiveSub = link.subLinks.some(sub => {
@@ -454,13 +472,19 @@ export default function AdminLayout() {
                               [link.label]: !prev[link.label]
                             }));
                           }}
-                          className={`flex items-center justify-between w-full px-4 py-3 rounded-none text-sm font-medium transition-all duration-200 group cursor-pointer ${
+                          title={isCollapsed ? link.label : undefined}
+                          className={`flex items-center w-full rounded-none text-xs font-semibold transition-all duration-200 group cursor-pointer ${
+                            isCollapsed
+                              ? 'justify-center p-2.5'
+                              : 'justify-between px-3 py-2.5'
+                          } ${
                             hasActiveSub
-                              ? 'bg-slate-800 text-white'
-                              : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
+                              ? 'bg-slate-800 text-indigo-400 font-bold border-l-2 border-indigo-500'
+                              : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
                           }`}
                         >
-                          <div className="flex items-center gap-3">
+                          <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
+                            <LinkIcon size={18} className={`shrink-0 ${hasActiveSub ? 'text-indigo-400' : 'text-slate-400 group-hover:text-white'}`} />
                             {!isCollapsed && <span className="truncate">{link.label}</span>}
                           </div>
                           {!isCollapsed && (
@@ -470,7 +494,7 @@ export default function AdminLayout() {
 
                         {/* SubLinks */}
                         {!isCollapsed && isSubOpen && (
-                          <div className="space-y-1 mt-1">
+                          <div className="space-y-1 mt-1 ml-4 pl-3 border-l border-slate-800">
                             {link.subLinks.map((sub) => {
                               const isSubActive = sub.to === '/admin/inventory'
                                 ? location.pathname === '/admin/inventory'
@@ -479,10 +503,10 @@ export default function AdminLayout() {
                                 <NavLink
                                   key={sub.to}
                                   to={sub.to}
-                                  className={`flex items-center pl-8 pr-4 py-2.5 rounded-none text-xs font-semibold transition-all duration-200 w-full text-left cursor-pointer ${
+                                  className={`flex items-center gap-2 px-3 py-2 rounded-none text-xs font-medium transition-all duration-200 w-full text-left cursor-pointer group ${
                                     isSubActive
-                                      ? 'text-indigo-400 bg-slate-800/40'
-                                      : 'text-slate-400 hover:bg-slate-800/20 hover:text-white'
+                                      ? 'text-indigo-400 bg-indigo-500/10 font-bold border-l-2 border-indigo-400 -ml-[13px] pl-[11px]'
+                                      : 'text-slate-400 hover:bg-slate-800/30 hover:text-white'
                                   }`}
                                 >
                                   <span className="truncate">{sub.label}</span>
@@ -500,14 +524,25 @@ export default function AdminLayout() {
                       key={link.to}
                       to={link.to!}
                       end={link.end}
+                      title={isCollapsed ? link.label : undefined}
                       className={({ isActive }) =>
-                        `flex items-center gap-3 px-4 py-3 rounded-none text-sm font-medium transition-all duration-200 group ${isActive
-                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                          : 'text-slate-400 hover:bg-slate-800/60 hover:text-white'
+                        `flex items-center rounded-none text-xs font-semibold transition-all duration-200 group ${
+                          isCollapsed
+                            ? 'justify-center p-2.5'
+                            : 'gap-3 px-3 py-2.5'
+                        } ${
+                          isActive
+                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                            : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
                         }`
                       }
                     >
-                      {!isCollapsed && <span className="truncate">{link.label}</span>}
+                      {({ isActive }) => (
+                        <>
+                          <LinkIcon size={18} className={`shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
+                          {!isCollapsed && <span className="truncate">{link.label}</span>}
+                        </>
+                      )}
                     </NavLink>
                   );
                 })}
@@ -517,19 +552,19 @@ export default function AdminLayout() {
         </nav>
 
         {/* Sidebar Footer */}
-        <div className="p-3 border-t border-slate-800">
+        <div className="p-2 border-t border-slate-800">
           {isCollapsed ? (
             <button
-              onClick={() => setIsCollapsed(false)}
-              className="flex items-center justify-center p-3 w-full rounded-none text-slate-400 hover:bg-slate-800 hover:text-white transition-all"
-              title="Mở rộng menu"
+              onClick={handleLogout}
+              className="flex items-center justify-center p-2.5 w-full rounded-none text-slate-400 hover:bg-rose-950/40 hover:text-rose-400 transition-all cursor-pointer"
+              title="Đăng xuất"
             >
-              <Menu size={18} />
+              <LogOut size={18} />
             </button>
           ) : (
             <button
               onClick={handleLogout}
-              className="flex items-center gap-3 w-full px-4 py-3 rounded-none text-sm font-medium text-slate-400 hover:bg-rose-950/40 hover:text-rose-400 transition-all duration-200 cursor-pointer"
+              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-none text-xs font-semibold text-slate-400 hover:bg-rose-950/40 hover:text-rose-400 transition-all duration-200 cursor-pointer"
             >
               <LogOut size={18} />
               <span>Đăng xuất</span>
