@@ -314,10 +314,7 @@ export default function CollectionListPage() {
                     />
                   </div>
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-sm font-medium text-slate-600">Mô tả</label>
-                      <span className="text-[10px] text-slate-400 italic">Nhấn Enter để ngắt đoạn</span>
-                    </div>
+                    <label className="block text-sm font-medium text-slate-600 mb-1.5">Mô tả</label>
                     <textarea
                       name="description"
                       value={form.description}
@@ -422,13 +419,8 @@ export default function CollectionListPage() {
                   <div className="space-y-1.5 flex-1 flex flex-col">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                        2. Câu chuyện cảm hứng (Inspiration Grid)
+                        2. Câu chuyện cảm hứng (Inspiration)
                       </span>
-                      {form.description.split('\n').filter(p => p.trim() !== '').length < 3 && (
-                        <span className="text-[9px] font-medium bg-amber-50 text-amber-700 px-2 py-0.5 rounded-none border border-amber-200/50">
-                          Nhập ≥ 3 đoạn để tạo Quote Card
-                        </span>
-                      )}
                     </div>
 
                     <div className="bg-slate-50 border border-slate-200/60 rounded-none p-4 flex-1 flex flex-col justify-start min-h-[220px]">
@@ -451,46 +443,10 @@ export default function CollectionListPage() {
                           );
                         }
 
-                        if (paragraphs.length >= 3) {
-                          const quoteText = paragraphs[paragraphs.length - 1];
-                          const details = paragraphs.slice(0, -1);
-                          return (
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 text-[10.5px] leading-relaxed">
-                              {/* Quote Card (Cột trái) */}
-                              <div className="md:col-span-5 bg-white border border-slate-200 rounded-none p-3 relative overflow-hidden shadow-sm flex flex-col justify-between min-h-[130px]">
-                                <div className="absolute top-0 left-0 w-full h-[3px] bg-blue-600"></div>
-                                <Quote size={20} className="text-blue-600/10 absolute right-2 top-2 pointer-events-none select-none rotate-180" />
-                                <p className="text-blue-700 italic font-medium leading-relaxed pt-1.5 line-clamp-4">
-                                  "{quoteText}"
-                                </p>
-                                <div className="mt-2.5">
-                                  <div className="w-4 h-[1px] bg-slate-300 mb-0.5"></div>
-                                  <span className="text-[8px] uppercase tracking-wider text-slate-400 block font-bold">
-                                    TRIẾT LÝ KHÔNG GIAN
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Chi tiết (Cột phải) */}
-                              <div className="md:col-span-7 space-y-2 pl-3 border-l border-slate-200 max-h-[140px] overflow-y-auto pr-1">
-                                <p className="text-slate-800 font-semibold mb-1 line-clamp-2">
-                                  {details[0]}
-                                </p>
-                                {details.slice(1).map((p, idx) => (
-                                  <p key={idx} className="text-slate-500 line-clamp-3">
-                                    {p}
-                                  </p>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        // Dưới 3 đoạn văn
                         return (
-                          <div className="space-y-1.5 text-[10.5px] leading-relaxed text-center max-w-sm mx-auto py-2">
+                          <div className="space-y-2 text-[10.5px] leading-relaxed max-h-[160px] overflow-y-auto pr-1">
                             {paragraphs.map((p, idx) => (
-                              <p key={idx} className={`${idx === 0 ? 'text-slate-800 font-semibold' : 'text-slate-500'}`}>
+                              <p key={idx} className={idx === 0 ? 'text-slate-800 font-semibold' : 'text-slate-600'}>
                                 {p}
                               </p>
                             ))}

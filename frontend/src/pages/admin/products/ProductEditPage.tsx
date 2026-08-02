@@ -1,13 +1,178 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
-import { Upload, Sparkles, ArrowLeft, Loader2, Plus, Trash2, Star, Eye, Copy } from 'lucide-react';
+import { Upload, Sparkles, ArrowLeft, Loader2, Plus, Trash2, Star, Eye, Copy, ChevronDown, Check, X, ImageIcon } from 'lucide-react';
 import TiptapEditor from '@/components/TiptapEditor';
 import UploadProgressWidget from '@/components/UploadProgressWidget';
 import type { UploadProgress } from '@/components/UploadProgressWidget';
 
-import { useRef, useMemo, useCallback } from 'react';
+const VariantMultiSelectPopover = ({
+  variants,
+  selectedIndices,
+  onChange,
+}: {
+  variants: VariantInput[];
+  selectedIndices: number[];
+  onChange: (newIndices: number[]) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const toggleIndex = (vIdx: number) => {
+    if (selectedIndices.includes(vIdx)) {
+      onChange(selectedIndices.filter((i) => i !== vIdx));
+    } else {
+      onChange([...selectedIndices, vIdx]);
+    }
+  };
+
+  const handleClear = () => {
+    onChange([]);
+  };
+
+  const getLabel = () => {
+    if (selectedIndices.length === 0) return '-- Dùng chung --';
+    if (selectedIndices.length === 1) {
+      const vIdx = selectedIndices[0];
+      const v = variants[vIdx];
+      if (!v) return `-- Dùng chung --`;
+      const attrStr = Object.values(v.attributes || {}).map(val => String(val).split('|')[0]).filter(Boolean).join(', ');
+      return attrStr ? `#${vIdx + 1}: ${attrStr}` : `#${vIdx + 1}: SKU ${v.sku || 'Chưa đặt'}`;
+    }
+    return `${selectedIndices.length} biến thể được chọn`;
+  };
+
+  return (
+    <div className="relative w-full" ref={popoverRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full text-[9px] font-medium bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-none px-1.5 py-1 text-slate-700 flex items-center justify-between gap-1 transition-colors cursor-pointer"
+        title="Chọn biến thể liên kết với hình ảnh này"
+      >
+        <span className="truncate">{getLabel()}</span>
+        <ChevronDown size={10} className={`text-slate-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 bottom-full mb-1 min-w-[220px] w-max max-w-[260px] bg-white border border-slate-200 shadow-2xl z-[60] p-2 text-[10px] space-y-1 rounded-none">
+          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider px-1 pb-1 border-b border-slate-100 flex justify-between items-center">
+            <span>Chọn biến thể liên kết</span>
+            {selectedIndices.length > 0 && (
+              <button type="button" onClick={handleClear} className="text-blue-600 hover:underline cursor-pointer text-[9px]">Bỏ chọn tất cả</button>
+            )}
+          </div>
+          <div className="max-h-44 overflow-y-auto space-y-0.5 pt-0.5">
+            <label className="flex items-center gap-1.5 px-1.5 py-1 hover:bg-slate-50 cursor-pointer rounded-none text-slate-700">
+              <input
+                type="checkbox"
+                checked={selectedIndices.length === 0}
+                onChange={handleClear}
+                className="h-3 w-3 rounded-none text-blue-600 focus:ring-blue-500 border-slate-300"
+              />
+              <span className="font-semibold text-slate-500">-- Dùng chung (Tất cả) --</span>
+            </label>
+            {variants.map((v, vIdx) => {
+              const attrStr = Object.values(v.attributes || {}).map(val => String(val).split('|')[0]).filter(Boolean).join(', ');
+              const labelText = attrStr ? `#${vIdx + 1}: ${attrStr}` : `#${vIdx + 1}: SKU ${v.sku || 'Chưa đặt'}`;
+              const isChecked = selectedIndices.includes(vIdx);
+              return (
+                <label key={vIdx} className="flex items-center gap-1.5 px-1.5 py-1 hover:bg-slate-50 cursor-pointer rounded-none text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggleIndex(vIdx)}
+                    className="h-3 w-3 rounded-none text-blue-600 focus:ring-blue-500 border-slate-300"
+                  />
+                  <span className={`truncate ${isChecked ? 'font-bold text-blue-600' : ''}`}>{labelText}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SelectImageFromLibraryPopover = ({
+  productImages,
+  onSelectImage,
+}: {
+  productImages: { image_url: string; preview_url?: string; file?: File; local_file?: File }[];
+  onSelectImage: (imgUrl: string, file?: File) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative mt-1" ref={popoverRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-center gap-1 px-1.5 py-0.5 text-[9px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-none transition-colors cursor-pointer"
+        title="Chọn từ thư viện ảnh sản phẩm đã tải lên"
+      >
+        <ImageIcon size={10} />
+        <span>Thư viện</span>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full mt-1 w-60 bg-white border border-slate-200 shadow-xl z-50 p-2 space-y-1.5 rounded-none">
+          <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+            <span className="text-[10px] font-bold text-slate-700">Chọn ảnh từ thư viện</span>
+            <button type="button" onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <X size={12} />
+            </button>
+          </div>
+          {productImages.length === 0 ? (
+            <p className="text-[9px] text-slate-400 italic py-2 text-center">Chưa có ảnh nào trong thư viện.</p>
+          ) : (
+            <div className="grid grid-cols-4 gap-1 max-h-40 overflow-y-auto p-0.5">
+              {productImages.map((img, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => {
+                    onSelectImage(img.image_url, img.file || img.local_file);
+                    setOpen(false);
+                  }}
+                  className="group relative aspect-square border border-slate-200 hover:border-blue-500 overflow-hidden bg-slate-50 cursor-pointer transition-all hover:scale-105"
+                >
+                  <img src={img.preview_url || img.image_url} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-blue-600/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <Check size={12} className="text-white drop-shadow" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface SpecRow { key: string; value: string; }
 
@@ -127,6 +292,7 @@ export default function ProductEditPage() {
     is_local?: boolean;
     variant_id?: number;
     variant_index?: number;
+    variant_indices?: number[];
     preview_url?: string;
   }
 
@@ -383,17 +549,8 @@ export default function ProductEditPage() {
         }
 
 
-        // Load danh sách ảnh
-        if (p.images && p.images.length > 0) {
-          setProductImages(p.images.map((img: any) => ({
-            image_url: img.image_url,
-            is_primary: img.is_primary ?? false,
-            is_hover: img.is_hover ?? false,
-            variant_id: img.variant_id,
-          })));
-        }
-
         // Load biến thể + xây dựng lại danh sách thuộc tính keys
+        let loadedVariants: VariantInput[] = [];
         if (p.variants && p.variants.length > 0) {
           const isSimple = p.variants.length === 1 &&
             (!p.variants[0].attributes || Object.keys(p.variants[0].attributes).length === 0);
@@ -406,7 +563,7 @@ export default function ProductEditPage() {
             setVariants([]);
           } else {
             const allAttrKeys = new Set<string>();
-            const loadedVariants: VariantInput[] = p.variants.map((v: any) => {
+            loadedVariants = p.variants.map((v: any) => {
               const attrs = v.attributes || {};
               Object.keys(attrs).forEach(k => allAttrKeys.add(k));
               return {
@@ -422,6 +579,30 @@ export default function ProductEditPage() {
             setVariantAttrKeys([...allAttrKeys]);
             setVariants(loadedVariants);
           }
+        }
+
+        // Load danh sách ảnh (gộp theo image_url để hiển thị 1:N / N:N)
+        if (p.images && p.images.length > 0) {
+          const imageMap = new Map<string, any>();
+          p.images.forEach((img: any) => {
+            const vIdx = loadedVariants.length > 0 ? loadedVariants.findIndex(v => v.id === img.variant_id) : -1;
+            if (imageMap.has(img.image_url)) {
+              const existing = imageMap.get(img.image_url);
+              if (vIdx !== -1 && !existing.variant_indices.includes(vIdx)) {
+                existing.variant_indices.push(vIdx);
+              }
+            } else {
+              imageMap.set(img.image_url, {
+                image_url: img.image_url,
+                is_primary: img.is_primary ?? false,
+                is_hover: img.is_hover ?? false,
+                variant_id: img.variant_id,
+                variant_index: vIdx !== -1 ? vIdx : undefined,
+                variant_indices: vIdx !== -1 ? [vIdx] : [],
+              });
+            }
+          });
+          setProductImages(Array.from(imageMap.values()));
         }
       } catch {
         toast.error('Không thể tải thông tin sản phẩm');
@@ -518,13 +699,55 @@ export default function ProductEditPage() {
       const u = [...prev];
       if (vIndex === undefined) {
         u[idx].variant_index = undefined;
+        u[idx].variant_indices = [];
         u[idx].variant_id = undefined;
       } else {
         u[idx].variant_index = vIndex;
-        u[idx].variant_id = variants[vIndex]?.id; // Có thể chưa có ID nếu biến thể mới
+        u[idx].variant_indices = [vIndex];
+        u[idx].variant_id = variants[vIndex]?.id;
       }
       return u;
     });
+  };
+
+  const handleImageVariantMultiSelect = (imgIndex: number, newIndices: number[]) => {
+    setProductImages(prev => {
+      const updated = [...prev];
+      const selectedVId = newIndices.length > 0 && variants[newIndices[0]]?.id ? variants[newIndices[0]].id : undefined;
+      updated[imgIndex] = {
+        ...updated[imgIndex],
+        variant_indices: newIndices,
+        variant_index: newIndices.length > 0 ? newIndices[0] : undefined,
+        variant_id: selectedVId,
+      };
+      return updated;
+    });
+  };
+
+  const handleSelectImageFromLibraryForVariant = (vIdx: number, url: string, file?: File) => {
+    setVariants(prev => {
+      const u = [...prev];
+      u[vIdx] = { ...u[vIdx], image_url: url, preview_url: url, local_file: file };
+      return u;
+    });
+    setProductImages(prev =>
+      prev.map(img => {
+        if (img.image_url === url || (img.file && URL.createObjectURL(img.file) === url)) {
+          const currentIndices = img.variant_indices || (img.variant_index !== undefined ? [img.variant_index] : []);
+          if (!currentIndices.includes(vIdx)) {
+            const nextIndices = [...currentIndices, vIdx];
+            return {
+              ...img,
+              variant_indices: nextIndices,
+              variant_index: nextIndices[0],
+              variant_id: variants[nextIndices[0]]?.id || img.variant_id,
+            };
+          }
+        }
+        return img;
+      })
+    );
+    toast.success(`Đã liên kết ảnh thư viện với biến thể #${vIdx + 1}`);
   };
 
   const handleAiGenerate = async () => {
@@ -614,6 +837,7 @@ export default function ProductEditPage() {
       // 1. Upload ảnh chính sản phẩm song song
       const uploadedProductImages = await Promise.all(
         productImages.map(async (img) => {
+          let url = img.image_url;
           if (img.is_local && img.file) {
             try {
               const formData = new FormData();
@@ -622,36 +846,47 @@ export default function ProductEditPage() {
                 headers: { 'Content-Type': 'multipart/form-data' },
               });
               incrementProgress(img.file.name, true);
-              return {
-                image_url: res.data.url,
-                is_primary: img.is_primary,
-                is_hover: img.is_hover,
-                variant_id: img.variant_id,
-                variant_index: img.variant_index,
-              };
+              url = res.data.url;
             } catch (err) {
               console.error(`Lỗi khi tải ảnh ${img.file.name}:`, err);
               incrementProgress(img.file.name, false);
-              return {
-                image_url: '',
-                is_primary: img.is_primary,
-                is_hover: img.is_hover,
-                variant_id: img.variant_id,
-                variant_index: img.variant_index,
-              };
+              url = '';
             }
           }
+          const indices = img.variant_indices || (img.variant_index !== undefined ? [img.variant_index] : []);
           return {
-            image_url: img.image_url,
+            image_url: url,
             is_primary: img.is_primary,
             is_hover: img.is_hover,
             variant_id: img.variant_id,
-            variant_index: img.variant_index,
+            variant_indices: indices,
           };
         })
       );
 
-      const validProductImages = uploadedProductImages.filter(img => img.image_url !== '');
+      const validProductImages: any[] = [];
+      uploadedProductImages.forEach((img) => {
+        if (!img.image_url) return;
+        const indices = img.variant_indices || [];
+        if (indices.length > 0) {
+          indices.forEach((vIdx: number) => {
+            const vId = variants[vIdx]?.id || img.variant_id;
+            validProductImages.push({
+              image_url: img.image_url,
+              is_primary: img.is_primary ?? false,
+              is_hover: img.is_hover ?? false,
+              variant_index: vIdx,
+              variant_id: vId,
+            });
+          });
+        } else {
+          validProductImages.push({
+            image_url: img.image_url,
+            is_primary: img.is_primary ?? false,
+            is_hover: img.is_hover ?? false,
+          });
+        }
+      });
 
       if (failedUploads > 0) {
         throw new Error(`Có ${failedUploads} ảnh tải lên thất bại. Vui lòng kiểm tra lại.`);
@@ -736,17 +971,16 @@ export default function ProductEditPage() {
   };
 
   const groupedImages = productImages.reduce((acc, img, idx) => {
-    let key: string | number = 'common';
-    if (img.variant_index !== undefined && img.variant_index !== null) {
-      key = img.variant_index;
-    } else if (img.variant_id) {
-      const vIdx = variants.findIndex(v => v.id === img.variant_id);
-      if (vIdx !== -1) {
-        key = vIdx;
-      }
+    const indices = img.variant_indices || (img.variant_index !== undefined ? [img.variant_index] : []);
+    if (indices.length === 0) {
+      if (!acc['common']) acc['common'] = [];
+      acc['common'].push({ img, originalIndex: idx });
+    } else {
+      indices.forEach(vIdx => {
+        if (!acc[vIdx]) acc[vIdx] = [];
+        acc[vIdx].push({ img, originalIndex: idx });
+      });
     }
-    if (!acc[key]) acc[key] = [];
-    acc[key].push({ img, originalIndex: idx });
     return acc;
   }, {} as Record<string | number, { img: typeof productImages[0], originalIndex: number }[]>);
 
@@ -758,7 +992,7 @@ export default function ProductEditPage() {
         onDragStart={() => handleDragStart(idx)}
         onDragOver={handleDragOver}
         onDrop={() => handleDrop(idx)}
-        className={`group relative flex flex-col rounded-none border bg-slate-50 overflow-hidden transition-all shadow-sm hover:shadow-md cursor-move ${img.is_primary ? 'border-blue-500 ring-2 ring-blue-100 bg-blue-50/5' : 'border-slate-200 hover:border-slate-350'
+        className={`group relative flex flex-col rounded-none border bg-slate-50 transition-all shadow-sm hover:shadow-md cursor-move ${img.is_primary ? 'border-blue-500 ring-2 ring-blue-100 bg-blue-50/5' : 'border-slate-200 hover:border-slate-350'
           } ${draggedImageIndex === idx ? 'opacity-40' : ''}`}
       >
         <div className="relative aspect-[4/3] w-full overflow-hidden bg-white flex items-center justify-center border-b border-slate-100">
@@ -817,20 +1051,11 @@ export default function ProductEditPage() {
 
         <div className="p-1.5 bg-white flex flex-col gap-0.5">
           <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider px-0.5">Liên kết biến thể</label>
-          <select
-            value={img.variant_index !== undefined ? img.variant_index : (img.variant_id ? variants.findIndex(v => v.id === img.variant_id) : '')}
-            onChange={e => handleImageVariantSelect(idx, e.target.value)}
-            className="w-full text-[9px] py-0.5 px-1 rounded-none border border-slate-200 text-slate-600 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 cursor-pointer outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
-            title="Chọn biến thể cho ảnh này"
-          >
-            <option value="">-- Dùng chung --</option>
-            {variants.map((v, vIdx) => {
-              const attrValues = Object.values(v.attributes || {}).map(val => String(val).split('|')[0]).filter(val => val.trim()).join(', ');
-              return (
-                <option key={vIdx} value={vIdx}>#{vIdx + 1}: {attrValues || 'Chưa đặt tên'}</option>
-              );
-            })}
-          </select>
+          <VariantMultiSelectPopover
+            variants={variants}
+            selectedIndices={img.variant_indices || (img.variant_index !== undefined ? [img.variant_index] : [])}
+            onChange={(newIndices) => handleImageVariantMultiSelect(idx, newIndices)}
+          />
         </div>
       </div>
     );
@@ -1168,6 +1393,12 @@ export default function ProductEditPage() {
                             <span className="text-[10px] mt-0.5 font-medium">Tải lên</span>
                           </label>
                         )}
+                      </div>
+                      <div className="flex items-center gap-1 mt-1">
+                        <SelectImageFromLibraryPopover
+                          productImages={productImages}
+                          onSelectImage={(url, file) => handleSelectImageFromLibraryForVariant(idx, url, file)}
+                        />
                       </div>
                     </div>
 

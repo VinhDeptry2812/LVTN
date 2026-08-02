@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { bannerService,type Banner } from '@/services/banner.service';
+import { useState, useEffect, useRef } from 'react';
+import { bannerService, type Banner } from '@/services/banner.service';
 import api from '@/services/api';
 import { compressImage } from '@/utils/image';
 import AdminPageHeader from '@/components/AdminPageHeader';
@@ -20,12 +20,34 @@ import {
   EyeOff,
   ExternalLink,
   Search,
+  Link as LinkIcon,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
+
+interface CategoryOption {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+interface CollectionOption {
+  id: number;
+  name: string;
+  slug: string;
+}
 
 export default function BannerListPage() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Categories & Collections for Link Picker
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [collections, setCollections] = useState<CollectionOption[]>([]);
+  const [showLinkPicker, setShowLinkPicker] = useState(false);
+  const [activeTab, setActiveTab] = useState<'preset' | 'category' | 'collection'>('preset');
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -63,9 +85,74 @@ export default function BannerListPage() {
     }
   };
 
+  const fetchLinkOptions = async () => {
+    try {
+      const [catRes, colRes] = await Promise.all([
+        api.get('/categories'),
+        api.get('/collections'),
+      ]);
+      const catList = Array.isArray(catRes.data) ? catRes.data : catRes.data.data || [];
+      const colList = Array.isArray(colRes.data) ? colRes.data : colRes.data.data || [];
+      setCategories(catList);
+      setCollections(colList);
+    } catch {
+      // Bỏ qua lỗi không bắt buộc nếu thiếu quyền hoặc dữ liệu trống
+    }
+  };
+
   useEffect(() => {
     fetchBanners();
+    fetchLinkOptions();
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowLinkPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const getLinkBadgeInfo = (url: string) => {
+    if (!url) return null;
+    const cleanUrl = url.trim();
+
+    const presets: Record<string, string> = {
+      '/shop': 'Trang Cửa hàng (Tất cả sản phẩm)',
+      '/promotions': 'Trang Khuyến mãi & Ưu đãi',
+      '/about': 'Trang Giới thiệu thương hiệu',
+      '/contact': 'Trang Liên hệ & Hỗ trợ',
+    };
+    if (presets[cleanUrl]) {
+      return { label: presets[cleanUrl], color: 'bg-blue-50 text-blue-700 border-blue-200' };
+    }
+
+    if (cleanUrl.startsWith('/category/')) {
+      const slug = cleanUrl.replace('/category/', '');
+      const matched = categories.find((c) => c.slug === slug);
+      return {
+        label: `Danh mục: ${matched ? matched.name : slug}`,
+        color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      };
+    }
+
+    if (cleanUrl.startsWith('/collection/')) {
+      const slug = cleanUrl.replace('/collection/', '');
+      const matched = collections.find((c) => c.slug === slug);
+      return {
+        label: `Bộ sưu tập: ${matched ? matched.name : slug}`,
+        color: 'bg-purple-50 text-purple-700 border-purple-200',
+      };
+    }
+
+    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+      return { label: 'Liên kết mạng bên ngoài', color: 'bg-amber-50 text-amber-700 border-amber-200' };
+    }
+
+    return { label: `Đường dẫn tùy chỉnh (${cleanUrl})`, color: 'bg-slate-100 text-slate-700 border-slate-200' };
+  };
 
   // Filter & Paginate
   const filteredBanners = banners.filter((b) => {
@@ -371,169 +458,302 @@ export default function BannerListPage() {
       {/* Modal Thêm / Chỉnh sửa Banner */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white w-full max-w-xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white w-full max-w-4xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
             {/* Modal Header */}
-            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
-              <h3 className="font-bold text-base flex items-center gap-2">
-                <ImageIcon size={18} className="text-indigo-400" />
-                {editingId ? 'Chỉnh sửa Banner' : 'Thêm Banner mới'}
-              </h3>
+            <div className="px-6 py-4 bg-white border-b border-slate-200 text-slate-900 flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="font-bold text-base flex items-center gap-2 text-slate-900">
+                  <ImageIcon size={18} className="text-indigo-600" />
+                  {editingId ? 'Chỉnh sửa Banner' : 'Thêm Banner mới'}
+                </h3>
+                <p className="text-[11px] text-slate-500 font-normal mt-0.5">
+                  Cấu hình nội dung, hình ảnh và đường dẫn chuyển hướng cho Banner quảng cáo.
+                </p>
+              </div>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
               >
                 <X size={20} />
               </button>
             </div>
 
             {/* Form Body */}
-            <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4 flex-1">
-              {/* Tiêu đề chính */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  Tiêu đề Banner <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="VD: PHÒNG NGỦ ẤM ÁP"
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-none text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 font-semibold"
-                />
-              </div>
-
-              {/* Subtitle / Badge */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  Thẻ Badge / Tiêu đề phụ
-                </label>
-                <input
-                  type="text"
-                  placeholder="VD: Không gian yên bình"
-                  value={form.subtitle}
-                  onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-none text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-
-              {/* Mô tả */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Mô tả nội dung</label>
-                <textarea
-                  rows={2}
-                  placeholder="VD: Chăm sóc giấc ngủ trọn vẹn của bạn bằng những mẫu giường gỗ tự nhiên..."
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-none text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                />
-              </div>
-
-              {/* Hình ảnh Banner */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  Hình ảnh Banner <span className="text-rose-500">*</span>
-                </label>
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Dán đường dẫn URL ảnh hoặc chọn file tải lên bên phải"
-                      value={form.image_url}
-                      onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-                      className="flex-1 px-3 py-2 border border-slate-300 rounded-none text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                    <label className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white font-medium text-xs rounded-none cursor-pointer transition-colors shrink-0">
-                      {uploadingImage ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                      <span>Tải ảnh lên</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        disabled={uploadingImage}
-                        className="hidden"
-                      />
-                    </label>
+            <form
+              onSubmit={handleSubmit}
+              className="p-6 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none] space-y-6"
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Cột Trái: Cấu hình thông tin (7 cols) */}
+                <div className="lg:col-span-7 space-y-4">
+                  <div className="border-b border-slate-100 pb-2">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      1. Nội dung hiển thị
+                    </h4>
                   </div>
 
-                  {/* Image Preview Box */}
-                  {form.image_url && (
-                    <div className="relative w-full h-36 bg-slate-100 border border-slate-200 overflow-hidden group">
-                      <img src={form.image_url} alt="Banner Preview" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button
-                          type="button"
-                          onClick={() => setForm({ ...form, image_url: '' })}
-                          className="p-2 bg-rose-600 text-white text-xs font-bold flex items-center gap-1 hover:bg-rose-700 transition-colors cursor-pointer"
-                        >
-                          <Trash2 size={14} /> Xóa ảnh
-                        </button>
+                  {/* Tiêu đề chính */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                      Tiêu đề Banner <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="VD: PHÒNG NGỦ ẤM ÁP"
+                      value={form.title}
+                      onChange={(e) => setForm({ ...form, title: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-none text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 font-semibold"
+                    />
+                  </div>
+
+                  {/* Subtitle / Badge */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                      Thẻ Badge / Tiêu đề phụ
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="VD: Không gian yên bình"
+                      value={form.subtitle}
+                      onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-none text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {/* Mô tả */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Mô tả nội dung</label>
+                    <textarea
+                      rows={3}
+                      placeholder="VD: Chăm sóc giấc ngủ trọn vẹn của bạn bằng những mẫu giường gỗ tự nhiên..."
+                      value={form.description}
+                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-none text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {/* Nút bấm & Đường dẫn */}
+                  <div className="border-b border-slate-100 pb-2 pt-2">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      2. Nút bấm & Liên kết (Call-to-Action)
+                    </h4>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        Tên nút bấm (Button Text)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="VD: Xem ngay"
+                        value={form.button_text}
+                        onChange={(e) => setForm({ ...form, button_text: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-none text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        Đường dẫn nhanh hệ thống
+                      </label>
+                      <select
+                        value={
+                          categories.some((c) => `/category/${c.slug}` === form.button_link)
+                            ? form.button_link
+                            : collections.some((c) => `/collection/${c.slug}` === form.button_link)
+                            ? form.button_link
+                            : ['/shop', '/promotions', '/about', '/contact'].includes(form.button_link)
+                            ? form.button_link
+                            : ''
+                        }
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            setForm({ ...form, button_link: e.target.value });
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-none text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 bg-white font-medium text-slate-700"
+                      >
+                        <option value="">-- Chọn đường dẫn từ danh sách --</option>
+                        <optgroup label="Trang chính">
+                          <option value="/shop">Cửa hàng (Tất cả sản phẩm) (/shop)</option>
+                          <option value="/promotions">Khuyến mãi & Ưu đãi (/promotions)</option>
+                          <option value="/about">Giới thiệu thương hiệu (/about)</option>
+                          <option value="/contact">Liên hệ & Hỗ trợ (/contact)</option>
+                        </optgroup>
+                        {categories.length > 0 && (
+                          <optgroup label={`Danh mục sản phẩm (${categories.length})`}>
+                            {categories.map((cat) => (
+                              <option key={cat.id} value={`/category/${cat.slug}`}>
+                                Danh mục: {cat.name} (/category/{cat.slug})
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {collections.length > 0 && (
+                          <optgroup label={`Bộ sưu tập (${collections.length})`}>
+                            {collections.map((col) => (
+                              <option key={col.id} value={`/collection/${col.slug}`}>
+                                Bộ sưu tập: {col.name} (/collection/{col.slug})
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* URL Nhập tay & Badge nhãn */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                      Đường dẫn nút (Button Link URL) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="VD: /shop hoặc /collection/coastal"
+                      value={form.button_link}
+                      onChange={(e) => setForm({ ...form, button_link: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-none text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 font-mono bg-slate-50"
+                    />
+                    {(() => {
+                      const badge = getLinkBadgeInfo(form.button_link);
+                      if (!badge) return null;
+                      return (
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold border rounded-none ${badge.color}`}>
+                            <Check size={11} />
+                            <span>{badge.label}</span>
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Position & IsActive */}
+                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        Thứ tự hiển thị (Position)
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={form.position}
+                        onChange={(e) => setForm({ ...form, position: parseInt(e.target.value, 10) || 1 })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-none text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 font-mono"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3 pt-5">
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={form.is_active}
+                          onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                      </label>
+                      <span className="text-xs font-bold text-slate-700">
+                        {form.is_active ? 'Bật hiển thị' : 'Đang ẩn'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cột Phải: Hình ảnh & Live Banner Preview (5 cols) */}
+                <div className="lg:col-span-5 space-y-4 bg-slate-50 p-4 border border-slate-200 flex flex-col justify-between">
+                  <div className="space-y-4">
+                    <div className="border-b border-slate-200 pb-2">
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <Eye size={14} className="text-indigo-600" />
+                        3. Xem trước Banner (Live Preview)
+                      </h4>
+                    </div>
+
+                    {/* URL ảnh & Tải lên */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        Hình ảnh Banner <span className="text-rose-500">*</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="URL ảnh hoặc chọn file"
+                          value={form.image_url}
+                          onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+                          className="flex-1 px-3 py-2 border border-slate-300 bg-white rounded-none text-xs focus:ring-1 focus:ring-indigo-500"
+                        />
+                        <label className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs rounded-none cursor-pointer transition-colors shrink-0 shadow-xs">
+                          {uploadingImage ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                          <span>Tải ảnh</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageChange}
+                            disabled={uploadingImage}
+                            className="hidden"
+                          />
+                        </label>
                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
 
-              {/* Nút bấm Text & Link URL */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                    Tên nút bấm (Button Text)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="VD: Xem sản phẩm"
-                    value={form.button_text}
-                    onChange={(e) => setForm({ ...form, button_text: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-none text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                    Đường dẫn nút (Button Link)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="VD: /shop hoặc /collection/coastal"
-                    value={form.button_link}
-                    onChange={(e) => setForm({ ...form, button_link: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-none text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-              </div>
-
-              {/* Position & IsActive */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                    Thứ tự hiển thị (Position)
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={form.position}
-                    onChange={(e) => setForm({ ...form, position: parseInt(e.target.value, 10) || 1 })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-none text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 font-mono"
-                  />
-                </div>
-                <div className="flex items-center gap-3 pt-5">
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.is_active}
-                      onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                  </label>
-                  <span className="text-xs font-bold text-slate-700">
-                    {form.is_active ? 'Bật hiển thị' : 'Đang ẩn'}
-                  </span>
+                    {/* Live Banner Card Preview */}
+                    <div className="relative w-full h-60 bg-slate-100 border border-dashed border-slate-300 overflow-hidden shadow-inner flex items-center justify-center group">
+                      {form.image_url ? (
+                        <>
+                          <img src={form.image_url} alt="Banner Preview" className="w-full h-full object-cover opacity-90" />
+                          {/* Overlay text simulation */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/70 via-slate-950/30 to-transparent p-5 flex flex-col justify-center text-white">
+                            {form.subtitle && (
+                              <span className="inline-block px-2 py-0.5 bg-white/20 backdrop-blur-md text-[10px] uppercase font-bold tracking-widest text-indigo-200 self-start mb-1.5">
+                                {form.subtitle}
+                              </span>
+                            )}
+                            <h3 className="font-extrabold text-base leading-tight uppercase tracking-tight text-white mb-1 drop-shadow">
+                              {form.title || 'Tiêu đề Banner'}
+                            </h3>
+                            {form.description && (
+                              <p className="text-[11px] text-slate-200 line-clamp-2 max-w-[85%] mb-3">
+                                {form.description}
+                              </p>
+                            )}
+                            {form.button_text && (
+                              <div className="mt-1">
+                                <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-white text-slate-900 text-[11px] font-bold uppercase tracking-wider shadow hover:bg-slate-100">
+                                  {form.button_text}
+                                  <ExternalLink size={12} />
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          {/* Action delete overlay */}
+                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              onClick={() => setForm({ ...form, image_url: '' })}
+                              className="p-1.5 bg-rose-600 text-white rounded text-xs font-bold hover:bg-rose-700 transition-colors shadow"
+                              title="Xóa ảnh"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center p-6 text-slate-400">
+                          <ImageIcon size={32} className="mx-auto mb-2 opacity-40 text-slate-400" />
+                          <p className="text-xs font-semibold text-slate-600">Chưa chọn hình ảnh Banner</p>
+                          <p className="text-[10px] text-slate-400 mt-1">Dán đường dẫn URL hoặc tải ảnh lên để xem trước</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* Modal Footer Actions */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
@@ -544,10 +764,10 @@ export default function BannerListPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-none shadow transition-colors cursor-pointer disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-none shadow-md transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {submitting && <Loader2 size={14} className="animate-spin" />}
-                  <span>{editingId ? 'Lưu thay đổi' : 'Tạo Banner'}</span>
+                  <span>{editingId ? 'Lưu thay đổi' : 'Tạo Banner mới'}</span>
                 </button>
               </div>
             </form>

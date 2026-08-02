@@ -214,71 +214,21 @@ const CollectionPage: React.FC = () => {
                 <div className="w-12 h-[2px] bg-primary mt-4 md:mx-0 mx-auto"></div>
               </div>
 
-              {descParagraphs.length >= 3 ? (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-stretch">
-                  {/* Cột trái: Trích dẫn nổi bật (Lấy đoạn cuối cùng của mô tả) */}
-                  <div className="lg:col-span-5 flex">
-                    <div className="inspiration-text w-full bg-surface border border-outline-variant/30 rounded-2xl p-8 md:p-10 shadow-[0_4px_20px_rgba(0,0,0,0.02)] flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:border-primary/20 group">
-                      <div className="absolute top-0 left-0 w-full h-[4px] bg-primary"></div>
-                      <span className="material-symbols-outlined text-primary/15 text-7xl absolute right-4 top-4 select-none pointer-events-none">
-                        format_quote
-                      </span>
-                      <div className="relative z-10 pt-4">
-                        <p className="font-headline-md text-xl md:text-2xl text-primary font-normal leading-relaxed italic mb-8">
-                          "{descParagraphs[descParagraphs.length - 1]}"
-                        </p>
-                      </div>
-                      <div className="border-t border-outline-variant/30 pt-6">
-                        <p className="text-label-sm font-label-sm uppercase tracking-wider text-on-surface-variant/80">
-                          Triết lý không gian
-                        </p>
-                        <p className="text-body-sm font-medium text-primary mt-1">
-                          {collection.name}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Cột phải: Các đoạn mô tả chi tiết */}
-                  <div className="lg:col-span-7 flex flex-col justify-center">
-                    {/* Đoạn mở đầu lớn hơn */}
-                    <p className="inspiration-text font-body-lg text-lg md:text-xl text-on-surface/90 font-medium leading-relaxed mb-6">
-                      {descParagraphs[0]}
+              <div className="max-w-7xl mx-auto bg-surface border border-outline-variant/30 rounded-2xl p-8 md:p-12 shadow-[0_4px_20px_rgba(0,0,0,0.02)] relative overflow-hidden text-left">
+                <div className="relative z-10 space-y-6">
+                  {descParagraphs.map((para, idx) => (
+                    <p
+                      key={idx}
+                      className={`inspiration-text text-on-surface-variant leading-relaxed ${idx === 0
+                        ? 'text-lg md:text-xl text-on-surface font-medium md:leading-loose'
+                        : 'text-base md:text-lg md:leading-loose'
+                        }`}
+                    >
+                      {para}
                     </p>
-
-                    {/* Các đoạn tiếp theo dạng grid 2 cột trên desktop */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
-                      {descParagraphs.slice(1, descParagraphs.length - 1).map((para, idx) => (
-                        <div key={idx} className="inspiration-text border-l-2 border-primary/20 pl-4 py-1">
-                          <p className="text-body-md text-on-surface-variant leading-relaxed">
-                            {para}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              ) : (
-                /* Layout thu gọn căn giữa sang trọng dành cho mô tả ngắn */
-                <div className="max-w-7xl mx-auto bg-surface border border-outline-variant/30 rounded-2xl p-8 md:p-12 shadow-[0_4px_20px_rgba(0,0,0,0.02)] relative overflow-hidden text-left">
-                  <span className="material-symbols-outlined text-primary/5 text-9xl absolute -left-6 -top-6 select-none font-light">
-                    format_quote
-                  </span>
-                  <div className="relative z-10 space-y-6">
-                    {descParagraphs.map((para, idx) => (
-                      <p
-                        key={idx}
-                        className={`inspiration-text text-on-surface-variant leading-relaxed ${idx === 0
-                          ? 'text-lg md:text-xl text-on-surface font-medium md:leading-loose'
-                          : 'text-base md:text-lg md:leading-loose'
-                          }`}
-                      >
-                        {para}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
           </section>
         )}
