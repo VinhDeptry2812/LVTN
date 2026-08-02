@@ -24,7 +24,7 @@ export class AiService {
     }
 
     try {
-      const prompt = `Bạn là một chuyên gia viết content marketing cho thương hiệu nội thất cao cấp FurniShop.
+      const prompt = `Bạn là một chuyên gia viết content marketing cho thương hiệu nội thất cao cấp Nội Thất.
 Nhiệm vụ của bạn là viết một bài mô tả sản phẩm (product description) thật hấp dẫn, chuyên nghiệp, chuẩn SEO và có cấu trúc rõ ràng bằng ngôn ngữ HTML để hiển thị trực tiếp trong trình soạn thảo Rich Text (Tiptap).
 
 Thông tin đầu vào:

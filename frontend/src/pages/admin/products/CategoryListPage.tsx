@@ -432,13 +432,6 @@ export default function CategoryListPage() {
                     <span className="text-[10px] font-bold text-violet-600 tracking-wide uppercase">
                       Vị trí 3
                     </span>
-                    {slot3.image_url && (
-                      <img
-                        src={slot3.image_url}
-                        alt={slot3.name}
-                        className="w-6 h-6 object-cover rounded border border-slate-200 shrink-0"
-                      />
-                    )}
                   </div>
                   <p className="font-bold text-xs text-slate-900 truncate mt-1">{slot3.name}</p>
                 </>
@@ -466,13 +459,6 @@ export default function CategoryListPage() {
                     <span className="text-[10px] font-bold text-emerald-600 tracking-wide uppercase">
                       Vị trí 4
                     </span>
-                    {slot4.image_url && (
-                      <img
-                        src={slot4.image_url}
-                        alt={slot4.name}
-                        className="w-6 h-6 object-cover rounded border border-slate-200 shrink-0"
-                      />
-                    )}
                   </div>
                   <p className="font-bold text-xs text-slate-900 truncate mt-1">{slot4.name}</p>
                 </>
@@ -493,7 +479,7 @@ export default function CategoryListPage() {
         {/* Thanh trạng thái theo dõi số lượng danh mục chọn ra Trang chủ */}
         <div className="bg-indigo-50/60 border-b border-indigo-100 px-6 py-3.5 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-sm text-indigo-950 font-medium">
-            <Star size={16} className="text-amber-500 fill-amber-400" />
+          
             <span>Danh mục chọn hiển thị Trang chủ: <strong className="text-indigo-600 font-bold font-mono text-base">{homeCategories.length}/4</strong></span>
           </div>
           <span className="text-xs text-slate-500">
