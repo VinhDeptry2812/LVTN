@@ -359,14 +359,35 @@ export default function AdminLayout() {
     );
   };
 
-  const getInitials = (name: string) => {
-    if (!name) return 'AD';
-    const parts = name.trim().split(' ');
+  const getDisplayName = (user?: UserProfile | null) => {
+    if (!user) return 'Tài khoản Quản trị';
+    if (user.name && user.name.trim()) return user.name.trim();
+    if (user.email) {
+      return user.email.split('@')[0];
+    }
+    return 'Quản trị viên';
+  };
+
+  const getInitials = (user?: UserProfile | null) => {
+    const displayName = getDisplayName(user);
+    if (!displayName) return 'AD';
+    const parts = displayName.trim().split(/\s+/);
     if (parts.length >= 2) {
       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
-    return name.slice(0, 2).toUpperCase();
+    return displayName.slice(0, 2).toUpperCase();
   };
+
+  const getRoleLabel = (role?: string) => {
+    if (role === 'admin') return 'Quản trị viên';
+    if (role === 'staff') return 'Nhân viên';
+    return 'Thành viên';
+  };
+
+  const clientUrl = import.meta.env.VITE_CLIENT_URL || 
+    (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+      ? `${window.location.protocol}//${window.location.hostname.replace('admin.', '').replace('-admin', '')}`
+      : 'http://localhost:5173');
 
   const getFilteredNavigationGroups = () => {
     if (!profile) return [];
@@ -436,14 +457,14 @@ export default function AdminLayout() {
           {!isCollapsed ? (
             <div className="p-3 bg-slate-800/60 rounded-none border border-slate-800 flex items-center gap-3">
               <div className="w-9 h-9 rounded-none bg-indigo-600 flex items-center justify-center font-bold text-white shadow-inner text-xs shrink-0">
-                {getInitials(profile?.name || profile?.email || '')}
+                {getInitials(profile)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold truncate text-slate-100">{profile?.name || 'Tài khoản'}</p>
+                <p className="text-xs font-semibold truncate text-slate-100">{getDisplayName(profile)}</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                   <span className="text-[10px] text-slate-400 font-medium">
-                    {profile?.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}
+                    {getRoleLabel(profile?.role)}
                   </span>
                 </div>
               </div>
@@ -451,9 +472,9 @@ export default function AdminLayout() {
           ) : (
             <div
               className="w-9 h-9 rounded-none bg-indigo-600 flex items-center justify-center font-bold text-white text-xs shadow-inner cursor-pointer"
-              title={`${profile?.name || 'Tài khoản'} (${profile?.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'})`}
+              title={`${getDisplayName(profile)} (${getRoleLabel(profile?.role)})`}
             >
-              {getInitials(profile?.name || profile?.email || '')}
+              {getInitials(profile)}
             </div>
           )}
         </div>
@@ -620,7 +641,7 @@ export default function AdminLayout() {
 
             {/* Visit Shop Link */}
             <a
-              href="http://localhost:5173" // Default client URL
+              href={clientUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-600 font-semibold px-3 py-1.5 rounded-none hover:bg-slate-50 transition-colors"
@@ -708,12 +729,12 @@ export default function AdminLayout() {
                 className="flex items-center gap-2.5 p-1 rounded-none hover:bg-slate-100 transition-colors"
               >
                 <div className="w-8 h-8 rounded-none bg-indigo-600 font-bold text-white flex items-center justify-center text-xs shadow">
-                  {getInitials(profile?.name || profile?.email || '')}
+                  {getInitials(profile)}
                 </div>
                 <div className="hidden lg:block text-left pr-2">
-                  <p className="text-xs font-bold text-slate-700">{profile?.name || 'Tài khoản'}</p>
+                  <p className="text-xs font-bold text-slate-700">{getDisplayName(profile)}</p>
                   <p className="text-[10px] font-semibold text-slate-400">
-                    {profile?.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}
+                    {getRoleLabel(profile?.role)}
                   </p>
                 </div>
               </button>
@@ -721,12 +742,12 @@ export default function AdminLayout() {
               {isProfileOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-none shadow-xl border border-slate-200/80 py-1.5 z-50 animate-slideUp">
                   <div className="px-4 py-2.5 border-b border-slate-100">
-                    <p className="text-xs font-bold text-slate-800">{profile?.name || 'Tài khoản'}</p>
-                    <p className="text-[10px] font-medium text-slate-400 mt-0.5">{profile?.email}</p>
+                    <p className="text-xs font-bold text-slate-800">{getDisplayName(profile)}</p>
+                    <p className="text-[10px] font-medium text-slate-400 mt-0.5">{profile?.email || 'N/A'}</p>
                   </div>
                   <div className="py-1">
                     <a
-                      href="http://localhost:5173"
+                      href={clientUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 px-4 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-indigo-600 font-medium transition-colors"
