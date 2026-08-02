@@ -279,4 +279,24 @@ export class WarrantiesService {
 
     return await this.warrantyRepository.save(warranty);
   }
+
+  /** Tự động hủy/vô hiệu hóa các phiếu bảo hành thuộc đơn hàng khi được chấp nhận đổi trả */
+  async voidWarrantiesForOrder(
+    orderId: number,
+    reason: string,
+  ): Promise<void> {
+    const warranties = await this.warrantyRepository.find({
+      where: { order_id: orderId },
+    });
+
+    if (!warranties || warranties.length === 0) return;
+
+    for (const warranty of warranties) {
+      if (warranty.status !== WarrantyStatus.VOIDED) {
+        warranty.status = WarrantyStatus.VOIDED;
+        warranty.resolution_note = reason;
+        await this.warrantyRepository.save(warranty);
+      }
+    }
+  }
 }

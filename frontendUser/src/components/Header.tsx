@@ -56,6 +56,9 @@ export default function Header() {
   const { user, logout } = useAuthStore();
   const setAuth = useAuthStore((state) => state.setAuth);
 
+  const isAdmin = Boolean(user && (user.role?.toLowerCase() === 'admin' || user.role?.toLowerCase() === 'staff'));
+  const adminUrl = import.meta.env.VITE_ADMIN_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5173' : 'https://noithat-admin.onrender.com');
+
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [isLoginLoading, setIsLoginLoading] = useState(false);
@@ -684,6 +687,21 @@ export default function Header() {
                   <span className="block font-bold text-sm text-on-surface truncate mt-1">{user.name}</span>
                 </div>
                 <div className="flex flex-col gap-2.5 text-xs font-semibold uppercase tracking-wider">
+                  {isAdmin && (
+                    <a
+                      href={adminUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setIsUserDropdownOpen(false)}
+                      className="py-2 px-3 bg-surface-container-high hover:bg-primary text-on-surface hover:text-white border border-outline-variant/40 rounded-sm transition-all flex items-center justify-between font-bold text-xs normal-case tracking-normal mb-1 group"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[18px] text-primary group-hover:text-white transition-colors">admin_panel_settings</span>
+                        <span>Trang Quản trị (Admin)</span>
+                      </span>
+                      <span className="material-symbols-outlined text-[14px] opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all">open_in_new</span>
+                    </a>
+                  )}
                   <Link
                     to="/profile?tab=profile"
                     onClick={() => setIsUserDropdownOpen(false)}
@@ -1098,25 +1116,42 @@ export default function Header() {
             {/* Drawer Footer (User Info & Quick Actions) */}
             <div className="p-5 border-t border-outline-variant/20 bg-white shrink-0 space-y-3">
               {user ? (
-                <div className="flex items-center justify-between bg-surface-container-low p-3 rounded-lg border border-outline-variant/20">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
-                      {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                <>
+                  {isAdmin && (
+                    <a
+                      href={adminUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-full py-2.5 px-3 bg-surface-container-high hover:bg-primary text-on-surface hover:text-white border border-outline-variant/40 font-bold text-xs rounded-lg flex items-center justify-between shadow-sm active:scale-[0.98] transition-all group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-lg text-primary group-hover:text-white transition-colors">admin_panel_settings</span>
+                        <span>Trang Quản trị (Admin)</span>
+                      </div>
+                      <span className="material-symbols-outlined text-sm opacity-60 group-hover:opacity-100 transition-all">open_in_new</span>
+                    </a>
+                  )}
+                  <div className="flex items-center justify-between bg-surface-container-low p-3 rounded-lg border border-outline-variant/20">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+                        {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                      <div className="truncate max-w-[150px]">
+                        <p className="text-xs font-bold text-on-surface truncate">{user.name}</p>
+                        <p className="text-[10px] text-on-surface-variant truncate">{user.email}</p>
+                      </div>
                     </div>
-                    <div className="truncate max-w-[150px]">
-                      <p className="text-xs font-bold text-on-surface truncate">{user.name}</p>
-                      <p className="text-[10px] text-on-surface-variant truncate">{user.email}</p>
-                    </div>
+                    <Link
+                      to="/profile"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="p-2 text-primary hover:bg-primary/10 rounded-full transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                      aria-label="Tài khoản cá nhân"
+                    >
+                      <span className="material-symbols-outlined text-lg">person</span>
+                    </Link>
                   </div>
-                  <Link
-                    to="/profile"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="p-2 text-primary hover:bg-primary/10 rounded-full transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-                    aria-label="Tài khoản cá nhân"
-                  >
-                    <span className="material-symbols-outlined text-lg">person</span>
-                  </Link>
-                </div>
+                </>
               ) : null}
 
               <div className="text-center pt-1">

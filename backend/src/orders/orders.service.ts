@@ -720,6 +720,17 @@ export class OrdersService implements OnModuleInit {
           } catch (err) {
             this.logger.error('Lỗi khi tự động tạo phiếu bảo hành cho đơn hàng:', err);
           }
+        } else if (
+          [OrderStatus.CANCELLED, OrderStatus.RETURN_APPROVED].includes(dto.status)
+        ) {
+          try {
+            await this.warrantiesService.voidWarrantiesForOrder(
+              order.id,
+              `Hủy phiếu bảo hành do trạng thái đơn hàng cập nhật thành ${dto.status}.`,
+            );
+          } catch (err) {
+            this.logger.error('Lỗi khi hủy phiếu bảo hành cho đơn hàng:', err);
+          }
         }
       }
 
@@ -1498,6 +1509,19 @@ export class OrdersService implements OnModuleInit {
         throw new BadRequestException(
           `Duyệt đổi trả thành công nhưng hoàn tiền VNPAY thất bại: ${refundResult.message}. Vui lòng hoàn tiền thủ công qua cổng quản trị VNPAY.`,
         );
+      }
+    }
+
+    if (dto.status === OrderStatus.RETURN_APPROVED) {
+      const actionType = dto.actionType || 'refund';
+      const voidReason =
+        actionType === 'exchange'
+          ? 'Hủy phiếu bảo hành cũ do sản phẩm đã được thu hồi đổi mới 1-1.'
+          : 'Hủy phiếu bảo hành do sản phẩm đã được chấp nhận đổi trả & hoàn tiền.';
+      try {
+        await this.warrantiesService.voidWarrantiesForOrder(order.id, voidReason);
+      } catch (err) {
+        this.logger.error('Lỗi khi tự động hủy phiếu bảo hành:', err);
       }
     }
 
