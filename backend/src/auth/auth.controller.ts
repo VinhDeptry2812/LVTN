@@ -28,11 +28,15 @@ import {
 } from './dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GoogleOauthGuard } from './guards/google-oauth.guard';
+import { UsersService } from '../users/users.service';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Đăng ký tài khoản mới' })
@@ -91,8 +95,23 @@ export class AuthController {
     description: 'Chưa đăng nhập hoặc Token hết hạn.',
   })
   @Get('profile')
-  getProfile(@Request() req) {
-    // req.user chứa payload đã giải mã từ JWT Strategy
+  async getProfile(@Request() req) {
+    const userId = req.user?.id || req.user?.sub;
+    if (userId) {
+      const dbUser = await this.usersService.findById(userId);
+      if (dbUser) {
+        return {
+          id: dbUser.id,
+          email: dbUser.email,
+          name: dbUser.name,
+          role: dbUser.role,
+          phone: dbUser.phone,
+          gender: dbUser.gender,
+          birthday: dbUser.birthday,
+          status: dbUser.status,
+        };
+      }
+    }
     return req.user;
   }
 

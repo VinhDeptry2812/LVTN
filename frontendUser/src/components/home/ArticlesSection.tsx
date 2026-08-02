@@ -48,7 +48,6 @@ export const ArticlesSection = forwardRef<HTMLDivElement>((_, ref) => {
             className="mt-3 md:mt-0 inline-flex items-center gap-2 font-label-md text-xs sm:text-sm text-primary hover:underline"
           >
             <span>Xem tất cả bài viết</span>
-            <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
           </Link>
         </div>
 
