@@ -75,7 +75,8 @@ export class AuthController {
   @ApiOperation({ summary: 'Google Callback nhận dữ liệu trả về' })
   async googleAuthRedirect(@Req() req, @Res() res) {
     const data = await this.authService.googleLogin(req);
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5174';
+    const rawFrontendUrl = process.env.FRONTEND_URL || 'http://localhost:5174';
+    const frontendUrl = rawFrontendUrl.replace(/\/+$/, '');
     return res.redirect(
       `${frontendUrl}/login?token=${data.access_token}&refresh_token=${data.refresh_token}`,
     );
