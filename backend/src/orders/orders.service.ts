@@ -205,7 +205,8 @@ export class OrdersService implements OnModuleInit {
         dto.shipping_address,
       );
       order.shipping_fee = shippingFee;
-
+      
+      //Khóa bi quan (pessimitic lock) để tránh trường hợp 2 user đặt cùng lúc làm sai lệch số lượng tồn kho
       for (const item of dto.items) {
         if (item.variant_id) {
           const variant = await queryRunner.manager.findOne(ProductVariant, {

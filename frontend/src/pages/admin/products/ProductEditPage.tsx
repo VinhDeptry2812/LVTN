@@ -604,8 +604,12 @@ export default function ProductEditPage() {
 
         // Load specifications động
         const specData = p.detail?.specifications;
-        if (specData && typeof specData === 'object') {
-          setSpecs(Object.entries(specData).map(([key, value]) => ({ key, value: String(value) })));
+        if (specData) {
+          if (Array.isArray(specData)) {
+            setSpecs(specData.map((item: any) => ({ key: item.key || '', value: String(item.value || '') })));
+          } else if (typeof specData === 'object') {
+            setSpecs(Object.entries(specData).map(([key, value]) => ({ key, value: String(value) })));
+          }
         }
 
 
@@ -996,8 +1000,9 @@ export default function ProductEditPage() {
       }
 
 
-      const specsObj: Record<string, string> = {};
-      specs.forEach(s => { if (s.key.trim() && s.value.trim()) specsObj[s.key.trim()] = s.value.trim(); });
+      const validSpecs = specs
+        .filter(s => s.key.trim() && s.value.trim())
+        .map(s => ({ key: s.key.trim(), value: s.value.trim() }));
 
       const payload: Record<string, unknown> = {
         sku: form.sku, name: form.name, slug: form.slug, description: processedDescription,
@@ -1007,7 +1012,7 @@ export default function ProductEditPage() {
         is_bulky: form.is_bulky,
         category_id: Number(form.category_id),
         detail: {
-          specifications: Object.keys(specsObj).length > 0 ? specsObj : null,
+          specifications: validSpecs.length > 0 ? validSpecs : null,
         },
         variants: uploadedVariants,
         images: validProductImages,

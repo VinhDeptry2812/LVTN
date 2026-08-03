@@ -1101,8 +1101,9 @@ export default function ProductCreatePage() {
         );
       }
 
-      const specsObj: Record<string, string> = {};
-      specs.forEach(s => { if (s.key.trim() && s.value.trim()) specsObj[s.key.trim()] = s.value.trim(); });
+      const validSpecs = specs
+        .filter(s => s.key.trim() && s.value.trim())
+        .map(s => ({ key: s.key.trim(), value: s.value.trim() }));
 
       const payload: Record<string, unknown> = {
         sku: form.sku, name: form.name, slug: form.slug, description: processedDescription,
@@ -1112,7 +1113,7 @@ export default function ProductCreatePage() {
         is_bulky: form.is_bulky,
         category_id: Number(form.category_id),
         detail: {
-          specifications: Object.keys(specsObj).length > 0 ? specsObj : null,
+          specifications: validSpecs.length > 0 ? validSpecs : null,
         },
         variants: uploadedVariants,
         images: validProductImages,

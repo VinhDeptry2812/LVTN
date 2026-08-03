@@ -22,8 +22,7 @@ export class CreateProductDetailDto {
     },
   })
   @IsOptional()
-  @IsObject()
-  specifications?: Record<string, string>;
+  specifications?: any;
 }
 
 export class CreateProductVariantDto {

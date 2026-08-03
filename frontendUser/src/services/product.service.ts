@@ -20,7 +20,7 @@ export interface ProductFrontend {
   oldPrice?: string;
   category: string;
   rating: number;
-  specs?: Record<string, string>;
+  specs?: Record<string, string> | { key: string; value: string }[] | any;
   variants?: any[];
   createdAt?: string;
   inventoryUpdatedAt?: string;

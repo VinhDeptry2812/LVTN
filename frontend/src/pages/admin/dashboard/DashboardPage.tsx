@@ -170,7 +170,7 @@ export default function DashboardPage() {
 
   const isStaff = profile?.role === 'staff';
 
-  // 8 thẻ Thống kê quản trị toàn diện (2 hàng)
+  // 4 thẻ Thống kê quản trị chính (1 hàng)
   const statCards = [
     ...(isStaff ? [] : [{
       label: 'Tổng doanh thu',
@@ -199,34 +199,6 @@ export default function DashboardPage() {
       icon: Package,
       color: 'from-violet-500 to-purple-600',
       shadowColor: 'shadow-violet-500/20',
-    },
-    ...(isStaff ? [] : [{
-      label: 'Lợi nhuận ước tính',
-      value: formatPrice(Math.round((stats?.revenue || 0) * 0.65)),
-      icon: TrendingUp,
-      color: 'from-teal-500 to-cyan-600',
-      shadowColor: 'shadow-teal-500/20',
-    }]),
-    {
-      label: 'Cảnh báo tồn kho',
-      value: lowStockCount,
-      icon: AlertTriangle,
-      color: 'from-rose-500 to-red-600',
-      shadowColor: 'shadow-rose-500/20',
-    },
-    {
-      label: 'Khách hàng hệ thống',
-      value: stats?.totalRegisteredCustomers !== undefined ? stats.totalRegisteredCustomers : (stats?.customerCount || 0),
-      icon: Users,
-      color: 'from-fuchsia-500 to-pink-600',
-      shadowColor: 'shadow-fuchsia-500/20',
-    },
-    {
-      label: 'Yêu cầu đổi / trả',
-      value: returnOrdersCount,
-      icon: RotateCw,
-      color: 'from-amber-500 to-orange-600',
-      shadowColor: 'shadow-amber-500/20',
     },
   ];
 

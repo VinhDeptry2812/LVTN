@@ -60,6 +60,15 @@ const getAvatarStyle = (name: string) => {
   return pastelBgClasses[code % pastelBgClasses.length];
 };
 
+const getSpecValue = (specs: any, keyName: string): string | undefined => {
+  if (!specs) return undefined;
+  if (Array.isArray(specs)) {
+    const found = specs.find((s: any) => s && (s.key === keyName || s.key?.toLowerCase() === keyName.toLowerCase()));
+    return found?.value;
+  }
+  return specs[keyName];
+};
+
 const formatAttributes = (attributes: Record<string, any> | undefined) => {
   if (!attributes || Object.keys(attributes).length === 0) return '';
   return Object.values(attributes)
@@ -356,7 +365,7 @@ export default function ProductDetailPage() {
     setIsAdding('loading');
 
     // Determine material string for the variant, or default
-    let materialStr = product.specs?.['Chất liệu'] || product.specs?.material || 'Mặc định';
+    let materialStr = getSpecValue(product.specs, 'Chất liệu') || getSpecValue(product.specs, 'material') || 'Mặc định';
     if (currentVariant && currentVariant.attributes && Object.keys(currentVariant.attributes).length > 0) {
       materialStr = formatAttributes(currentVariant.attributes);
     }
@@ -404,7 +413,7 @@ export default function ProductDetailPage() {
       return;
     }
 
-    let materialStr = product.specs?.['Chất liệu'] || product.specs?.material || 'Mặc định';
+    let materialStr = getSpecValue(product.specs, 'Chất liệu') || getSpecValue(product.specs, 'material') || 'Mặc định';
     if (currentVariant && currentVariant.attributes && Object.keys(currentVariant.attributes).length > 0) {
       materialStr = formatAttributes(currentVariant.attributes);
     }
@@ -809,9 +818,16 @@ export default function ProductDetailPage() {
               )}
 
               {/* Specifications (Moved below variants) */}
-              {product.specs && Object.keys(product.specs).length > 0 && (
+              {product.specs && (
+                Array.isArray(product.specs) 
+                  ? product.specs.length > 0 
+                  : Object.keys(product.specs).length > 0
+              ) && (
                 <div className="py-2 space-y-1 !mt-2">
-                  {Object.entries(product.specs).map(([key, value]) => (
+                  {(Array.isArray(product.specs)
+                    ? product.specs.map((item: any) => [item.key, item.value])
+                    : Object.entries(product.specs)
+                  ).map(([key, value]) => (
                     <p key={key} className="text-body-sm text-on-surface">
                       <span className="font-bold capitalize">{key}: </span><br />
                       <span className="text-on-surface-variant whitespace-pre-line">{value}</span>
