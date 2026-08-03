@@ -33,7 +33,7 @@ export class ProductVariant {
 
   @Column({
     type: 'decimal',
-    precision: 12,
+    precision: 15,
     scale: 2,
     default: 0,
     transformer: {
@@ -43,7 +43,7 @@ export class ProductVariant {
   })
   import_price: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
   price_adjustment: number;
 
   @Column({ nullable: true })

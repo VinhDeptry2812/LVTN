@@ -61,6 +61,7 @@ interface DashboardStats {
   pendingOrders: number;
   completedOrdersCount?: number;
   customerCount?: number;
+  totalRegisteredCustomers?: number;
   topCategory?: {
     name: string;
     percent: number;
@@ -215,7 +216,7 @@ export default function DashboardPage() {
     },
     {
       label: 'Khách hàng hệ thống',
-      value: stats?.customerCount || 0,
+      value: stats?.totalRegisteredCustomers !== undefined ? stats.totalRegisteredCustomers : (stats?.customerCount || 0),
       icon: Users,
       color: 'from-fuchsia-500 to-pink-600',
       shadowColor: 'shadow-fuchsia-500/20',
@@ -267,12 +268,15 @@ export default function DashboardPage() {
       bgColor: 'bg-blue-50',
     },
     {
-      title: 'Khách hàng',
+      title: 'Khách mua hàng',
       val:
         stats?.customerCount !== undefined
-          ? `+${stats.customerCount}`
+          ? `${stats.customerCount}`
           : '0',
-      sub: 'Khách hàng đã phát sinh đơn',
+      sub:
+        stats?.totalRegisteredCustomers !== undefined
+          ? `Trên tổng số ${stats.totalRegisteredCustomers} tài khoản hệ thống`
+          : 'Khách hàng đã phát sinh đơn',
       icon: Users,
       iconColor: 'text-indigo-500',
       bgColor: 'bg-indigo-50',

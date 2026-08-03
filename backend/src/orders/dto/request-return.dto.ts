@@ -16,7 +16,7 @@ export class RequestReturnDto {
 
   @IsNotEmpty()
   @IsArray()
-  items: number[];
+  items: any[];
 
   @IsNotEmpty()
   @IsString()

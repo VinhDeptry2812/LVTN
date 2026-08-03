@@ -30,7 +30,7 @@ export class OrderReturn {
   images: string[] | null;
 
   @Column({ type: 'jsonb', nullable: true })
-  items: number[] | null;
+  items: any;
 
   @Column({ type: 'text', nullable: true })
   rejected_reason: string | null;

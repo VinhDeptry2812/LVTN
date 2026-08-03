@@ -37,9 +37,13 @@ async function bootstrap() {
   // Bật ValidationPipe tự động ép kiểu dữ liệu DTO/Query Parameters
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,
+      whitelist: true, 
+      //Tự động loại bỏ tất cả các thuộc tính rác hoặc nhạy cảm mà người
+      //dùng đính kèm vào Body Request nhưng không được khai báo trong DTO
       transform: true,
       transformOptions: { enableImplicitConversion: true },
+      //Tự động ép kiểu dữ liệu từ chuỗi (String) trên Query Parameter
+      //thành đúng kiểu mong muốn (như number, boolean) mà không cần ép kiểu thủ công.
     }),
   );
 

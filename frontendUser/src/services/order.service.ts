@@ -50,7 +50,7 @@ export interface RequestReturnPayload {
   reason: string;
   description?: string;
   images?: string[];
-  items: number[];
+  items: number[] | { itemId: number; quantity: number }[];
   action_type: 'refund' | 'exchange';
 }
 

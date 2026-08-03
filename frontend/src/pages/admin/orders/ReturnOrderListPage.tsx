@@ -42,11 +42,15 @@ interface OrderItem {
   price: number;
   quantity: number;
   product: {
+    id: number;
     name: string;
     sku?: string;
     images?: ProductImage[];
   };
-  variant?: { attributes: Record<string, string> };
+  variant?: { 
+    id: number;
+    attributes: Record<string, string>
+   };
 }
 
 interface Order {
@@ -460,8 +464,89 @@ export default function ReturnOrderListPage() {
                 </h3>
                 <div className="divide-y divide-slate-100">
                   {selectedOrder.items.map(item => {
-                    const isDefective = selectedOrder.return_items?.includes(item.id);
-                    if (!isDefective) return null; // Chỉ hiển thị các item lỗi cần đổi trả
+                    const returnInfo = (() => {
+                      const parseReturnItemsHelper = (raw: any): { itemId: number; quantity: number | null }[] => {
+                        if (!raw) return [];
+                        let items = raw;
+                        while (typeof items === 'string') {
+                          try {
+                            const parsed = JSON.parse(items);
+                            if (parsed === items) break;
+                            items = parsed;
+                          } catch {
+                            break;
+                          }
+                        }
+                        if (!items) return [];
+                        if (typeof items === 'number' || typeof items === 'string') {
+                          const num = Number(items);
+                          return isNaN(num) || num <= 0 ? [] : [{ itemId: num, quantity: null }];
+                        }
+                        if (typeof items === 'object' && !Array.isArray(items)) {
+                          if (Array.isArray(items.items)) {
+                            return parseReturnItemsHelper(items.items);
+                          }
+                          const possibleId = items.itemId ?? items.id ?? items.productId ?? items.product_id;
+                          if (possibleId !== undefined && possibleId !== null) {
+                            const num = Number(possibleId);
+                            if (!isNaN(num) && num > 0) {
+                              return [{ itemId: num, quantity: items.quantity ? Number(items.quantity) : null }];
+                            }
+                          }
+                          return Object.entries(items)
+                            .map(([k, v]) => ({
+                              itemId: Number(k),
+                              quantity: typeof v === 'number' ? v : (v as any)?.quantity ? Number((v as any).quantity) : null,
+                            }))
+                            .filter((i) => !isNaN(i.itemId) && i.itemId > 0);
+                        }
+                        if (Array.isArray(items)) {
+                          return items
+                            .map((ri: any) => {
+                              if (typeof ri === 'number' || typeof ri === 'string') {
+                                const num = Number(ri);
+                                return { itemId: isNaN(num) ? 0 : num, quantity: null };
+                              }
+                              if (typeof ri === 'object' && ri !== null) {
+                                const id = ri.itemId ?? ri.id;
+                                const num = Number(id);
+                                return {
+                                  itemId: isNaN(num) ? 0 : num,
+                                  quantity: ri.quantity ? Number(ri.quantity) : null,
+                                };
+                              }
+                              return { itemId: 0, quantity: null };
+                            })
+                            .filter((i) => i.itemId > 0);
+                        }
+                        return [];
+                      };
+
+                      const rawItems = selectedOrder.return_items || (selectedOrder as any).return_request?.items;
+                      const parsedReturnItems = parseReturnItemsHelper(rawItems);
+
+                      if (parsedReturnItems.length === 0 && (selectedOrder.return_items || (selectedOrder as any).return_request)) {
+                        return {
+                          isDefective: true,
+                          qty: item.quantity,
+                        };
+                      }
+
+                      const match = parsedReturnItems.find((ri) => Number(ri.itemId) === Number(item.id));
+
+                      if (match) {
+                        return {
+                          isDefective: true,
+                          qty: match.quantity
+                            ? Math.min(Math.max(Number(match.quantity), 1), item.quantity)
+                            : item.quantity,
+                        };
+                      }
+
+                      return null;
+                    })();
+
+                    if (!returnInfo || !returnInfo.isDefective) return null; // Chỉ hiển thị các item lỗi cần đổi trả
 
                     const primaryImg = item.product.images?.find(img => img.is_primary)?.image_url;
 
@@ -495,7 +580,9 @@ export default function ReturnOrderListPage() {
                         </div>
                         <div className="text-right shrink-0">
                           <p className="font-semibold text-slate-900">{formatPrice(item.price)}</p>
-                          <p className="text-slate-400 mt-0.5">Số lượng lỗi: x{item.quantity}</p>
+                          <p className="text-rose-600 font-semibold mt-0.5">
+                            Số lượng lỗi: x{returnInfo.qty} <span className="text-[10px] text-slate-400 font-normal">(Đã mua: x{item.quantity})</span>
+                          </p>
                         </div>
                       </div>
                     );

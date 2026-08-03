@@ -29,7 +29,20 @@ const getProductImage = (item: any) => {
   }
 
   if (item?.product?.image) return item.product.image;
-  return 'https://res.cloudinary.com/dblkv5veh/image/upload/v1784303294/Image-not-found_dm03kv.png';
+};
+
+const formatAttributes = (attributes: any) => {
+  if (!attributes || Object.keys(attributes).length === 0) return '';
+  return Object.values(attributes)
+    .map((val: any) => {
+      const valStr = String(val);
+      if (valStr.includes('|')) {
+        return valStr.split('|')[0].trim();
+      }
+      return valStr.trim();
+    })
+    .filter((val: string) => !val.startsWith('#'))
+    .join(' | ');
 };
 
 const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
@@ -60,6 +73,7 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
   // States for Return Request Modal
   const [returnOrder, setReturnOrder] = useState<any | null>(null);
   const [selectedReturnItems, setSelectedReturnItems] = useState<number[]>([]);
+  const [returnQuantities, setReturnQuantities] = useState<Record<number, number>>({});
   const [returnReason, setReturnReason] = useState<string>(
     'Sản phẩm bị nứt, vỡ, trầy xước bề mặt gỗ'
   );
@@ -222,19 +236,6 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
       toast.error('Đơn hàng không có sản phẩm nào để mua lại.');
       return;
     }
-
-    const formatAttributes = (attributes: any) => {
-      if (!attributes || Object.keys(attributes).length === 0) return '';
-      return Object.values(attributes)
-        .map((val: any) => {
-          const valStr = String(val);
-          if (valStr.includes('|')) {
-            return valStr.split('|')[0].trim();
-          }
-          return valStr.trim();
-        })
-        .join('|');
-    };
 
     try {
       let addedCount = 0;
@@ -431,7 +432,14 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
 
   const handleOpenReturnModal = (order: any) => {
     setReturnOrder(order);
-    setSelectedReturnItems(order.items?.map((item: any) => item.id) || []);
+    setSelectedReturnItems([]);
+    const initialQtys: Record<number, number> = {};
+    if (order.items) {
+      order.items.forEach((i: any) => {
+        initialQtys[i.id] = i.quantity || 1;
+      });
+    }
+    setReturnQuantities(initialQtys);
     setReturnReason('Sản phẩm bị nứt, vỡ, trầy xước bề mặt gỗ');
     setReturnActionType('refund');
     setReturnDescription('');
@@ -443,10 +451,27 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
     });
   };
 
+  const handleUpdateReturnQuantity = (itemId: number, delta: number, maxQty: number) => {
+    setReturnQuantities((prev) => {
+      const current = prev[itemId] || maxQty;
+      const next = Math.min(Math.max(current + delta, 1), maxQty);
+      return { ...prev, [itemId]: next };
+    });
+  };
+
   const handleToggleReturnItem = (itemId: number) => {
     setSelectedReturnItems((prev) =>
       prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId]
     );
+  };
+
+  const handleToggleAllReturnItems = () => {
+    if (!returnOrder || !returnOrder.items) return;
+    if (selectedReturnItems.length === returnOrder.items.length) {
+      setSelectedReturnItems([]);
+    } else {
+      setSelectedReturnItems(returnOrder.items.map((item: any) => item.id));
+    }
   };
 
   const handleUploadReturnImage = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -497,32 +522,50 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
         finalImageUrls = [...finalImageUrls, ...uploadResults.filter(Boolean)];
       }
 
+      const itemsPayload = selectedReturnItems.map((itemId) => {
+        const item = returnOrder.items?.find((i: any) => i.id === itemId);
+        return {
+          itemId,
+          quantity: returnQuantities[itemId] ?? (item?.quantity || 1),
+        };
+      });
+
       const payload = {
         reason: returnReason,
         description: returnDescription,
         images: finalImageUrls,
-        items: selectedReturnItems,
+        items: itemsPayload,
         action_type: returnActionType,
       };
 
       await requestReturnOrder(returnOrder.id, payload);
+
+      const totalReturnValue = returnOrder.items
+        ?.filter((item: any) => selectedReturnItems.includes(item.id))
+        .reduce((sum: number, item: any) => {
+          const qty = returnQuantities[item.id] ?? (item.quantity || 1);
+          return sum + Number(item.price || 0) * qty;
+        }, 0);
 
       const newRequest = {
         orderId: returnOrder.id,
         requestDate: new Date().toISOString(),
         selectedItems: selectedReturnItems.map((itemId) => {
           const item = returnOrder.items.find((i: any) => i.id === itemId);
+          const qty = returnQuantities[itemId] ?? (item?.quantity || 1);
           return {
             itemId,
-            productName: item?.product.name,
-            quantity: item?.quantity,
-            price: item?.price,
+            productName: item?.product?.name || 'Sản phẩm',
+            quantity: qty,
+            price: item?.price || 0,
+            image: getProductImage(item),
           };
         }),
         reason: returnReason,
         description: returnDescription,
         images: finalImageUrls,
         action_type: returnActionType,
+        totalReturnValue: totalReturnValue || 0,
       };
 
       setSubmittedReturnInfo(newRequest);
@@ -1142,18 +1185,6 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                 </h4>
                 <div className="divide-y divide-outline-variant/20 max-h-[300px] overflow-y-auto border border-outline-variant/25 rounded-sm bg-white shadow-sm">
                   {selectedOrder.items?.map((item: any) => {
-                    const formatAttributes = (attributes: any) => {
-                      if (!attributes || Object.keys(attributes).length === 0) return '';
-                      return Object.values(attributes)
-                        .map((val: any) => {
-                          const valStr = String(val);
-                          if (valStr.includes('|')) {
-                            return valStr.split('|')[0].trim();
-                          }
-                          return valStr.trim();
-                        })
-                        .join(' | ');
-                    };
                     const material =
                       item.variant?.attributes && Object.keys(item.variant.attributes).length > 0
                         ? formatAttributes(item.variant.attributes)
@@ -1179,7 +1210,7 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                           <h5 className="font-semibold text-sm text-on-surface truncate">
                             {item.product?.name || 'Sản phẩm'}
                           </h5>
-                          <p className="text-xs text-on-surface-variant/70 mt-0.5">Biến thể: {material}</p>
+                          <p className="text-xs text-on-surface-variant/70 mt-0.5">Loại: {material}</p>
                           <p className="text-xs text-on-surface-variant/70 mt-0.5">
                             Số lượng:{' '}
                             <span className="font-semibold text-on-surface">{item.quantity}</span>
@@ -1215,6 +1246,231 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                   })}
                 </div>
               </div>
+
+              {/* Thông tin yêu cầu đổi trả nếu có */}
+              {(() => {
+                const returnReq = selectedOrder.return_request || (
+                  ((selectedOrder as any).return_items || (selectedOrder as any).return_reason) ? {
+                    action_type: (selectedOrder as any).return_action_type || 'refund',
+                    reason: (selectedOrder as any).return_reason || 'Yêu cầu đổi trả',
+                    description: (selectedOrder as any).return_description || '',
+                    items: (selectedOrder as any).return_items,
+                    rejected_reason: (selectedOrder as any).rejected_reason,
+                    images: (selectedOrder as any).return_images || [],
+                  } : null
+                );
+
+                if (!returnReq) return null;
+
+                return (
+                  <div className="border border-red-200 bg-red-50/40 p-4 rounded-sm space-y-3">
+                    <div className="flex items-center justify-between border-b border-red-200/60 pb-2">
+                      <div className="flex items-center gap-2 text-red-700 font-bold uppercase tracking-wider text-xs">
+                        <span className="material-symbols-outlined text-[18px]">assignment_return</span>
+                        Thông tin yêu cầu đổi trả
+                      </div>
+                      <span
+                        className={`px-2.5 py-0.5 text-xs font-semibold rounded-full border ${
+                          selectedOrder.status === 'return_approved'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                            : selectedOrder.status === 'return_rejected'
+                            ? 'bg-red-100 text-red-800 border-red-300'
+                            : 'bg-amber-50 text-amber-700 border-amber-300'
+                        }`}
+                      >
+                        {selectedOrder.status === 'return_approved'
+                          ? 'Chấp nhận đổi trả'
+                          : selectedOrder.status === 'return_rejected'
+                          ? 'Bị từ chối'
+                          : 'Chờ xử lý'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-on-surface-variant">
+                      <div>
+                        <span className="font-semibold text-on-surface">Phương thức yêu cầu:</span>{' '}
+                        <span className="font-medium text-red-600">
+                          {returnReq.action_type === 'exchange'
+                            ? 'Đổi mới 1-1'
+                            : 'Trả hàng & Hoàn tiền'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-on-surface">Lý do chính:</span>{' '}
+                        {returnReq.reason}
+                      </div>
+                    </div>
+
+                    {returnReq.description && (
+                      <div className="text-xs text-on-surface-variant">
+                        <span className="font-semibold text-on-surface">Mô tả chi tiết:</span>{' '}
+                        <p className="italic bg-white/70 p-2 rounded border border-red-100 mt-1">
+                          "{returnReq.description}"
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Danh sách sản phẩm được yêu cầu đổi trả */}
+                    <div className="space-y-2 border-t border-red-200/60 pt-3">
+                      <span className="text-xs font-bold text-on-surface uppercase tracking-wider block">
+                        Danh sách sản phẩm yêu cầu đổi trả:
+                      </span>
+                      <div className="divide-y divide-red-200/40 bg-white/80 rounded border border-red-200/60 overflow-hidden">
+                        {(() => {
+                          const parseReturnItemsHelper = (raw: any): { itemId: number; quantity: number | null }[] => {
+                            if (!raw) return [];
+                            let items = raw;
+                            while (typeof items === 'string') {
+                              try {
+                                const parsed = JSON.parse(items);
+                                if (parsed === items) break;
+                                items = parsed;
+                              } catch {
+                                break;
+                              }
+                            }
+                            if (!items) return [];
+                            if (typeof items === 'number' || typeof items === 'string') {
+                              const num = Number(items);
+                              return isNaN(num) || num <= 0 ? [] : [{ itemId: num, quantity: null }];
+                            }
+                            if (typeof items === 'object' && !Array.isArray(items)) {
+                              if (Array.isArray(items.items)) {
+                                return parseReturnItemsHelper(items.items);
+                              }
+                              const possibleId = items.itemId ?? items.id ?? items.productId ?? items.product_id;
+                              if (possibleId !== undefined && possibleId !== null) {
+                                const num = Number(possibleId);
+                                if (!isNaN(num) && num > 0) {
+                                  return [{ itemId: num, quantity: items.quantity ? Number(items.quantity) : null }];
+                                }
+                              }
+                              return Object.entries(items)
+                                .map(([k, v]) => ({
+                                  itemId: Number(k),
+                                  quantity: typeof v === 'number' ? v : (v as any)?.quantity ? Number((v as any).quantity) : null,
+                                }))
+                                .filter((i) => !isNaN(i.itemId) && i.itemId > 0);
+                            }
+                            if (Array.isArray(items)) {
+                              return items
+                                .map((ri: any) => {
+                                  if (typeof ri === 'number' || typeof ri === 'string') {
+                                    const num = Number(ri);
+                                    return { itemId: isNaN(num) ? 0 : num, quantity: null };
+                                  }
+                                  if (typeof ri === 'object' && ri !== null) {
+                                    const id = ri.itemId ?? ri.id ?? ri.productId ?? ri.product_id;
+                                    const num = Number(id);
+                                    return {
+                                      itemId: isNaN(num) ? 0 : num,
+                                      quantity: ri.quantity ? Number(ri.quantity) : null,
+                                    };
+                                  }
+                                  return { itemId: 0, quantity: null };
+                                })
+                                .filter((i) => i.itemId > 0);
+                            }
+                            return [];
+                          };
+
+                          const rawItems = selectedOrder.return_request?.items || selectedOrder.return_items;
+                          const parsedReturnItems = parseReturnItemsHelper(rawItems);
+
+                          return selectedOrder.items?.map((item: any) => {
+                            let isReturned = false;
+                            let returnedQty = item.quantity || 1;
+
+                            if (parsedReturnItems.length === 0 && selectedOrder.return_request) {
+                              isReturned = true;
+                            } else {
+                              const match = parsedReturnItems.find((ri) => Number(ri.itemId) === Number(item.id));
+
+                              if (match) {
+                                isReturned = true;
+                                returnedQty = match.quantity
+                                  ? Math.min(Math.max(Number(match.quantity), 1), item.quantity)
+                                  : item.quantity;
+                              }
+                            }
+
+                            if (!isReturned) return null;
+
+                          const totalItemPrice = Number(item.price || 0) * returnedQty;
+
+                          return (
+                            <div key={item.id} className="p-3 flex items-center justify-between gap-3 text-xs">
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <img
+                                  src={getProductImage(item)}
+                                  alt={item.product?.name || 'Sản phẩm'}
+                                  className="w-12 h-12 object-cover rounded border border-outline-variant/20 shrink-0 bg-surface-container-low"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h6 className="font-bold text-on-surface truncate text-xs">
+                                      {item.product?.name || 'Sản phẩm'}
+                                    </h6>
+                                    <span className="px-1.5 py-0.5 text-[9px] font-bold bg-red-100 text-red-700 rounded border border-red-200 shrink-0">
+                                      Sản phẩm lỗi
+                                    </span>
+                                  </div>
+                                  {item.variant?.attributes && (
+                                    <p className="text-[10px] text-on-surface-variant/70 mt-0.5 truncate">
+                                      Sản phẩm: {formatAttributes(item.variant.attributes)}
+                                    </p>
+                                  )}
+                                  <div className="text-[11px] text-on-surface-variant mt-1 flex items-center gap-3">
+                                    <span>
+                                      Số lượng trả: <strong className="text-red-600 font-bold">x{returnedQty}</strong>{' '}
+                                      <span className="text-on-surface-variant/60 font-normal">(Đã mua: x{item.quantity})</span>
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="font-bold text-red-600 text-xs block">
+                                  {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalItemPrice)}
+                                </span>
+                                <span className="text-[10px] text-on-surface-variant/70">
+                                  {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(item.price || 0))}/cái
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                      </div>
+                    </div>
+
+                  {returnReq.rejected_reason && (
+                    <div className="text-xs text-red-700 bg-red-100/80 p-2.5 rounded border border-red-200 space-y-1">
+                      <span className="font-bold">Lý do Admin từ chối:</span>
+                      <p className="italic">{returnReq.rejected_reason}</p>
+                    </div>
+                  )}
+
+                  {returnReq.images && returnReq.images.length > 0 && (
+                    <div className="space-y-1">
+                      <span className="text-xs font-semibold text-on-surface">
+                        Hình ảnh bằng chứng:
+                      </span>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {returnReq.images.map((img: string, idx: number) => (
+                          <a key={idx} href={img} target="_blank" rel="noreferrer">
+                            <img
+                              src={img}
+                              alt={`Lỗi ${idx + 1}`}
+                              className="w-14 h-14 object-cover rounded border border-red-200 hover:scale-105 transition-transform"
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
               {/* Tóm tắt chi phí */}
               <div className="space-y-2 border-t border-outline-variant/30 pt-4 text-sm font-medium">
@@ -1342,12 +1598,32 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
 
               {/* Danh sách sản phẩm đổi trả */}
               <div className="space-y-3">
-                <label className="font-bold text-xs uppercase tracking-widest text-on-surface-variant">
-                  Chọn sản phẩm cần đổi trả:
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-xs uppercase tracking-widest text-on-surface-variant">
+                    Chọn sản phẩm cần đổi trả ({selectedReturnItems.length}/{returnOrder.items?.length || 0}):
+                  </label>
+                  {returnOrder.items && returnOrder.items.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={handleToggleAllReturnItems}
+                      className="text-xs text-primary hover:underline font-bold uppercase tracking-wider cursor-pointer"
+                    >
+                      {selectedReturnItems.length === returnOrder.items.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                    </button>
+                  )}
+                </div>
+
+                {selectedReturnItems.length === 0 && (
+                  <p className="text-xs text-red-600 font-medium bg-red-50/80 px-3 py-2 rounded-xs border border-red-200/80 flex items-center gap-1.5 animate-pulse">
+                    <span className="material-symbols-outlined text-sm">warning</span>
+                    Vui lòng tích chọn ít nhất 1 sản phẩm cần đổi trả trước khi gửi yêu cầu.
+                  </p>
+                )}
+
                 <div className="border border-outline-variant/30 rounded-sm divide-y divide-outline-variant/20 overflow-hidden bg-surface-container-lowest/50">
                   {returnOrder.items?.map((item: any) => {
                     const isSelected = selectedReturnItems.includes(item.id);
+                    const currentQty = returnQuantities[item.id] ?? item.quantity;
                     return (
                       <div
                         key={item.id}
@@ -1374,16 +1650,43 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                             {item.product?.name || 'Sản phẩm'}
                           </h5>
                           <p className="text-[10px] text-on-surface-variant/70 mt-0.5">
-                            Biến thể:{' '}
+                            Sản phẩm:{' '}
                             {item.variant?.attributes
-                              ? Object.values(item.variant.attributes).join(' | ')
+                              ? formatAttributes(item.variant.attributes)
                               : 'Mặc định'}
                           </p>
-                          <p className="text-[10px] text-on-surface-variant/70">
-                            Số lượng mua:{' '}
-                            <span className="font-semibold text-on-surface">{item.quantity}</span>
+                          <p className="text-[10px] text-on-surface-variant/70 mt-1">
+                            Đã mua: <strong className="text-on-surface font-semibold">{item.quantity}</strong>
                           </p>
                         </div>
+
+                        {isSelected && (
+                          <div
+                            className="flex items-center gap-1 bg-white border border-outline/30 rounded-xs p-1 shrink-0 shadow-xs"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span className="text-[10px] text-on-surface-variant font-medium mr-1 hidden sm:inline">Số lượng lỗi:</span>
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateReturnQuantity(item.id, -1, item.quantity)}
+                              disabled={currentQty <= 1}
+                              className="w-6 h-6 flex items-center justify-center bg-surface-container-high hover:bg-outline/20 text-on-surface font-bold text-xs disabled:opacity-30 disabled:cursor-not-allowed rounded-xs transition-colors"
+                            >
+                              -
+                            </button>
+                            <span className="w-6 text-center font-bold text-xs text-rose-600">
+                              {currentQty}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateReturnQuantity(item.id, 1, item.quantity)}
+                              disabled={currentQty >= item.quantity}
+                              className="w-6 h-6 flex items-center justify-center bg-surface-container-high hover:bg-outline/20 text-on-surface font-bold text-xs disabled:opacity-30 disabled:cursor-not-allowed rounded-xs transition-colors"
+                            >
+                              +
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -1553,11 +1856,11 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
       {showReturnSuccess && submittedReturnInfo && createPortal(
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-all duration-300">
           <div className="bg-white rounded-sm w-full max-w-md shadow-2xl flex flex-col border border-outline-variant/30 transition-transform duration-300 scale-100 overflow-hidden">
-            <div className="p-8 text-center space-y-6">
-              <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-200">
-                <CheckCircle2 className="w-8 h-8" />
+            <div className="p-6 text-center space-y-5">
+              <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-200">
+                <CheckCircle2 className="w-7 h-7" />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <h3 className="text-base font-bold uppercase tracking-wider text-on-surface">
                   Đã gửi yêu cầu đổi trả
                 </h3>
@@ -1565,9 +1868,34 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                   Mã đơn hàng:{' '}
                   <strong className="text-primary font-mono">#{submittedReturnInfo.orderId}</strong>
                 </p>
-                <p className="text-xs text-emerald-800 bg-emerald-50/50 border border-emerald-100 py-1.5 px-3 rounded-sm font-medium inline-block">
+                <p className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 py-1.5 px-3 rounded-sm font-medium inline-block">
                   Trạng thái: Chờ bộ phận kỹ thuật xác nhận
                 </p>
+              </div>
+
+              {/* Tóm tắt sản phẩm đổi trả */}
+              <div className="text-left bg-surface-container-low/40 p-3.5 rounded-sm border border-outline-variant/20 text-xs space-y-2.5">
+                <div className="flex items-center justify-between font-bold text-[10px] text-on-surface uppercase tracking-wider border-b border-outline-variant/20 pb-2">
+                  <span>Sản phẩm đổi trả ({submittedReturnInfo.selectedItems?.length || 0})</span>
+                  <span>Phương án: {submittedReturnInfo.action_type === 'refund' ? 'Trả hàng' : 'Đổi mới'}</span>
+                </div>
+                <div className="space-y-2 max-h-36 overflow-y-auto pr-1 custom-scrollbar">
+                  {submittedReturnInfo.selectedItems?.map((item: any, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <img
+                          src={item.image}
+                          alt={item.productName}
+                          className="w-8 h-8 object-cover rounded border border-outline-variant/20 shrink-0 bg-surface-container-low"
+                        />
+                        <div className="truncate">
+                          <p className="font-semibold text-on-surface truncate text-xs">{item.productName}</p>
+                          <p className="text-[10px] text-on-surface-variant/70">Số lượng: x{item.quantity}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="text-left bg-surface-container-low/30 p-4 rounded-sm border border-outline-variant/20 text-xs space-y-3">

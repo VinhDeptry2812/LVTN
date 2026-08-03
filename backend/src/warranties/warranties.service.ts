@@ -280,7 +280,7 @@ export class WarrantiesService {
     return await this.warrantyRepository.save(warranty);
   }
 
-  /** Tự động hủy/vô hiệu hóa các phiếu bảo hành thuộc đơn hàng khi được chấp nhận đổi trả */
+  /** Tự động hủy/vô hiệu hóa các phiếu bảo hành thuộc đơn hàng khi bị hủy toàn bộ */
   async voidWarrantiesForOrder(
     orderId: number,
     reason: string,
@@ -299,4 +299,123 @@ export class WarrantiesService {
       }
     }
   }
+
+  /** Tự động hủy/vô hiệu hóa các phiếu bảo hành của các sản phẩm cụ thể được chấp nhận đổi trả */
+  async voidWarrantiesForReturnItems(
+    orderId: number,
+    returnItems: any,
+    reason: string,
+  ): Promise<void> {
+    let items = returnItems;
+    while (typeof items === 'string') {
+      try {
+        const parsed = JSON.parse(items);
+        if (parsed === items) break;
+        items = parsed;
+      } catch (e) {
+        break;
+      }
+    }
+
+    let parsedReturnItems: { itemId: number; quantity: number | null }[] = [];
+    if (items && typeof items === 'object' && !Array.isArray(items)) {
+      if (Array.isArray(items.items)) {
+        items = items.items;
+      } else {
+        parsedReturnItems = Object.entries(items)
+          .map(([k, v]) => ({
+            itemId: Number(k),
+            quantity: typeof v === 'number' ? v : (v as any)?.quantity ? Number((v as any).quantity) : null,
+          }))
+          .filter((i) => !isNaN(i.itemId) && i.itemId > 0);
+      }
+    }
+
+    if (Array.isArray(items)) {
+      parsedReturnItems = items
+        .map((ri: any) => {
+          if (typeof ri === 'number' || typeof ri === 'string') {
+            const num = Number(ri);
+            return { itemId: isNaN(num) ? 0 : num, quantity: null };
+          }
+          if (typeof ri === 'object' && ri !== null) {
+            const id = ri.itemId ?? ri.id;
+            const num = Number(id);
+            return {
+              itemId: isNaN(num) ? 0 : num,
+              quantity: ri.quantity ? Number(ri.quantity) : null,
+            };
+          }
+          return { itemId: 0, quantity: null };
+        })
+        .filter((i) => i.itemId > 0);
+    }
+
+    const isLegacyOrAll = !returnItems || (Array.isArray(parsedReturnItems) && parsedReturnItems.length === 0);
+
+    if (isLegacyOrAll) {
+      // Nếu không có thông tin chi tiết sản phẩm đổi trả, mặc định hủy toàn bộ bảo hành của đơn hàng
+      return this.voidWarrantiesForOrder(orderId, reason);
+    }
+
+    const order = await this.orderRepository.findOne({
+      where: { id: orderId },
+      relations: {
+        items: {
+          product: true,
+          variant: true,
+        },
+      },
+    });
+
+    if (!order || !order.items || order.items.length === 0) {
+      return this.voidWarrantiesForOrder(orderId, reason);
+    }
+
+    const getReturnQty = (item: any) => {
+      const match = parsedReturnItems.find(
+        (ri) => Number(ri.itemId) === Number(item.id),
+      );
+
+      if (match) {
+        const qty = match.quantity
+          ? Math.min(Math.max(Number(match.quantity), 1), item.quantity)
+          : item.quantity;
+        return { isReturned: true, qty };
+      }
+
+      return { isReturned: false, qty: 0 };
+    };
+
+    const warranties = await this.warrantyRepository.find({
+      where: { order_id: orderId },
+    });
+
+    if (!warranties || warranties.length === 0) return;
+
+    for (const item of order.items) {
+      const { isReturned, qty } = getReturnQty(item);
+      if (!isReturned || qty <= 0) continue;
+
+      const productId = item.product ? item.product.id : null;
+      const variantId = item.variant ? item.variant.id : null;
+
+      // Lọc danh sách phiếu bảo hành chưa hủy của sản phẩm/biến thể này
+      const matchingWarranties = warranties.filter(
+        (w) =>
+          w.status !== WarrantyStatus.VOIDED &&
+          Number(w.product_id) === Number(productId) &&
+          (variantId != null ? Number(w.variant_id) === Number(variantId) : true),
+      );
+
+      // Chỉ hủy đúng số lượng `qty` phiếu bảo hành của sản phẩm bị đổi trả
+      const warrantiesToVoid = matchingWarranties.slice(0, qty);
+      for (const w of warrantiesToVoid) {
+        w.status = WarrantyStatus.VOIDED;
+        w.resolution_note = reason;
+        await this.warrantyRepository.save(w);
+      }
+    }
+  }
 }
+

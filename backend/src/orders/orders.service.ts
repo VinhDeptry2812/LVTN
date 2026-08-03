@@ -720,13 +720,21 @@ export class OrdersService implements OnModuleInit {
           } catch (err) {
             this.logger.error('Lỗi khi tự động tạo phiếu bảo hành cho đơn hàng:', err);
           }
-        } else if (
-          [OrderStatus.CANCELLED, OrderStatus.RETURN_APPROVED].includes(dto.status)
-        ) {
+        } else if (dto.status === OrderStatus.CANCELLED) {
           try {
             await this.warrantiesService.voidWarrantiesForOrder(
               order.id,
-              `Hủy phiếu bảo hành do trạng thái đơn hàng cập nhật thành ${dto.status}.`,
+              `Hủy toàn bộ phiếu bảo hành do đơn hàng bị hủy.`,
+            );
+          } catch (err) {
+            this.logger.error('Lỗi khi hủy phiếu bảo hành cho đơn hàng:', err);
+          }
+        } else if (dto.status === OrderStatus.RETURN_APPROVED) {
+          try {
+            await this.warrantiesService.voidWarrantiesForReturnItems(
+              order.id,
+              order.return_request?.items || [],
+              `Hủy phiếu bảo hành do sản phẩm được chấp nhận đổi trả.`,
             );
           } catch (err) {
             this.logger.error('Lỗi khi hủy phiếu bảo hành cho đơn hàng:', err);
@@ -791,6 +799,10 @@ export class OrdersService implements OnModuleInit {
     const completedOrdersCount = Number(rawStats?.completedOrdersCount || 0);
     const revenue = Number(rawStats?.revenue || 0);
     const customerCount = Number(rawStats?.customerCount || 0);
+
+    const totalRegisteredCustomers = await this.dataSource
+      .getRepository(User)
+      .count({ where: { role: UserRole.CUSTOMER } });
 
     // 2. Tính danh mục bán chạy nhất bằng SQL Aggregation
     let topCategory = { name: 'Chưa có', percent: 0 };
@@ -994,6 +1006,7 @@ export class OrdersService implements OnModuleInit {
       completedOrdersCount,
       revenue,
       customerCount,
+      totalRegisteredCustomers,
       topCategory,
       chartData,
       monthlyRevenue: chartData,
@@ -1291,15 +1304,37 @@ export class OrdersService implements OnModuleInit {
       );
     }
 
+    // Helper lấy thông tin sản phẩm đổi trả và số lượng tương ứng
+    const parseReturnItems = (rawItems: any[]): { itemId: number; quantity: number | null }[] => {
+      if (!Array.isArray(rawItems)) return [];
+      return rawItems.map((ri: any) => {
+        if (typeof ri === 'number') {
+          return { itemId: Number(ri), quantity: null };
+        }
+        if (typeof ri === 'object' && ri !== null) {
+          const id = ri.itemId ?? ri.id;
+          return { itemId: Number(id), quantity: ri.quantity ? Number(ri.quantity) : null };
+        }
+        return { itemId: 0, quantity: null };
+      }).filter(i => i.itemId > 0);
+    };
+
+    const returnItemsParsed = parseReturnItems(dto.items);
+
     // Xác nhận các items lỗi gửi lên có nằm trong đơn hàng hay không
-    const orderItemIds = order.items.map((item) => item.id);
-    const invalidItems = dto.items.filter(
-      (itemId) => !orderItemIds.includes(itemId),
-    );
-    if (invalidItems.length > 0) {
-      throw new BadRequestException(
-        `Một số sản phẩm yêu cầu đổi trả không thuộc về đơn hàng này.`,
-      );
+    const orderItemMap = new Map(order.items.map((item) => [item.id, item]));
+    for (const rItem of returnItemsParsed) {
+      const orderItem = orderItemMap.get(rItem.itemId);
+      if (!orderItem) {
+        throw new BadRequestException(
+          `Một số sản phẩm yêu cầu đổi trả không thuộc về đơn hàng này.`,
+        );
+      }
+      if (rItem.quantity !== null && (rItem.quantity < 1 || rItem.quantity > orderItem.quantity)) {
+        throw new BadRequestException(
+          `Số lượng đổi trả cho sản phẩm ${orderItem.product?.name || ''} không hợp lệ (Tối đa ${orderItem.quantity}).`,
+        );
+      }
     }
 
     const updatedOrder = await this.dataSource.transaction(async (manager) => {
@@ -1307,11 +1342,9 @@ export class OrdersService implements OnModuleInit {
       returnRequest.order = order;
       returnRequest.reason = dto.reason;
       returnRequest.description = dto.description || null;
-      returnRequest.images = dto.images || [];
-      returnRequest.items = dto.items;
+      returnRequest.items = returnItemsParsed;
       returnRequest.action_type = dto.action_type || 'refund';
       returnRequest.requested_at = new Date();
-
       const savedReturn = await manager.save(returnRequest);
 
       order.status = OrderStatus.RETURN_PENDING;
@@ -1379,10 +1412,89 @@ export class OrdersService implements OnModuleInit {
         order.return_request.action_type = actionType;
         order.return_request.should_restock = shouldRestock;
 
+        // Helper lấy thông tin số lượng đổi trả cho từng order item
+        const rawReturnItems = order.return_request.items;
+        let items: any = rawReturnItems;
+        const parseReturnItemsHelper = (raw: any): { itemId: number; quantity: number | null }[] => {
+          if (!raw) return [];
+          let items = raw;
+          while (typeof items === 'string') {
+            try {
+              const parsed = JSON.parse(items);
+              if (parsed === items) break;
+              items = parsed;
+            } catch {
+              break;
+            }
+          }
+          if (!items) return [];
+          if (typeof items === 'number' || typeof items === 'string') {
+            const num = Number(items);
+            return isNaN(num) || num <= 0 ? [] : [{ itemId: num, quantity: null }];
+          }
+          if (typeof items === 'object' && !Array.isArray(items)) {
+            if (Array.isArray(items.items)) {
+              return parseReturnItemsHelper(items.items);
+            }
+            const possibleId = items.itemId ?? items.id ?? items.productId ?? items.product_id;
+            if (possibleId !== undefined && possibleId !== null) {
+              const num = Number(possibleId);
+              if (!isNaN(num) && num > 0) {
+                return [{ itemId: num, quantity: items.quantity ? Number(items.quantity) : null }];
+              }
+            }
+            return Object.entries(items)
+              .map(([k, v]) => ({
+                itemId: Number(k),
+                quantity: typeof v === 'number' ? v : (v as any)?.quantity ? Number((v as any).quantity) : null,
+              }))
+              .filter((i) => !isNaN(i.itemId) && i.itemId > 0);
+          }
+          if (Array.isArray(items)) {
+            return items
+              .map((ri: any) => {
+                if (typeof ri === 'number' || typeof ri === 'string') {
+                  const num = Number(ri);
+                  return { itemId: isNaN(num) ? 0 : num, quantity: null };
+                }
+                if (typeof ri === 'object' && ri !== null) {
+                  const id = ri.itemId ?? ri.id;
+                  const num = Number(id);
+                  return {
+                    itemId: isNaN(num) ? 0 : num,
+                    quantity: ri.quantity ? Number(ri.quantity) : null,
+                  };
+                }
+                return { itemId: 0, quantity: null };
+              })
+              .filter((i) => i.itemId > 0);
+          }
+          return [];
+        };
+
+        const parsedReturnItems = parseReturnItemsHelper(order.return_request?.items);
+
+        const getReturnQty = (item: any) => {
+          if (parsedReturnItems.length === 0 && order.return_request) {
+            return { isReturned: true, qty: item.quantity };
+          }
+
+          const match = parsedReturnItems.find((ri) => Number(ri.itemId) === Number(item.id));
+
+          if (match) {
+            const qty = match.quantity
+              ? Math.min(Math.max(Number(match.quantity), 1), item.quantity)
+              : item.quantity;
+            return { isReturned: true, qty };
+          }
+
+          return { isReturned: false, qty: 0 };
+        };
+
         // 1. Nhận hàng trả về từ khách hàng
-        const returnItemIds = order.return_request.items || [];
         for (const item of order.items) {
-          if (returnItemIds.includes(item.id) && item.variant) {
+          const { isReturned, qty } = getReturnQty(item);
+          if (isReturned && item.variant) {
             const variant = await manager.findOne(ProductVariant, {
               where: { id: item.variant.id },
               lock: { mode: 'pessimistic_write' },
@@ -1390,16 +1502,16 @@ export class OrdersService implements OnModuleInit {
             if (variant) {
               const prevStock = variant.stock;
               if (shouldRestock) {
-                variant.stock += item.quantity;
+                variant.stock += qty;
                 await manager.save(variant);
                 await this.logTransaction(
                   manager,
                   variant.id,
-                  item.quantity,
+                  qty,
                   prevStock,
                   variant.stock,
                   'return',
-                  `Chấp nhận trả hàng cho đơn #${order.id} (Hoàn kho)`,
+                  `Chấp nhận trả ${qty} sản phẩm cho đơn #${order.id} (Hoàn kho)`,
                   order.id.toString(),
                 );
               } else {
@@ -1410,7 +1522,7 @@ export class OrdersService implements OnModuleInit {
                   prevStock,
                   prevStock,
                   'return',
-                  `Nhận lại hàng lỗi cho đơn #${order.id} (Không hoàn kho)`,
+                  `Nhận lại ${qty} sản phẩm lỗi cho đơn #${order.id} (Không hoàn kho)`,
                   order.id.toString(),
                 );
               }
@@ -1434,43 +1546,44 @@ export class OrdersService implements OnModuleInit {
           const savedExchangeOrder = await manager.save(exchangeOrder);
 
           for (const item of order.items) {
-            if (returnItemIds.includes(item.id)) {
-              if (item.variant) {
-                const variant = await manager.findOne(ProductVariant, {
-                  where: { id: item.variant.id },
-                  lock: { mode: 'pessimistic_write' },
-                });
-                if (!variant) {
-                  throw new NotFoundException(`Biến thể sản phẩm đổi mới không tồn tại.`);
-                }
-                if (variant.stock < item.quantity) {
+            const { isReturned, qty } = getReturnQty(item);
+            if (isReturned) {
+              const variant = item.variant
+                ? await manager.findOne(ProductVariant, {
+                    where: { id: item.variant.id },
+                    lock: { mode: 'pessimistic_write' },
+                  })
+                : null;
+
+              if (variant) {
+                if (variant.stock < qty) {
                   throw new BadRequestException(
                     `Không đủ hàng tồn kho để đổi mới sản phẩm ${item.product.name}. Chỉ còn lại ${variant.stock} sản phẩm.`,
                   );
                 }
                 const prevStock = variant.stock;
-                variant.stock -= item.quantity;
+                variant.stock -= qty;
                 await manager.save(variant);
 
                 await this.logTransaction(
                   manager,
                   variant.id,
-                  -item.quantity,
+                  -qty,
                   prevStock,
                   variant.stock,
                   'order_sale',
-                  `Xuất kho đổi mới 1-1 cho đơn #${order.id} (Đơn đổi mới #${savedExchangeOrder.id})`,
+                  `Xuất kho ${qty} sản phẩm đổi mới 1-1 cho đơn #${order.id} (Đơn đổi mới #${savedExchangeOrder.id})`,
                   savedExchangeOrder.id.toString(),
                 );
-
-                const exchangeOrderItem = new OrderItem();
-                exchangeOrderItem.order = savedExchangeOrder;
-                exchangeOrderItem.product = item.product;
-                exchangeOrderItem.variant = item.variant;
-                exchangeOrderItem.quantity = item.quantity;
-                exchangeOrderItem.price = 0;
-                await manager.save(exchangeOrderItem);
               }
+
+              const exchangeOrderItem = new OrderItem();
+              exchangeOrderItem.order = savedExchangeOrder;
+              exchangeOrderItem.product = item.product;
+              exchangeOrderItem.variant = item.variant || null;
+              exchangeOrderItem.quantity = qty;
+              exchangeOrderItem.price = 0;
+              await manager.save(exchangeOrderItem);
             }
           }
         }
@@ -1519,7 +1632,12 @@ export class OrdersService implements OnModuleInit {
           ? 'Hủy phiếu bảo hành cũ do sản phẩm đã được thu hồi đổi mới 1-1.'
           : 'Hủy phiếu bảo hành do sản phẩm đã được chấp nhận đổi trả & hoàn tiền.';
       try {
-        await this.warrantiesService.voidWarrantiesForOrder(order.id, voidReason);
+        const rawReturnItems = order.return_request?.items || [];
+        await this.warrantiesService.voidWarrantiesForReturnItems(
+          order.id,
+          rawReturnItems,
+          voidReason,
+        );
       } catch (err) {
         this.logger.error('Lỗi khi tự động hủy phiếu bảo hành:', err);
       }
