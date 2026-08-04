@@ -132,10 +132,21 @@ Yêu cầu về định dạng đầu ra:
 - Sử dụng các thẻ: <h3>, <h4>, <p>, <strong>, <ul>, <li>, và <table> để cấu trúc bài viết thật chuyên nghiệp.
 - KHÔNG sử dụng các câu mở đầu hoặc kết thúc dư thừa như "Dưới đây là HTML...", "Hy vọng bài viết này...", chỉ trả về duy nhất mã HTML mô tả sản phẩm.`;
 
-      const response = await this.ai.models.generateContent({
-        model: 'gemini-flash-latest',
-        contents: prompt,
-      });
+      let response;
+      try {
+        response = await this.ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+        });
+      } catch (firstErr: any) {
+        this.logger.warn(
+          'Model gemini-2.5-flash bận hoặc chạm hạn mức, tự động chuyển sang gemini-flash-latest...',
+        );
+        response = await this.ai.models.generateContent({
+          model: 'gemini-flash-latest',
+          contents: prompt,
+        });
+      }
       return response.text || 'Không thể tạo mô tả cho sản phẩm này.';
     } catch (error) {
       this.logger.error('Lỗi Gemini API:', error);
@@ -354,10 +365,21 @@ ${historyTexts}
 Khách hàng: ${dto.message}
 Tư vấn viên:`;
 
-      const response = await this.ai.models.generateContent({
-        model: 'gemini-flash-latest',
-        contents: fullPrompt,
-      });
+      let response;
+      try {
+        response = await this.ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: fullPrompt,
+        });
+      } catch (firstErr: any) {
+        this.logger.warn(
+          'Model gemini-2.5-flash bận hoặc chạm hạn mức, tự động chuyển sang gemini-flash-latest...',
+        );
+        response = await this.ai.models.generateContent({
+          model: 'gemini-flash-latest',
+          contents: fullPrompt,
+        });
+      }
 
       const fullReply =
         response.text ||
