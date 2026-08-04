@@ -309,15 +309,26 @@ HƯỚNG DẪN BẮT BUỘC: Hãy THÀNH THẬT và LỊCH SỰ thông báo cho 
 
       let currentProductInfo = '';
       if (dto.productId) {
-        const curProd = productsForContext.find((p) => p.id === dto.productId);
-        if (curProd) {
-          const curBase = Number(curProd.base_price);
-          const curDisc = curProd.discount_price ? Number(curProd.discount_price) : null;
-          const curPriceStr = (curDisc && curDisc < curBase)
-            ? `${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(curDisc)} (Giá gốc ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(curBase)}) [ĐANG GIẢM GIÁ]`
-            : `${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(curBase)}`;
+        try {
+          const curProd = await this.productRepository.findOne({
+            where: { id: Number(dto.productId) },
+            relations: { category: true, variants: true },
+          });
+          if (curProd) {
+            const curBase = Number(curProd.base_price);
+            const curDisc = curProd.discount_price ? Number(curProd.discount_price) : null;
+            const curPriceStr = (curDisc && curDisc < curBase)
+              ? `${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(curDisc)} (Giá gốc ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(curBase)}) [ĐANG GIẢM GIÁ]`
+              : `${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(curBase)}`;
 
-          currentProductInfo = `\nLƯU Ý SẢN PHẨM ĐANG XEM: Khách hàng hiện đang xem sản phẩm "${curProd.name}" (ID: ${curProd.id}, Giá: ${curPriceStr}, Tồn kho: ${getStock(curProd)}). Hãy ưu tiên giải đáp các thắc mắc về sản phẩm này nếu khách hỏi.`;
+            const stockNum = getStock(curProd);
+            const stockStr = stockNum > 0 ? `${stockNum} sản phẩm` : 'Hết hàng';
+
+            currentProductInfo = `\nLƯU Ý ĐẶC BIỆT (SẢN PHẨM ĐANG XEM): Khách hàng hiện đang mở xem trực tiếp trang sản phẩm "${curProd.name}" (ID: ${curProd.id}, Danh mục: ${curProd.category?.name || 'Nội thất'}, Giá: ${curPriceStr}, Tồn kho: ${stockStr}, Mô tả: ${curProd.description?.substring(0, 200) || 'Nội thất cao cấp'}).
+Nếu khách hàng đặt các câu hỏi sử dụng từ xưng hô như "cái này", "sản phẩm này", "mẫu này", "nó", "giá sao", "kích thước bao nhiêu", "còn hàng không"... thì BẠN PHẢI ƯU TIÊN HIỂU LÀ KHÁCH HÀNG ĐANG HỎI VỀ SẢN PHẨM "${curProd.name}" NÀY!`;
+          }
+        } catch (e) {
+          this.logger.error('Lỗi khi lấy sản phẩm đang xem:', e);
         }
       }
 

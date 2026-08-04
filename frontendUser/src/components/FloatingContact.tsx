@@ -32,10 +32,18 @@ export default function FloatingContact() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
+    // Kiểm tra xem người dùng có đang ở trang chi tiết sản phẩm không (vd: /product/15)
+    const productMatch = location.pathname.match(/\/product\/(\d+)/);
+    const currentProductId = productMatch ? parseInt(productMatch[1], 10) : undefined;
+
     return (
         <>
             {/* AI Chatbot Window */}
-            <AIChatbot isOpen={isAiChatOpen} onClose={() => setIsAiChatOpen(false)} />
+            <AIChatbot
+                isOpen={isAiChatOpen}
+                onClose={() => setIsAiChatOpen(false)}
+                currentProductId={currentProductId}
+            />
 
             {/* Chỉ hiển thị cụm nút liên hệ khi KHÔNG mở khung Chat AI */}
             {!isAiChatOpen && (
