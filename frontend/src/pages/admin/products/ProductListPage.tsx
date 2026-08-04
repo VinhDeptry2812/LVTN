@@ -77,8 +77,25 @@ export default function ProductListPage() {
 
   // Status updating state
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
+  const [isSyncingVector, setIsSyncingVector] = useState(false);
 
   const { confirmModal, openConfirm, closeConfirm } = useConfirmModal();
+
+  const handleSyncVector = async () => {
+    setIsSyncingVector(true);
+    try {
+      const res = await api.post('/ai/sync-embeddings');
+      toast.success(
+        `Đã đồng bộ AI Vector thành công cho ${res.data.synced}/${res.data.total} sản phẩm!`,
+      );
+    } catch (err: any) {
+      toast.error(
+        'Đồng bộ AI Vector thất bại: ' + (err.response?.data?.message || err.message),
+      );
+    } finally {
+      setIsSyncingVector(false);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -284,13 +301,24 @@ export default function ProductListPage() {
         subtitle="Quản lý và thiết lập thông tin chi tiết các mẫu nội thất"
         icon={Package}
         actions={
-          <Link
-            to="/admin/products/create"
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-none text-xs font-bold transition-all shadow-md shadow-indigo-600/10 hover:shadow-lg hover:shadow-indigo-600/20 hover:-translate-y-0.5"
-          >
-            <Plus size={16} />
-            Thêm sản phẩm mới
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSyncVector}
+              disabled={isSyncingVector}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-none text-xs font-bold transition-all shadow-md shadow-emerald-600/10 hover:shadow-lg hover:shadow-emerald-600/20 cursor-pointer"
+              title="Đồng bộ Vector Embedding 768 chiều cho Chatbot AI"
+            >
+              <Sparkles size={16} className={isSyncingVector ? 'animate-spin' : ''} />
+              {isSyncingVector ? 'Đang đồng bộ...' : 'Đồng bộ AI Vector'}
+            </button>
+            <Link
+              to="/admin/products/create"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-none text-xs font-bold transition-all shadow-md shadow-indigo-600/10 hover:shadow-lg hover:shadow-indigo-600/20 hover:-translate-y-0.5"
+            >
+              <Plus size={16} />
+              Thêm sản phẩm mới
+            </Link>
+          </div>
         }
       />
 

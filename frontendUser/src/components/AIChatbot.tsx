@@ -64,10 +64,11 @@ export default function AIChatbot({ isOpen, onClose, currentProductId }: AIChatb
   };
 
   const quickPrompts = [
-    'Tư vấn sofa phòng khách',
-    'Bàn ăn 4-6 người giá tốt',
-    'Chính sách vận chuyển & bảo hành',
-    'Gợi ý combo trang trí phòng ngủ',
+    'Sofa phòng khách căn hộ ấm cúng',
+    'Bộ bàn ăn gỗ tự nhiên 4-6 người',
+    'Bàn làm việc chống đau mỏi lưng',
+    'Các sản phẩm đang có ưu đãi giảm giá',
+    'Chính sách giao hàng & bảo hành',
   ];
 
   const scrollToBottom = () => {

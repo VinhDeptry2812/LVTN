@@ -33,5 +33,12 @@ export class AiController {
   async chat(@Body() dto: SendChatMessageDto) {
     return this.aiService.chat(dto);
   }
+
+  @Post('sync-embeddings')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async syncEmbeddings() {
+    return this.aiService.syncProductEmbeddings();
+  }
 }
 

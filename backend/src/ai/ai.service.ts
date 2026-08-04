@@ -1,14 +1,14 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { GoogleGenAI } from '@google/genai';
 import { Product } from '../products/product.entity';
 import { Category } from '../categories/category.entity';
 import { SendChatMessageDto } from './dto/chat.dto';
 
 @Injectable()
-export class AiService {
+export class AiService implements OnModuleInit {
   private readonly logger = new Logger(AiService.name);
   private ai: GoogleGenAI;
 
@@ -23,6 +23,66 @@ export class AiService {
     if (apiKey) {
       this.ai = new GoogleGenAI({ apiKey });
     }
+  }
+
+  async onModuleInit() {
+    // Tự động kiểm tra extension pgvector & đồng bộ embedding khi backend khởi chạy
+    setTimeout(() => {
+      this.syncProductEmbeddings().catch((err) =>
+        this.logger.warn('Lỗi tự động đồng bộ embedding:', err.message),
+      );
+    }, 5000);
+  }
+
+  /**
+   * Tạo Vector Embedding cho văn bản sử dụng model text-embedding-004 của Google Gemini
+   */
+  async generateEmbedding(text: string): Promise<number[] | null> {
+    if (!this.ai || !text?.trim()) return null;
+    try {
+      const response = await this.ai.models.embedContent({
+        model: 'gemini-embedding-001',
+        contents: text.trim(),
+        config: { outputDimensionality: 768 }, // Ép về đúng 768 chìu
+      });
+      return response.embeddings?.[0]?.values || null;
+    } catch (error) {
+      this.logger.error('Lỗi khi tạo Vector Embedding:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Đồng bộ Vector Embedding cho tất cả sản phẩm chưa có vector trong CSDL
+   */
+  async syncProductEmbeddings(): Promise<{ synced: number; total: number }> {
+    try {
+      await this.productRepository.query('CREATE EXTENSION IF NOT EXISTS vector;');
+    } catch (e) {
+      this.logger.warn('Không thể khởi tạo extension vector trên Postgres:', e.message);
+    }
+
+    const products = await this.productRepository.find({
+      relations: { category: true },
+    });
+
+    let syncedCount = 0;
+    for (const p of products) {
+      if (!p.embedding) {
+        const textToEmbed = `Tên: ${p.name}. Danh mục: ${p.category?.name || 'Nội thất'}. Mô tả: ${p.description || 'Nội thất cao cấp'}`;
+        const vec = await this.generateEmbedding(textToEmbed);
+        if (vec) {
+          p.embedding = JSON.stringify(vec);
+          await this.productRepository.save(p);
+          syncedCount++;
+        }
+      }
+    }
+
+    if (syncedCount > 0) {
+      this.logger.log(`Đã đồng bộ thành công Vector Embedding cho ${syncedCount}/${products.length} sản phẩm.`);
+    }
+    return { synced: syncedCount, total: products.length };
   }
 
   async generateProductDescription(
@@ -73,7 +133,7 @@ Yêu cầu về định dạng đầu ra:
 - KHÔNG sử dụng các câu mở đầu hoặc kết thúc dư thừa như "Dưới đây là HTML...", "Hy vọng bài viết này...", chỉ trả về duy nhất mã HTML mô tả sản phẩm.`;
 
       const response = await this.ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-flash-latest',
         contents: prompt,
       });
       return response.text || 'Không thể tạo mô tả cho sản phẩm này.';
@@ -117,6 +177,39 @@ Yêu cầu về định dạng đầu ra:
       let isSpecificKeywordSearch = false;
       const searchedKeywords = rawTerms.join(', ');
 
+      // ƯU TIÊN 1: Tìm kiếm ngữ nghĩa bằng Vector Search (pgvector)
+      let vectorMatchedProducts: Product[] = [];
+      try {
+        const userVector = await this.generateEmbedding(dto.message);
+        if (userVector) {
+          const userVectorStr = JSON.stringify(userVector);
+          const rawRes = await this.productRepository.query(
+            `SELECT p.id 
+             FROM products p 
+             JOIN product_variants v ON v.product_id = p.id 
+             WHERE p.is_active = true 
+               AND p.embedding IS NOT NULL 
+               AND v.stock > 0 
+             GROUP BY p.id, p.embedding 
+             ORDER BY p.embedding::vector <=> $1::vector 
+             LIMIT 15`,
+            [userVectorStr],
+          );
+
+          if (rawRes && rawRes.length > 0) {
+            const ids = rawRes.map((r: any) => r.id);
+            const prods = await this.productRepository.find({
+              where: { id: In(ids) },
+              relations: { category: true, images: true, variants: true },
+            });
+            prods.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+            vectorMatchedProducts = prods;
+          }
+        }
+      } catch (err) {
+        this.logger.warn('Không thể tìm kiếm bằng pgvector (sẽ dùng bộ lọc từ khóa làm fallback):', err.message);
+      }
+
       if (isDiscountQuery) {
         matchedProducts = await this.productRepository
           .createQueryBuilder('product')
@@ -129,6 +222,8 @@ Yêu cầu về định dạng đầu ra:
           .andWhere('variants.stock > 0')
           .take(30)
           .getMany();
+      } else if (vectorMatchedProducts.length > 0) {
+        matchedProducts = vectorMatchedProducts;
       } else if (rawTerms.length > 0) {
         isSpecificKeywordSearch = true;
         const query = this.productRepository
@@ -260,11 +355,13 @@ Khách hàng: ${dto.message}
 Tư vấn viên:`;
 
       const response = await this.ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-flash-latest',
         contents: fullPrompt,
       });
 
-      const fullReply = response.text || 'Xin lỗi, em chưa hiểu rõ ý của anh/chị. Anh/chị có thể nói rõ hơn nhu cầu tư vấn nội thất không ạ?';
+      const fullReply =
+        response.text ||
+        'Xin lỗi, em chưa hiểu rõ ý của anh/chị. Anh/chị có thể nói rõ hơn nhu cầu tư vấn nội thất không ạ?';
 
       // 4. Trích xuất sản phẩm gợi ý nếu có cú pháp [RECOMMEND: 1, 2]
       let suggestedProducts: any[] = [];
@@ -295,11 +392,28 @@ Tư vấn viên:`;
         reply: cleanReply,
         suggestedProducts,
       };
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Lỗi khi Chat AI tư vấn:', error);
-      throw new InternalServerErrorException(
-        'Rất tiếc, hệ thống tư vấn AI đang bận. Vui lòng thử lại sau ít phút.',
-      );
+
+      const isQuotaError =
+        error?.status === 429 ||
+        error?.message?.includes('429') ||
+        error?.message?.includes('quota') ||
+        error?.message?.includes('RESOURCE_EXHAUSTED');
+
+      if (isQuotaError) {
+        return {
+          reply:
+            'Dạ hệ thống trợ lý AI hiện đang tiếp nhận quá nhiều lượt tư vấn cùng lúc. Anh/chị vui lòng chờ khoảng 15 - 20 giây rồi thử gửi lại câu hỏi giúp em nhé! 🙏',
+          suggestedProducts: [],
+        };
+      }
+
+      return {
+        reply:
+          'Rất tiếc, hệ thống tư vấn AI đang gặp sự cố kết nối tạm thời. Anh/chị vui lòng thử lại sau giây lát nhé!',
+        suggestedProducts: [],
+      };
     }
   }
 }

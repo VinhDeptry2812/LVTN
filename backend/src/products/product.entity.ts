@@ -44,6 +44,9 @@ export class Product {
   @Column({ default: true })
   is_active: boolean;
 
+  @Column({ type: 'text', nullable: true })
+  embedding: string | null;
+
   @ManyToOne(() => Category, (category) => category.products, {
     onDelete: 'RESTRICT',
   })
