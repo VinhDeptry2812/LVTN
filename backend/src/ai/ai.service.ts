@@ -95,7 +95,9 @@ Yêu cầu về định dạng đầu ra:
       const getStock = (p: Product) =>
         p.variants?.reduce((sum, v) => sum + Number(v.stock || 0), 0) ?? 0;
 
-      // 1. Phân tích từ khóa từ tin nhắn khách để lọc sản phẩm còn hàng
+      // 1. Phân tích ý định & từ khóa từ tin nhắn khách để lọc sản phẩm còn hàng
+      const isDiscountQuery = /giảm giá|khuyến mãi|sale|ưu đãi|chiết khấu|giam gia|khuyen mai/i.test(dto.message);
+
       const rawTerms = dto.message
         .toLowerCase()
         .replace(/[^\w\sàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]/g, ' ')
@@ -106,7 +108,8 @@ Yêu cầu về định dạng đầu ra:
             ![
               'cho', 'mình', 'tư', 'vấn', 'hỏi', 'cần', 'tìm', 'xem', 'có', 'không',
               'giá', 'shop', 'cửa', 'hàng', 'bên', 'em', 'anh', 'chị', 'tôi', 'bạn',
-              'bao', 'nhiêu', 'nào', 'được', 'chưa', 'mẫu', 'loại', 'muốn', 'mua', 'xin'
+              'bao', 'nhiêu', 'nào', 'được', 'chưa', 'mẫu', 'loại', 'muốn', 'mua', 'xin',
+              'giảm', 'khuyến', 'mãi', 'sale', 'ưu', 'đãi'
             ].includes(w),
         );
 
@@ -114,7 +117,19 @@ Yêu cầu về định dạng đầu ra:
       let isSpecificKeywordSearch = false;
       const searchedKeywords = rawTerms.join(', ');
 
-      if (rawTerms.length > 0) {
+      if (isDiscountQuery) {
+        matchedProducts = await this.productRepository
+          .createQueryBuilder('product')
+          .leftJoinAndSelect('product.category', 'category')
+          .leftJoinAndSelect('product.images', 'images')
+          .leftJoinAndSelect('product.variants', 'variants')
+          .where('product.is_active = :active', { active: true })
+          .andWhere('product.discount_price IS NOT NULL')
+          .andWhere('product.discount_price < product.base_price')
+          .andWhere('variants.stock > 0')
+          .take(30)
+          .getMany();
+      } else if (rawTerms.length > 0) {
         isSpecificKeywordSearch = true;
         const query = this.productRepository
           .createQueryBuilder('product')
@@ -167,11 +182,22 @@ HƯỚNG DẪN BẮT BUỘC: Hãy THÀNH THẬT và LỊCH SỰ thông báo cho 
       const catalogSummary = productsForContext
         .map((p) => {
           const categoryName = p.category ? p.category.name : 'Nội thất';
-          const priceFormatted = new Intl.NumberFormat('vi-VN', {
-            style: 'currency',
-            currency: 'VND',
-          }).format(Number(p.discount_price || p.base_price));
-          return `- ID: ${p.id} | Tên: ${p.name} | Danh mục: ${categoryName} | Giá: ${priceFormatted} | Tồn kho: ${getStock(p)} | Mô tả: ${p.description?.substring(0, 100) || 'Nội thất cao cấp'}`;
+          const basePriceNum = Number(p.base_price);
+          const discountPriceNum = p.discount_price ? Number(p.discount_price) : null;
+          const isDiscounted = discountPriceNum !== null && discountPriceNum < basePriceNum;
+
+          let priceInfo = '';
+          if (isDiscounted) {
+            const originalPrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(basePriceNum);
+            const salePrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(discountPriceNum);
+            const percent = Math.round(((basePriceNum - discountPriceNum) / basePriceNum) * 100);
+            priceInfo = `Giá khuyến mãi: ${salePrice} (Giá gốc: ${originalPrice}, GIẢM ${percent}%) [ĐANG GIẢM GIÁ/SALE]`;
+          } else {
+            const priceFormatted = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(basePriceNum);
+            priceInfo = `Giá: ${priceFormatted}`;
+          }
+
+          return `- ID: ${p.id} | Tên: ${p.name} | Danh mục: ${categoryName} | ${priceInfo} | Tồn kho: ${getStock(p)} | Mô tả: ${p.description?.substring(0, 100) || 'Nội thất cao cấp'}`;
         })
         .join('\n');
 
@@ -179,7 +205,13 @@ HƯỚNG DẪN BẮT BUỘC: Hãy THÀNH THẬT và LỊCH SỰ thông báo cho 
       if (dto.productId) {
         const curProd = productsForContext.find((p) => p.id === dto.productId);
         if (curProd) {
-          currentProductInfo = `\nLƯU Ý SẢN PHẨM ĐANG XEM: Khách hàng hiện đang xem sản phẩm "${curProd.name}" (ID: ${curProd.id}, Giá: ${curProd.discount_price || curProd.base_price}đ, Tồn kho: ${getStock(curProd)}). Hãy ưu tiên giải đáp các thắc mắc về sản phẩm này nếu khách hỏi.`;
+          const curBase = Number(curProd.base_price);
+          const curDisc = curProd.discount_price ? Number(curProd.discount_price) : null;
+          const curPriceStr = (curDisc && curDisc < curBase)
+            ? `${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(curDisc)} (Giá gốc ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(curBase)}) [ĐANG GIẢM GIÁ]`
+            : `${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(curBase)}`;
+
+          currentProductInfo = `\nLƯU Ý SẢN PHẨM ĐANG XEM: Khách hàng hiện đang xem sản phẩm "${curProd.name}" (ID: ${curProd.id}, Giá: ${curPriceStr}, Tồn kho: ${getStock(curProd)}). Hãy ưu tiên giải đáp các thắc mắc về sản phẩm này nếu khách hỏi.`;
         }
       }
 
@@ -208,7 +240,11 @@ NGUYÊN TẮC TƯ VẤN:
 6. Nếu khách hỏi thông tin không liên quan tới nội thất hoặc mua sắm, hãy lịch sự lái câu chuyện về dịch vụ nội thất của cửa hàng.
 7. XỬ LÝ NGÔN TỪ XÚC PHẠM / CHỬI RỦA / NÓNG GIẬN:
    - Nếu khách hàng sử dụng từ ngữ thô tục, chửi rủa, xúc phạm hoặc quá nóng giận: Tuyệt đối KHÔNG được đáp trả thô lỗ, gay gắt hay tranh cãi.
-   - Giữ thái độ cực kỳ điềm tĩnh, lịch sự, xưng "Em" và gọi "Anh/Chị". Nhẹ nhàng nhắc nhở khách hàng giữ giao tiếp văn minh để em có thể hỗ trợ giải quyết thắc mắc/khiếu nại một cách tốt nhất.`;
+   - Giữ thái độ cực kỳ điềm tĩnh, lịch sự, xưng "Em" và gọi "Anh/Chị". Nhẹ nhàng nhắc nhở khách hàng giữ giao tiếp văn minh để em có thể hỗ trợ giải quyết thắc mắc/khiếu nại một cách tốt nhất.
+8. KHI KHÁCH HỎI VỀ SẢN PHẨM GIẢM GIÁ / KHUYẾN MÃI / SALE / ƯU ĐÃI:
+   - Hãy tìm các sản phẩm có gắn nhãn [ĐANG GIẢM GIÁ/SALE] trong danh mục trên để giới thiệu cho khách.
+   - Nêu rõ giá khuyến mãi, giá gốc và phần trăm giảm giá để kích thích mua sắm.
+   - Thêm cú pháp [RECOMMEND: ID] ở cuối câu trả lời cho các sản phẩm giảm giá đó.`;
 
       // 3. Chuẩn bị lịch sử hội thoại
       const historyTexts = (dto.history || []).map(

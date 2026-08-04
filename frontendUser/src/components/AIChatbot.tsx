@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Send, X, Bot, User, ExternalLink, RefreshCw, ShoppingBag, Trash2 } from 'lucide-react';
 import { sendChatMessage } from '../services/ai.service';
 import type { ChatMessage, SuggestedProduct } from '../services/ai.service';
+import ConfirmModal from './ConfirmModal';
 
 
 interface MessageItem extends ChatMessage {
@@ -44,7 +46,7 @@ export default function AIChatbot({ isOpen, onClose, currentProductId }: AIChatb
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showQuickPrompts, setShowQuickPrompts] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Lưu tự động lịch sử trò chuyện vào localStorage khi messages thay đổi
   useEffect(() => {
@@ -55,11 +57,10 @@ export default function AIChatbot({ isOpen, onClose, currentProductId }: AIChatb
     }
   }, [messages]);
 
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
   const handleClearHistory = () => {
-    if (window.confirm('Anh/chị có chắc muốn xóa lịch sử trò chuyện này không?')) {
-      setMessages([DEFAULT_WELCOME_MESSAGE]);
-      localStorage.removeItem('ai_chat_history');
-    }
+    setShowClearConfirm(true);
   };
 
   const quickPrompts = [
@@ -70,12 +71,14 @@ export default function AIChatbot({ isOpen, onClose, currentProductId }: AIChatb
   ];
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
     if (isOpen) {
-      scrollToBottom();
+      setTimeout(scrollToBottom, 50);
     }
   }, [messages, isOpen]);
 
@@ -167,8 +170,23 @@ export default function AIChatbot({ isOpen, onClose, currentProductId }: AIChatb
     });
   };
 
-  return (
-    <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 md:top-auto md:left-auto md:bottom-6 md:right-6 md:translate-x-0 md:translate-y-0 z-50 w-[92vw] sm:w-[400px] md:w-[420px] max-w-[420px] h-[580px] max-h-[85vh] bg-surface border border-outline/30 shadow-2xl flex flex-col font-sans overflow-hidden animate-fadeIn">
+  return createPortal(
+    <div className="fixed z-50 bottom-6 right-6 w-[420px] max-w-[calc(100vw-2rem)] h-[580px] max-h-[85vh] max-md:top-1/2 max-md:left-1/2 max-md:-translate-x-1/2 max-md:-translate-y-1/2 max-md:bottom-auto max-md:right-auto max-md:w-[92vw] bg-surface border border-outline/30 shadow-2xl flex flex-col font-sans overflow-hidden animate-fadeIn overscroll-contain">
+      {/* Confirm Modal dùng chung */}
+      <ConfirmModal
+        isOpen={showClearConfirm}
+        title="Xóa lịch sử trò chuyện"
+        message="Tất cả tin nhắn tư vấn trước đây sẽ bị xóa hoàn toàn và không thể khôi phục. Anh/chị có chắc chắn muốn tiếp tục?"
+        confirmText="Xác nhận xóa"
+        cancelText="Hủy bỏ"
+        type="danger"
+        onConfirm={() => {
+          setMessages([DEFAULT_WELCOME_MESSAGE]);
+          localStorage.removeItem('ai_chat_history');
+          setShowClearConfirm(false);
+        }}
+        onCancel={() => setShowClearConfirm(false)}
+      />
       {/* Header */}
       <div className="bg-surface-container-high border-b border-outline/20 p-3.5 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
@@ -205,7 +223,7 @@ export default function AIChatbot({ isOpen, onClose, currentProductId }: AIChatb
       </div>
 
       {/* Message List */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-surface-container-lowest">
+      <div ref={chatContainerRef} className="flex-1 p-4 overflow-y-auto space-y-4 bg-surface-container-lowest overscroll-contain">
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -317,8 +335,6 @@ export default function AIChatbot({ isOpen, onClose, currentProductId }: AIChatb
             </div>
           </div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Footer */}
@@ -358,6 +374,7 @@ export default function AIChatbot({ isOpen, onClose, currentProductId }: AIChatb
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
