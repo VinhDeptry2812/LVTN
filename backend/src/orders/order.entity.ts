@@ -28,8 +28,6 @@ export enum OrderStatus {
 export enum PaymentMethod {
   COD = 'cod',
   VNPAY = 'vnpay',
-  MOMO = 'momo',
-  PAYOS = 'payos',
 }
 
 export enum PaymentStatus {
@@ -88,12 +86,6 @@ export class Order {
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   vnpay_txn_ref: string | null; // TxnRef gốc (format: orderId_timestamp) – dùng cho API hoàn tiền VNPAY
-
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  momo_trans_id: string | null;
-
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  payos_transaction_no: string | null;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
   voucher_code: string | null;

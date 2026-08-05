@@ -3,6 +3,8 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import api from '@/services/api';
 import StatusBadge from '@/components/StatusBadge';
+import { formatPrice, formatDate } from '@/utils/format';
+
 import { 
   Package, 
   TrendingUp, 
@@ -154,19 +156,6 @@ export default function DashboardPage() {
     }
   }, [profile, timeframe]);
 
-  const formatPrice = (price: number) =>
-    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
-
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('vi-VN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   const isStaff = profile?.role === 'staff';
 

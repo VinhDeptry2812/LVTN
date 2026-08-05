@@ -5,26 +5,17 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
 } from 'typeorm';
 import { Order } from '../orders/order.entity';
 import { Product } from '../products/product.entity';
 import { ProductVariant } from '../products/product-variant.entity';
 import { User } from '../users/user.entity';
+import { WarrantyClaimLog } from './warranty-claim-log.entity';
 
-export enum WarrantyStatus {
-  ACTIVE = 'active', // Còn hạn bảo hành
-  EXPIRED = 'expired', // Đã hết hạn bảo hành
-  VOIDED = 'voided', // Từ chối / Hủy bảo hành
-}
-
-export enum ClaimStatus {
-  NONE = 'none', // Bình thường (chưa có yêu cầu)
-  CLAIMING = 'claiming', // Khách hàng gửi yêu cầu bảo hành/sửa chữa
-  PROCESSING = 'processing', // Kỹ thuật đang tiếp nhận & xử lý
-  COMPLETED = 'completed', // Đã bảo hành/sửa chữa/đổi mới xong đợt này
-  REJECTED = 'rejected', // Từ chối đợt yêu cầu bảo hành này
-}
+import { WarrantyStatus, ClaimStatus } from './warranty.enum';
+export { WarrantyStatus, ClaimStatus };
 
 @Entity('warranties')
 export class Warranty {
@@ -96,6 +87,18 @@ export class Warranty {
 
   @Column({ type: 'text', nullable: true })
   resolution_note: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  resolution_type: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  assigned_technician: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  appointment_date: Date | null;
+
+  @OneToMany(() => WarrantyClaimLog, (log) => log.warranty)
+  claim_logs: WarrantyClaimLog[];
 
   @CreateDateColumn()
   created_at: Date;

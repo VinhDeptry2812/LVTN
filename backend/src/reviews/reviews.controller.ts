@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Delete,
   Param,
@@ -13,6 +14,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { UpdateReviewDto } from './dto/update-review.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -31,6 +33,20 @@ export class ReviewsController {
   @Post()
   create(@Request() req: any, @Body() dto: CreateReviewDto) {
     return this.reviewsService.create(req.user.id, dto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Chỉnh sửa đánh giá của người dùng hiện tại (tối đa 1 lần)',
+  })
+  @Patch(':id')
+  update(
+    @Request() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateReviewDto,
+  ) {
+    return this.reviewsService.update(req.user.id, id, dto);
   }
 
   @ApiBearerAuth()

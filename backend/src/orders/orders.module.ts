@@ -9,8 +9,6 @@ import { ProductVariant } from '../products/product-variant.entity';
 import { InventoryTransaction } from '../products/inventory-transaction.entity';
 import { CartModule } from '../cart/cart.module';
 import { VnpayModule } from '../vnpay/vnpay.module';
-import { MomoModule } from '../momo/momo.module';
-import { PayosModule } from '../payos/payos.module';
 import { VouchersModule } from '../vouchers/vouchers.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
@@ -28,8 +26,6 @@ import { WarrantiesModule } from '../warranties/warranties.module';
     ]),
     CartModule,
     forwardRef(() => VnpayModule),
-    forwardRef(() => MomoModule),
-    forwardRef(() => PayosModule),
     VouchersModule,
     NotificationsModule,
     WarrantiesModule,

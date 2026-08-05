@@ -2,7 +2,6 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
-  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, MoreThanOrEqual } from 'typeorm';
@@ -11,11 +10,12 @@ import { Product } from '../products/product.entity';
 import { Order, OrderStatus } from '../orders/order.entity';
 import { User } from '../users/user.entity';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { UpdateReviewDto } from './dto/update-review.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class ReviewsService {
-  private readonly logger = new Logger(ReviewsService.name);
 
   constructor(
     @InjectRepository(Review)
@@ -25,6 +25,7 @@ export class ReviewsService {
     @InjectRepository(Order)
     private readonly ordersRepository: Repository<Order>,
     private readonly notificationsService: NotificationsService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   private formatReviewDisplayName(
@@ -120,7 +121,7 @@ export class ReviewsService {
         reference_link: `/admin/reviews`,
       })
       .catch((err) => {
-        this.logger.error('Lỗi khi gửi thông báo đánh giá mới:', err);
+        console.error('Lỗi khi gửi thông báo đánh giá mới:', err);
       });
 
     return savedReview;
@@ -239,7 +240,11 @@ export class ReviewsService {
       },
     });
     if (existingReview) {
-      return { canReview: false, reason: 'Bạn đã đánh giá sản phẩm này rồi' };
+      return {
+        canReview: false,
+        reason: 'Bạn đã đánh giá sản phẩm này rồi',
+        review: existingReview,
+      };
     }
 
     // 2. Kiểm tra xem đã mua hàng thành công chưa bằng EXISTS query
@@ -261,6 +266,52 @@ export class ReviewsService {
     }
 
     return { canReview: true };
+  }
+
+  async update(
+    userId: number,
+    reviewId: number,
+    dto: UpdateReviewDto,
+  ): Promise<Review> {
+    const review = await this.reviewsRepository.findOne({
+      where: { id: reviewId, user: { id: userId } },
+      relations: { product: true },
+    });
+
+    if (!review) {
+      throw new NotFoundException(
+        'Không tìm thấy đánh giá hoặc bạn không có quyền chỉnh sửa',
+      );
+    }
+
+    if (review.edit_count >= 1) {
+      throw new BadRequestException(
+        'Mỗi đánh giá chỉ được phép chỉnh sửa tối đa 1 lần',
+      );
+    }
+
+    if (dto.rating !== undefined) review.rating = dto.rating;
+    if (dto.comment !== undefined) review.comment = dto.comment;
+    if (dto.images !== undefined) {
+      // Tìm các ảnh cũ bị loại bỏ để xóa khỏi Cloudinary
+      if (review.images && Array.isArray(review.images)) {
+        const removedImages = review.images.filter(
+          (oldUrl) => !dto.images!.includes(oldUrl),
+        );
+        for (const removedUrl of removedImages) {
+          try {
+            await this.cloudinaryService.deleteImageByUrl(removedUrl);
+          } catch (err) {
+            console.error(`Lỗi khi xóa ảnh trên Cloudinary: ${removedUrl}`, err);
+          }
+        }
+      }
+      review.images = dto.images;
+    }
+    if (dto.isAnonymous !== undefined) review.is_anonymous = dto.isAnonymous;
+    review.edit_count += 1;
+
+    return this.reviewsRepository.save(review);
   }
 
   async findAll(page?: number, limit?: number): Promise<any> {

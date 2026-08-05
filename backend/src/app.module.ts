@@ -14,8 +14,8 @@ import { AiModule } from './ai/ai.module';
 import { CartModule } from './cart/cart.module';
 import { OrdersModule } from './orders/orders.module';
 import { VnpayModule } from './vnpay/vnpay.module';
-import { MomoModule } from './momo/momo.module';
-import { PayosModule } from './payos/payos.module';
+
+
 import { CollectionsModule } from './collections/collections.module';
 import { VouchersModule } from './vouchers/vouchers.module';
 import { AddressesModule } from './addresses/addresses.module';
@@ -28,6 +28,7 @@ import { StockIssuesModule } from './stock-issues/stock-issues.module';
 import { WarrantiesModule } from './warranties/warranties.module';
 import { BannersModule } from './banners/banners.module';
 import { PromotionsModule } from './promotions/promotions.module';
+import { TasksModule } from './tasks/tasks.module';
 
 @Module({
   imports: [
@@ -66,8 +67,8 @@ import { PromotionsModule } from './promotions/promotions.module';
     CartModule,
     OrdersModule,
     VnpayModule,
-    MomoModule,
-    PayosModule,
+
+
     CollectionsModule,
     VouchersModule,
     PromotionsModule,
@@ -80,6 +81,7 @@ import { PromotionsModule } from './promotions/promotions.module';
     StockIssuesModule,
     WarrantiesModule,
     BannersModule,
+    TasksModule,
   ],
   controllers: [AppController],
   providers: [

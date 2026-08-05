@@ -12,24 +12,17 @@ import {
   completeOrder,
   requestReturnOrder,
 } from '@/services/order.service';
-import { checkCanReview, createReview, getMyReviews } from '@/services/review.service';
+import { checkCanReview, createReview, updateReview, getMyReviews, type Review } from '@/services/review.service';
 import api from '@/services/api';
+import { getProductImage } from '@/utils/image';
+import { formatDate, formatPrice } from '@/utils/format';
+import { useConfirmModal } from '@/hooks/useConfirmModal';
 
 interface OrderHistoryTabProps {
   user: any;
 }
 
-const getProductImage = (item: any) => {
-  if (item?.variant?.image_url) return item.variant.image_url;
 
-  if (item?.product?.images && item.product.images.length > 0) {
-    const primaryImg = item.product.images.find((img: any) => img.is_primary);
-    if (primaryImg) return primaryImg.image_url;
-    return item.product.images[0].image_url;
-  }
-
-  if (item?.product?.image) return item.product.image;
-};
 
 const formatAttributes = (attributes: any) => {
   if (!attributes || Object.keys(attributes).length === 0) return '';
@@ -90,23 +83,11 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
 
   // IDs của các sản phẩm đã được người dùng đánh giá
   const [reviewedProductIds, setReviewedProductIds] = useState<number[]>([]);
+  const [userReviewsMap, setUserReviewsMap] = useState<Record<number, Review>>({});
+  const [editingReviewId, setEditingReviewId] = useState<number | null>(null);
 
   // Confirm Modal state
-  const [confirmModal, setConfirmModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    confirmText: string;
-    type: 'danger' | 'warning' | 'info';
-    onConfirm: () => void;
-  }>({
-    isOpen: false,
-    title: '',
-    message: '',
-    confirmText: '',
-    type: 'danger',
-    onConfirm: () => {},
-  });
+  const { confirmModal, openConfirm, closeConfirm } = useConfirmModal();
 
   const fetchOrders = async () => {
     if (!user) return;
@@ -129,7 +110,15 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
         return_handled_at: order.return_request?.handled_at,
       }));
       setOrders(mappedOrders);
-      const productIds = reviewsData.map((rev: any) => rev.product?.id).filter(Boolean);
+      const reviewsMap: Record<number, Review> = {};
+      const productIds: number[] = [];
+      (reviewsData || []).forEach((rev: Review) => {
+        if (rev.product?.id) {
+          reviewsMap[rev.product.id] = rev;
+          productIds.push(rev.product.id);
+        }
+      });
+      setUserReviewsMap(reviewsMap);
       setReviewedProductIds(productIds);
     } catch (error: any) {
       console.error('Error fetching orders:', error);
@@ -146,14 +135,13 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
   }, [user]);
 
   const handleCancelOrder = (orderId: number) => {
-    setConfirmModal({
-      isOpen: true,
+    openConfirm({
       title: 'Hủy đơn hàng',
       message: 'Bạn có chắc chắn muốn hủy đơn hàng này không? Hành động này không thể hoàn tác.',
       confirmText: 'Hủy đơn hàng',
       type: 'danger',
       onConfirm: async () => {
-        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        closeConfirm();
         try {
           const updatedOrder = await cancelOrder(orderId);
           toast.success('Đã hủy đơn hàng thành công.');
@@ -167,15 +155,14 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
   };
 
   const handleCompleteOrder = (orderId: number) => {
-    setConfirmModal({
-      isOpen: true,
+    openConfirm({
       title: 'Xác nhận nhận hàng',
       message:
         'Bạn có chắc chắn muốn xác nhận đã nhận hàng không? Hành động này đồng nghĩa với việc bạn đã nhận sản phẩm đầy đủ và hài lòng.',
       confirmText: 'Xác nhận nhận hàng',
       type: 'warning',
       onConfirm: async () => {
-        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        closeConfirm();
         try {
           const updatedOrder = await completeOrder(orderId);
           toast.success('Đã nhận được hàng và hoàn thành đơn hàng!');
@@ -252,10 +239,7 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
         }
 
         const priceVal = Number(item.price || 0);
-        const formattedPrice = new Intl.NumberFormat('vi-VN', {
-          style: 'currency',
-          currency: 'VND',
-        }).format(priceVal);
+        const formattedPrice = formatPrice(priceVal);
 
         const cartItem = {
           id: compositeId,
@@ -294,6 +278,26 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
       return;
     }
     setSelectedProductToReview(targetProduct);
+    const existingReview = userReviewsMap[targetProduct.id];
+    if (existingReview) {
+      if ((existingReview.edit_count ?? 0) >= 1) {
+        toast.error('Đánh giá này đã được chỉnh sửa 1 lần và không thể chỉnh sửa thêm.');
+        setReviewOrder(null);
+        setSelectedProductToReview(null);
+        return;
+      }
+      setEditingReviewId(existingReview.id);
+      setModalRating(existingReview.rating || 5);
+      setModalComment(existingReview.comment || '');
+      setModalIsAnonymous(existingReview.is_anonymous || false);
+      setModalImages(existingReview.images || []);
+    } else {
+      setEditingReviewId(null);
+      setModalRating(5);
+      setModalComment('');
+      setModalIsAnonymous(false);
+      setModalImages([]);
+    }
 
     const imgUrl =
       variant?.image_url ||
@@ -305,11 +309,7 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
       'https://images.unsplash.com/photo-1592078615290-033ee584e267?w=100&auto=format&fit=crop&q=60';
     setReviewProductImage(imgUrl);
 
-    setModalRating(5);
     setHoverRating(0);
-    setModalComment('');
-    setModalIsAnonymous(false);
-    setModalImages([]);
     setModalImagePreviews((prev) => {
       prev.forEach((url) => URL.revokeObjectURL(url));
       return [];
@@ -343,6 +343,11 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
   const handleUploadReviewImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (modalImages.length + modalImageFiles.length >= 3) {
+      toast.error('Bạn chỉ được chọn tối đa 3 ảnh cho mỗi đánh giá');
+      return;
+    }
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
@@ -384,37 +389,31 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
         finalImageUrls = [...finalImageUrls, ...uploadResults.filter(Boolean)];
       }
 
-      await createReview(
-        selectedProductToReview.id,
-        modalRating,
-        modalComment,
-        finalImageUrls,
-        modalIsAnonymous
-      );
-      toast.success('Gửi đánh giá thành công! Cảm ơn bạn.');
-
-      const prodId = selectedProductToReview.id;
-      setReviewedProductIds((prev) => [...prev, prodId]);
-      setReviewableStatus((prev) => ({
-        ...prev,
-        [prodId]: { loading: true, canReview: false },
-      }));
-      checkCanReview(prodId)
-        .then((res) =>
-          setReviewableStatus((prev) => ({
-            ...prev,
-            [prodId]: { loading: false, canReview: res.canReview, reason: res.reason },
-          }))
-        )
-        .catch(() =>
-          setReviewableStatus((prev) => ({
-            ...prev,
-            [prodId]: { loading: false, canReview: false, reason: 'Không thể kiểm tra' },
-          }))
+      if (editingReviewId) {
+        await updateReview(
+          editingReviewId,
+          modalRating,
+          modalComment,
+          finalImageUrls,
+          modalIsAnonymous
         );
+        toast.success('Cập nhật đánh giá thành công! Cảm ơn bạn.');
+      } else {
+        await createReview(
+          selectedProductToReview.id,
+          modalRating,
+          modalComment,
+          finalImageUrls,
+          modalIsAnonymous
+        );
+        toast.success('Gửi đánh giá thành công! Cảm ơn bạn.');
+      }
+
+      fetchOrders();
 
       setReviewOrder(null);
       setSelectedProductToReview(null);
+      setEditingReviewId(null);
       setModalComment('');
       setModalRating(5);
       setModalImages([]);
@@ -718,7 +717,7 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                   </span>
                   <span className="text-on-surface-variant/60">•</span>
                   <span className="text-on-surface-variant/80">
-                    {new Date(order.created_at).toLocaleDateString('vi-VN')}
+                    {formatDate(order.created_at)}
                   </span>
                 </div>
 
@@ -795,13 +794,25 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
 
                     {(order.status === 'completed' || order.status === 'delivered') &&
                       (item.product?.id && reviewedProductIds.includes(item.product.id) ? (
-                        <button
-                          disabled
-                          className="px-2.5 py-1 bg-slate-100 text-slate-400 border border-slate-200 text-[10px] font-bold uppercase tracking-wider rounded-sm flex items-center gap-1 shrink-0 cursor-not-allowed"
-                        >
-                          <span className="material-symbols-outlined text-[12px]">done</span>
-                          Đã đánh giá
-                        </button>
+                        (userReviewsMap[item.product.id]?.edit_count ?? 0) < 1 ? (
+                          <button
+                            onClick={() => item.product && handleOpenReview(order, item.product, item.variant)}
+                            className="px-2.5 py-1 bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200 transition-colors text-[10px] font-bold uppercase tracking-wider rounded-sm cursor-pointer flex items-center gap-1 shrink-0"
+                            title="Bạn được phép chỉnh sửa đánh giá 1 lần"
+                          >
+                            <span className="material-symbols-outlined text-[12px]">edit</span>
+                            Sửa đánh giá
+                          </button>
+                        ) : (
+                          <button
+                            disabled
+                            className="px-2.5 py-1 bg-slate-100 text-slate-400 border border-slate-200 text-[10px] font-bold uppercase tracking-wider rounded-sm flex items-center gap-1 shrink-0 cursor-not-allowed"
+                            title="Bạn đã chỉnh sửa đánh giá 1 lần"
+                          >
+                            <span className="material-symbols-outlined text-[12px]">done_all</span>
+                            Đã đánh giá
+                          </button>
+                        )
                       ) : (
                         <button
                           onClick={() => item.product && handleOpenReview(order, item.product, item.variant)}
@@ -827,7 +838,7 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                   </span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2 w-full sm:w-auto">
                   <button
                     onClick={() => setSelectedOrder(order)}
                     className="px-3.5 py-1.5 border border-outline-variant hover:bg-surface-container-low text-on-surface transition text-xs font-semibold uppercase tracking-wider rounded-sm cursor-pointer"
@@ -855,7 +866,7 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
 
                   {order.status === 'pending' &&
                     order.payment_status === 'pending' &&
-                    (order.payment_method === 'vnpay' || order.payment_method === 'momo') && (
+                    order.payment_method === 'vnpay' && (
                       <button
                         onClick={() => handleRepay(order.id)}
                         disabled={isRepaying}
@@ -888,7 +899,7 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[#5A6B53] text-xl">rate_review</span>
                 <h3 className="text-base font-bold uppercase tracking-wider text-[#5A6B53]">
-                  Viết đánh giá sản phẩm
+                  {editingReviewId ? 'Chỉnh sửa đánh giá sản phẩm' : 'Viết đánh giá sản phẩm'}
                 </h3>
               </div>
               <button
@@ -968,14 +979,38 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                     Hình ảnh đính kèm (Tối đa 3 ảnh):
                   </label>
                   <div className="flex flex-wrap items-center gap-3">
+                    {/* Danh sách ảnh đã có từ trước */}
+                    {modalImages.map((imgUrl, index) => (
+                      <div
+                        key={`existing-${index}`}
+                        className="relative w-20 h-20 border border-outline-variant/50 rounded-sm overflow-hidden bg-slate-50 shrink-0"
+                      >
+                        <img src={imgUrl} alt={`existing-img-${index}`} className="w-full h-full object-cover" />
+                        <div className="absolute bottom-0 left-0 right-0 bg-[#5A6B53]/85 text-white text-[8px] text-center py-0.5 font-medium">
+                          Đã đăng
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setModalImages((prev) => prev.filter((_, idx) => idx !== index));
+                          }}
+                          className="absolute top-1 right-1 bg-red-600/80 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center transition-colors cursor-pointer"
+                          title="Xóa ảnh này"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Danh sách ảnh mới chọn chưa gửi */}
                     {modalImagePreviews.map((previewUrl, index) => (
                       <div
-                        key={index}
+                        key={`new-${index}`}
                         className="relative w-20 h-20 border border-outline-variant/50 rounded-sm overflow-hidden bg-slate-50 shrink-0"
                       >
                         <img src={previewUrl} alt={`review-img-${index}`} className="w-full h-full object-cover" />
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/40 text-white text-[8px] text-center py-0.5">
-                          Chờ gửi
+                        <div className="absolute bottom-0 left-0 right-0 bg-amber-600/85 text-white text-[8px] text-center py-0.5 font-medium">
+                          Mới chọn
                         </div>
                         <button
                           type="button"
@@ -985,13 +1020,14 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                             setModalImageFiles((prev) => prev.filter((_, idx) => idx !== index));
                           }}
                           className="absolute top-1 right-1 bg-red-600/80 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center transition-colors cursor-pointer"
+                          title="Xóa ảnh này"
                         >
                           <X size={12} />
                         </button>
                       </div>
                     ))}
 
-                    {modalImagePreviews.length < 3 && (
+                    {(modalImages.length + modalImagePreviews.length) < 3 && (
                       <label className="w-20 h-20 rounded-sm border border-dashed border-outline-variant/80 hover:border-[#5A6B53] flex flex-col items-center justify-center text-on-surface-variant/70 hover:text-[#5A6B53] cursor-pointer bg-slate-50/50 hover:bg-slate-50 transition-all shrink-0">
                         <Camera size={20} />
                         <span className="text-[9px] mt-1 font-semibold">Tải ảnh lên</span>
@@ -1042,7 +1078,7 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                 {submittingReview && (
                   <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
                 )}
-                Gửi đánh giá
+                {editingReviewId ? 'Cập nhật đánh giá' : 'Gửi đánh giá'}
               </button>
             </div>
           </div>
@@ -1125,7 +1161,6 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                     <span className="text-on-surface font-medium uppercase tracking-wide">
                       {selectedOrder.payment_method === 'cod' && 'Thanh toán khi nhận hàng (COD)'}
                       {selectedOrder.payment_method === 'vnpay' && 'Thanh toán qua VNPay'}
-                      {selectedOrder.payment_method === 'momo' && 'Thanh toán qua MoMo'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1217,13 +1252,25 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                           </p>
                           {(selectedOrder.status === 'completed' || selectedOrder.status === 'delivered') &&
                             (item.product?.id && reviewedProductIds.includes(item.product.id) ? (
-                              <button
-                                disabled
-                                className="mt-1.5 px-3 py-1 bg-slate-100 text-slate-400 border border-slate-200 text-[10px] font-bold uppercase tracking-wider rounded-sm flex items-center gap-1 w-fit cursor-not-allowed"
-                              >
-                                <span className="material-symbols-outlined text-[12px]">done</span>
-                                Đã đánh giá
-                              </button>
+                              (userReviewsMap[item.product.id]?.edit_count ?? 0) < 1 ? (
+                                <button
+                                  onClick={() => item.product && handleOpenReview(selectedOrder, item.product, item.variant)}
+                                  className="mt-1.5 px-3 py-1 bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200 transition-colors text-[10px] font-bold uppercase tracking-wider rounded-sm cursor-pointer flex items-center gap-1 w-fit"
+                                  title="Bạn được phép chỉnh sửa đánh giá 1 lần"
+                                >
+                                  <span className="material-symbols-outlined text-[12px]">edit</span>
+                                  Sửa đánh giá
+                                </button>
+                              ) : (
+                                <button
+                                  disabled
+                                  className="mt-1.5 px-3 py-1 bg-slate-100 text-slate-400 border border-slate-200 text-[10px] font-bold uppercase tracking-wider rounded-sm flex items-center gap-1 w-fit cursor-not-allowed"
+                                  title="Bạn đã chỉnh sửa đánh giá 1 lần"
+                                >
+                                  <span className="material-symbols-outlined text-[12px]">done_all</span>
+                                  Đã đánh giá
+                                </button>
+                              )
                             ) : (
                               <button
                                 onClick={() => item.product && handleOpenReview(selectedOrder, item.product, item.variant)}
@@ -1934,7 +1981,7 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
         confirmText={confirmModal.confirmText}
         type={confirmModal.type}
         onConfirm={confirmModal.onConfirm}
-        onCancel={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+        onCancel={closeConfirm}
       />
     </div>
   );

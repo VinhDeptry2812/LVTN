@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import {
   v2 as cloudinary,
   UploadApiResponse,
@@ -8,8 +8,6 @@ import * as streamifier from 'streamifier';
 
 @Injectable()
 export class CloudinaryService {
-  private readonly logger = new Logger(CloudinaryService.name);
-
   uploadImage(
     file: Express.Multer.File,
   ): Promise<UploadApiResponse | UploadApiErrorResponse> {
@@ -47,9 +45,9 @@ export class CloudinaryService {
           : pathWithoutVersion.substring(0, lastDotIndex);
 
       await cloudinary.uploader.destroy(publicId);
-      this.logger.log(`Deleted image from Cloudinary: ${publicId}`);
+      console.log(`Deleted image from Cloudinary: ${publicId}`);
     } catch (error) {
-      this.logger.error(
+      console.error(
         `Failed to delete image from Cloudinary: ${url}`,
         error,
       );

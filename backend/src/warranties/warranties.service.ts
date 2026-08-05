@@ -2,22 +2,22 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Warranty, WarrantyStatus, ClaimStatus } from './warranty.entity';
+import { WarrantyClaimLog } from './warranty-claim-log.entity';
 import { Order } from '../orders/order.entity';
 import { ClaimWarrantyDto, ProcessWarrantyDto } from './dto/warranty.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class WarrantiesService {
-  private readonly logger = new Logger(WarrantiesService.name);
-
   constructor(
     @InjectRepository(Warranty)
     private readonly warrantyRepository: Repository<Warranty>,
+    @InjectRepository(WarrantyClaimLog)
+    private readonly logRepository: Repository<WarrantyClaimLog>,
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
     private readonly notificationsService: NotificationsService,
@@ -116,6 +116,7 @@ export class WarrantiesService {
       .leftJoinAndSelect('warranty.variant', 'variant')
       .leftJoinAndSelect('warranty.order', 'order')
       .leftJoinAndSelect('warranty.user', 'user')
+      .leftJoinAndSelect('warranty.claim_logs', 'claim_logs')
       .where(
         '(warranty.code LIKE :search OR warranty.serial_number LIKE :search OR user.phone LIKE :search OR CAST(order.id AS CHAR) = :exactSearch)',
         {
@@ -123,7 +124,8 @@ export class WarrantiesService {
           exactSearch: search,
         },
       )
-      .orderBy('warranty.created_at', 'DESC');
+      .orderBy('warranty.created_at', 'DESC')
+      .addOrderBy('claim_logs.created_at', 'DESC');
 
     return await query.getMany();
   }
@@ -132,8 +134,8 @@ export class WarrantiesService {
   async findMyWarranties(userId: number): Promise<Warranty[]> {
     return await this.warrantyRepository.find({
       where: { user_id: userId },
-      relations: { product: { images: true }, variant: true, order: true },
-      order: { created_at: 'DESC' },
+      relations: { product: { images: true }, variant: true, order: true, claim_logs: true },
+      order: { created_at: 'DESC', claim_logs: { created_at: 'DESC' } },
     });
   }
 
@@ -141,7 +143,8 @@ export class WarrantiesService {
   async findById(id: number): Promise<Warranty> {
     const warranty = await this.warrantyRepository.findOne({
       where: { id },
-      relations: { product: { images: true }, variant: true, order: true, user: true },
+      relations: { product: { images: true }, variant: true, order: true, user: true, claim_logs: true },
+      order: { claim_logs: { created_at: 'DESC' } },
     });
     if (!warranty) {
       throw new NotFoundException('Phiếu bảo hành không tồn tại');
@@ -180,8 +183,20 @@ export class WarrantiesService {
     warranty.claim_reason = dto.claim_reason;
     warranty.claim_images = dto.claim_images || null;
     warranty.claim_status = ClaimStatus.CLAIMING; // Cập nhật claim_status (status gốc ACTIVE vẫn giữ nguyên)
+    warranty.resolution_note = null;
+    warranty.appointment_date = null;
 
     const savedWarranty = await this.warrantyRepository.save(warranty);
+
+    // Lưu nhật ký claim log
+    await this.logRepository.save({
+      warranty_id: savedWarranty.id,
+      claim_reason: dto.claim_reason,
+      claim_images: dto.claim_images || null,
+      claim_status: ClaimStatus.CLAIMING,
+      resolution_note: null,
+      appointment_date: null,
+    });
 
     try {
       await this.notificationsService.create({
@@ -191,10 +206,10 @@ export class WarrantiesService {
         reference_link: '/admin/warranties',
       });
     } catch (notiErr) {
-      this.logger.error('Lỗi khi tạo thông báo yêu cầu bảo hành:', notiErr);
+      console.error('Lỗi khi tạo thông báo yêu cầu bảo hành:', notiErr);
     }
 
-    return savedWarranty;
+    return await this.findById(savedWarranty.id);
   }
 
   /** Admin: Lấy danh sách toàn bộ phiếu bảo hành (Có phân trang, Lọc & Tìm kiếm) */
@@ -211,7 +226,8 @@ export class WarrantiesService {
       .leftJoinAndSelect('product.images', 'images')
       .leftJoinAndSelect('warranty.variant', 'variant')
       .leftJoinAndSelect('warranty.order', 'order')
-      .leftJoinAndSelect('warranty.user', 'user');
+      .leftJoinAndSelect('warranty.user', 'user')
+      .leftJoinAndSelect('warranty.claim_logs', 'claim_logs');
 
     if (search) {
       query.andWhere(
@@ -230,6 +246,7 @@ export class WarrantiesService {
 
     const [data, total] = await query
       .orderBy('warranty.created_at', 'DESC')
+      .addOrderBy('claim_logs.created_at', 'DESC')
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();
@@ -273,11 +290,68 @@ export class WarrantiesService {
     if (dto.resolution_note !== undefined) {
       warranty.resolution_note = dto.resolution_note;
     }
+    if (dto.resolution_type !== undefined) {
+      warranty.resolution_type = dto.resolution_type;
+    }
+    if (dto.assigned_technician !== undefined) {
+      warranty.assigned_technician = dto.assigned_technician;
+    }
     if (dto.serial_number !== undefined) {
       warranty.serial_number = dto.serial_number;
     }
+    if (dto.appointment_date !== undefined) {
+      warranty.appointment_date = dto.appointment_date ? new Date(dto.appointment_date) : null;
+    }
 
-    return await this.warrantyRepository.save(warranty);
+    const savedWarranty = await this.warrantyRepository.save(warranty);
+
+    // Cập nhật log đợt bảo hành hiện tại hoặc tạo log mới nếu chưa có log nào
+    const latestLog = await this.logRepository.findOne({
+      where: { warranty_id: savedWarranty.id },
+      order: { created_at: 'DESC', id: 'DESC' },
+    });
+
+    if (latestLog) {
+      latestLog.claim_reason = savedWarranty.claim_reason;
+      latestLog.claim_images = savedWarranty.claim_images;
+      latestLog.claim_status = savedWarranty.claim_status;
+      latestLog.resolution_note =
+        dto.resolution_note !== undefined
+          ? dto.resolution_note
+          : savedWarranty.resolution_note;
+      latestLog.resolution_type =
+        dto.resolution_type !== undefined
+          ? dto.resolution_type
+          : savedWarranty.resolution_type;
+      latestLog.assigned_technician =
+        dto.assigned_technician !== undefined
+          ? dto.assigned_technician
+          : savedWarranty.assigned_technician;
+      latestLog.appointment_date = savedWarranty.appointment_date;
+      await this.logRepository.save(latestLog);
+    } else {
+      await this.logRepository.save({
+        warranty_id: savedWarranty.id,
+        claim_reason: savedWarranty.claim_reason,
+        claim_images: savedWarranty.claim_images,
+        claim_status: savedWarranty.claim_status,
+        resolution_note:
+          dto.resolution_note !== undefined
+            ? dto.resolution_note
+            : savedWarranty.resolution_note,
+        resolution_type:
+          dto.resolution_type !== undefined
+            ? dto.resolution_type
+            : savedWarranty.resolution_type,
+        assigned_technician:
+          dto.assigned_technician !== undefined
+            ? dto.assigned_technician
+            : savedWarranty.assigned_technician,
+        appointment_date: savedWarranty.appointment_date,
+      });
+    }
+
+    return await this.findById(savedWarranty.id);
   }
 
   /** Tự động hủy/vô hiệu hóa các phiếu bảo hành thuộc đơn hàng khi bị hủy toàn bộ */

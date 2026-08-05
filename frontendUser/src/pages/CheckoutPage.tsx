@@ -162,7 +162,7 @@ export default function CheckoutPage() {
   const subtotal = items.reduce((total, item) => total + item.rawPrice * item.quantity, 0);
 
   // Payment State
-  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'vnpay' | 'momo' | 'payos'>('cod');
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'vnpay'>('cod');
   const [discountCode, setDiscountCode] = useState('');
 
   const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
@@ -351,6 +351,11 @@ export default function CheckoutPage() {
 
     if (!user) {
       toast.error('Bạn cần đăng nhập để thực hiện bước tiếp theo.');
+      return;
+    }
+
+    if (user.role === 'admin' || user.role === 'staff') {
+      toast.error('Tài khoản Quản trị/Nhân viên không được phép đặt hàng mua sắm cá nhân. Vui lòng sử dụng tài khoản Khách hàng.');
       return;
     }
 
@@ -602,6 +607,19 @@ export default function CheckoutPage() {
             <span className="hidden sm:inline">Phương thức thanh toán</span>
           </nav>
 
+          {/* Warning for Admin/Staff Accounts */}
+          {(user?.role === 'admin' || user?.role === 'staff') && (
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 text-amber-900 text-sm">
+              <span className="material-symbols-outlined text-amber-600 mt-0.5 shrink-0">warning</span>
+              <div>
+                <p className="font-bold">Lưu ý: Tài khoản Nội bộ ({user.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'})</p>
+                <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">
+                  Để đảm bảo tính minh bạch nghiệp vụ và phân tách quyền hạn, tài khoản quản trị/nhân viên không được phép đặt hàng cá nhân. Vui lòng đăng xuất và sử dụng tài khoản Khách hàng.
+                </p>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handlePlaceOrder}>
             {/* Contact Info */}
             <div className="mb-8">
@@ -750,7 +768,7 @@ export default function CheckoutPage() {
                 </label>
 
                 {/* VNPay */}
-                <label className={`flex items-center p-4 border-b border-[#d9d9d9] cursor-pointer ${paymentMethod === 'vnpay' ? 'bg-[#f4f8f5]' : ''}`}>
+                <label className={`flex items-center p-4 cursor-pointer ${paymentMethod === 'vnpay' ? 'bg-[#f4f8f5]' : ''}`}>
                   <div className={`w-4 h-4 rounded-full border flex items-center justify-center mr-3 ${paymentMethod === 'vnpay' ? 'border-primary' : 'border-[#d9d9d9]'}`}>
                     {paymentMethod === 'vnpay' && <div className="w-2 h-2 rounded-full bg-primary" />}
                   </div>
@@ -758,28 +776,6 @@ export default function CheckoutPage() {
                   <span className="text-sm flex-grow">Thanh toán qua VNPAY</span>
                   <img src="https://cdn.haitrieu.com/wp-content/uploads/2022/10/Logo-VNPAY-QR.png" alt="VNPay" className="h-4 object-contain" />
                   <input type="radio" name="payment" className="hidden" checked={paymentMethod === 'vnpay'} onChange={() => setPaymentMethod('vnpay')} />
-                </label>
-
-                {/* Momo */}
-                <label className={`flex items-center p-4 border-b border-[#d9d9d9] cursor-pointer ${paymentMethod === 'momo' ? 'bg-[#f4f8f5]' : ''}`}>
-                  <div className={`w-4 h-4 rounded-full border flex items-center justify-center mr-3 ${paymentMethod === 'momo' ? 'border-primary' : 'border-[#d9d9d9]'}`}>
-                    {paymentMethod === 'momo' && <div className="w-2 h-2 rounded-full bg-primary" />}
-                  </div>
-                  <span className="material-symbols-outlined text-[#737373] mr-2">account_balance_wallet</span>
-                  <span className="text-sm flex-grow">Thanh toán qua Ví MoMo</span>
-                  <img src="https://cdn.haitrieu.com/wp-content/uploads/2022/10/Logo-MoMo-Square.png" alt="MoMo" className="h-6 rounded-sm object-contain" />
-                  <input type="radio" name="payment" className="hidden" checked={paymentMethod === 'momo'} onChange={() => setPaymentMethod('momo')} />
-                </label>
-
-                {/* PayOS (VietQR) */}
-                <label className={`flex items-center p-4 cursor-pointer ${paymentMethod === 'payos' ? 'bg-[#f4f8f5]' : ''}`}>
-                  <div className={`w-4 h-4 rounded-full border flex items-center justify-center mr-3 ${paymentMethod === 'payos' ? 'border-primary' : 'border-[#d9d9d9]'}`}>
-                    {paymentMethod === 'payos' && <div className="w-2 h-2 rounded-full bg-primary" />}
-                  </div>
-                  <span className="material-symbols-outlined text-[#737373] mr-2">qr_code_2</span>
-                  <span className="text-sm flex-grow">Chuyển khoản ngân hàng (VietQR / PayOS)</span>
-                  <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded font-bold uppercase tracking-wider">VietQR</span>
-                  <input type="radio" name="payment" className="hidden" checked={paymentMethod === 'payos'} onChange={() => setPaymentMethod('payos')} />
                 </label>
 
               </div>

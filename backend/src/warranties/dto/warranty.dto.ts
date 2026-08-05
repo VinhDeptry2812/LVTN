@@ -27,31 +27,17 @@ export class ProcessWarrantyDto {
 
   @IsOptional()
   @IsString()
-  serial_number?: string;
-}
-
-export class ManualCreateWarrantyDto {
-  @IsNotEmpty()
-  @IsInt()
-  order_id: number;
-
-  @IsNotEmpty()
-  @IsInt()
-  product_id: number;
+  resolution_type?: string;
 
   @IsOptional()
-  @IsInt()
-  variant_id?: number;
-
-  @IsNotEmpty()
-  @IsInt()
-  user_id: number;
-
-  @IsOptional()
-  @IsInt()
-  warranty_months?: number;
+  @IsString()
+  assigned_technician?: string;
 
   @IsOptional()
   @IsString()
   serial_number?: string;
+
+  @IsOptional()
+  @IsString()
+  appointment_date?: string;
 }

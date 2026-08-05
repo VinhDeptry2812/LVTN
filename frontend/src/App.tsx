@@ -41,7 +41,6 @@ import UserListPage from '@/pages/admin/users/UserListPage';
 import CustomerListPage from '@/pages/admin/users/CustomerListPage';
 
 import PaymentResultPage from '@/pages/PaymentResultPage';
-import WarrantyLookupPage from '@/pages/WarrantyLookupPage';
 
 function App() {
   return (
@@ -50,9 +49,6 @@ function App() {
 
       {/* Trang kết quả thanh toán VNPAY */}
       <Route path="/payment/result" element={<PaymentResultPage />} />
-
-      {/* Tra cứu bảo hành công khai */}
-      <Route path="/warranty-lookup" element={<WarrantyLookupPage />} />
 
       {/* Admin routes */}
       <Route path="/admin" element={<AdminLayout />}>

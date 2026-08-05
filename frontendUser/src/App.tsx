@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import HomePage from '@/pages/HomePage';
 import ShopPage from '@/pages/ShopPage';
 import ProductDetailPage from '@/pages/ProductDetailPage';
@@ -14,12 +14,23 @@ import ProfilePage from '@/pages/ProfilePage';
 import AboutFurniturePage from '@/pages/AboutFurniturePage';
 import AboutStorePage from '@/pages/AboutStorePage';
 import WarrantyPolicyPage from '@/pages/WarrantyPolicyPage';
-import { useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/store/useAuthStore';
-import authService from '@/services/auth.service';
+import WarrantyLookupPage from '@/pages/WarrantyLookupPage';
 import toast from 'react-hot-toast';
 import FloatingContact from '@/components/FloatingContact';
+import { useEffect } from 'react';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useCartStore } from '@/store/useCartStore';
+import authService from '@/services/auth.service';
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [pathname]);
+
+  return null;
+}
 
 function LoginCallback() {
   const [searchParams] = useSearchParams();
@@ -32,8 +43,9 @@ function LoginCallback() {
     if (token) {
       useAuthStore.setState({ token, refreshToken });
       authService.getProfile()
-        .then((user) => {
+        .then(async (user) => {
           setAuth(token, refreshToken || '', user);
+          await useCartStore.getState().syncCartOnLogin();
           toast.success('Đăng nhập thành công!');
           navigate('/');
         })
@@ -55,8 +67,16 @@ function LoginCallback() {
 }
 
 function App() {
+  useEffect(() => {
+    const token = useAuthStore.getState().token;
+    if (token) {
+      useCartStore.getState().fetchCart();
+    }
+  }, []);
+
   return (
     <>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/shop" element={<ShopPage />} />
@@ -73,6 +93,7 @@ function App() {
         <Route path="/about-furniture" element={<AboutFurniturePage />} />
         <Route path="/about-store" element={<AboutStorePage />} />
         <Route path="/warranty-policy" element={<WarrantyPolicyPage />} />
+        <Route path="/warranty-lookup" element={<WarrantyLookupPage />} />
         <Route path="/login" element={<LoginCallback />} />
         {/* Redirect default to homepage */}
         <Route path="*" element={<Navigate to="/" replace />} />

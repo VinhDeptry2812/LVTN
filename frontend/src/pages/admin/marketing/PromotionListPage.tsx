@@ -3,6 +3,7 @@ import api from '@/services/api';
 import { toast } from 'react-hot-toast';
 import ConfirmModal from '@/components/ConfirmModal';
 import useConfirmModal from '@/hooks/useConfirmModal';
+import { formatPrice, formatDate } from '@/utils/format';
 
 export interface PromotionCategory {
   id: number;
@@ -257,21 +258,7 @@ export default function PromotionListPage() {
     }
   };
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
-  };
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatCurrency = formatPrice;
 
   // Helper lấy toàn bộ ID danh mục (bao gồm chính nó và tất cả danh mục con/cháu trong cây danh mục)
   const getAllDescendantCategoryIds = (selectedCatIds: Set<number>, categoriesTree: any[]): Set<number> => {

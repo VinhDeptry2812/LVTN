@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Logger } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { OrdersService } from '../orders/orders.service';
 import { VnpayService } from './vnpay.service';
 import { PaymentStatus } from '../orders/order.entity';
@@ -9,8 +9,6 @@ import { PaymentStatus } from '../orders/order.entity';
  */
 @Controller('payment')
 export class VnpayController {
-  private readonly logger = new Logger(VnpayController.name);
-
   constructor(
     private readonly vnpayService: VnpayService,
     private readonly ordersService: OrdersService,
@@ -125,7 +123,7 @@ export class VnpayController {
 
       return { RspCode: '00', Message: 'Confirm success' };
     } catch (error) {
-      this.logger.error('Lỗi xử lý VNPAY IPN:', error);
+      console.error('Lỗi xử lý VNPAY IPN:', error);
       return { RspCode: '99', Message: 'Unknown error' };
     }
   }

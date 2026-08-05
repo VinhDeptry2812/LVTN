@@ -4,7 +4,6 @@ import {
   BadRequestException,
   ForbiddenException,
   OnModuleInit,
-  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, LessThan, In, Raw, MoreThanOrEqual } from 'typeorm';
@@ -32,7 +31,6 @@ import PDFDocument from 'pdfkit';
 
 @Injectable()
 export class OrdersService implements OnModuleInit {
-  private readonly logger = new Logger(OrdersService.name);
   constructor(
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
@@ -58,7 +56,7 @@ export class OrdersService implements OnModuleInit {
     setInterval(
       () => {
         this.cleanupUnpaidOrders().catch((err) => {
-          this.logger.error('Lỗi khi chạy dọn dẹp đơn hàng chưa thanh toán:', err);
+          console.error('Lỗi khi chạy dọn dẹp đơn hàng chưa thanh toán:', err);
         });
       },
       5 * 60 * 1000,
@@ -92,16 +90,16 @@ export class OrdersService implements OnModuleInit {
           try {
             pdfBuffer = await this.generateInvoicePdf(order.id);
           } catch (pdfErr) {
-            this.logger.error('Không thể tạo PDF hóa đơn để gửi kèm email:', pdfErr);
+            console.error('Không thể tạo PDF hóa đơn để gửi kèm email:', pdfErr);
           }
         }
 
         this.mailService.sendOrderStatusEmail(order.user.email, order, status, pdfBuffer).catch((err) => {
-          this.logger.error('Lỗi khi gửi email thông báo đơn hàng:', err);
+          console.error('Lỗi khi gửi email thông báo đơn hàng:', err);
         });
       }
     }).catch((err) => {
-      this.logger.error('Lỗi khi lấy dữ liệu đơn hàng để gửi email:', err);
+      console.error('Lỗi khi lấy dữ liệu đơn hàng để gửi email:', err);
     });
   }
 
@@ -233,7 +231,7 @@ export class OrdersService implements OnModuleInit {
             variant.stock,
             queryRunner.manager,
           ).catch((err) => {
-            this.logger.error('Error triggering low stock warning:', err);
+            console.error('Error triggering low stock warning:', err);
           });
 
           stockChanges.push({
@@ -334,7 +332,7 @@ export class OrdersService implements OnModuleInit {
           reference_link: '/admin/orders',
         });
       } catch (e) {
-        this.logger.error('Lỗi khi tạo thông báo đơn hàng mới:', e);
+        console.error('Lỗi khi tạo thông báo đơn hàng mới:', e);
       }
       return savedOrder;
     } catch (error) {
@@ -551,7 +549,7 @@ export class OrdersService implements OnModuleInit {
     try {
       await this.warrantiesService.generateForOrder(order.id);
     } catch (err) {
-      this.logger.error('Lỗi khi tự động tạo phiếu bảo hành cho đơn hàng:', err);
+      console.error('Lỗi khi tự động tạo phiếu bảo hành cho đơn hàng:', err);
     }
 
     return savedOrder;
@@ -719,7 +717,7 @@ export class OrdersService implements OnModuleInit {
           try {
             await this.warrantiesService.generateForOrder(order.id);
           } catch (err) {
-            this.logger.error('Lỗi khi tự động tạo phiếu bảo hành cho đơn hàng:', err);
+            console.error('Lỗi khi tự động tạo phiếu bảo hành cho đơn hàng:', err);
           }
         } else if (dto.status === OrderStatus.CANCELLED) {
           try {
@@ -728,7 +726,7 @@ export class OrdersService implements OnModuleInit {
               `Hủy toàn bộ phiếu bảo hành do đơn hàng bị hủy.`,
             );
           } catch (err) {
-            this.logger.error('Lỗi khi hủy phiếu bảo hành cho đơn hàng:', err);
+            console.error('Lỗi khi hủy phiếu bảo hành cho đơn hàng:', err);
           }
         } else if (dto.status === OrderStatus.RETURN_APPROVED) {
           try {
@@ -738,7 +736,7 @@ export class OrdersService implements OnModuleInit {
               `Hủy phiếu bảo hành do sản phẩm được chấp nhận đổi trả.`,
             );
           } catch (err) {
-            this.logger.error('Lỗi khi hủy phiếu bảo hành cho đơn hàng:', err);
+            console.error('Lỗi khi hủy phiếu bảo hành cho đơn hàng:', err);
           }
         }
       }
@@ -1016,7 +1014,7 @@ export class OrdersService implements OnModuleInit {
   }
 
   /**
-   * Cập nhật trạng thái thanh toán sau khi nhận kết quả từ VNPAY hoặc MoMo
+   * Cập nhật trạng thái thanh toán sau khi nhận kết quả từ VNPAY
    * - Nếu thành công: chuyển đơn hàng sang CONFIRMED
    * - Nếu thất bại: hoàn lại kho và chuyển trạng thái sang CANCELLED
    */
@@ -1024,7 +1022,7 @@ export class OrdersService implements OnModuleInit {
     orderId: number,
     isSuccess: boolean,
     transactionNo: string,
-    paymentMethod: 'vnpay' | 'momo' | 'payos' = 'vnpay',
+    paymentMethod: 'vnpay' = 'vnpay',
     paidAmount?: number,
     paymentDate?: string | null,
     txnRefOrig?: string | null,
@@ -1081,10 +1079,6 @@ export class OrdersService implements OnModuleInit {
         order.vnpay_transaction_no = transactionNo || null;
         if (paymentDate) order.vnpay_payment_date = paymentDate;
         if (txnRefOrig) order.vnpay_txn_ref = txnRefOrig;
-      } else if (paymentMethod === 'momo') {
-        order.momo_trans_id = transactionNo || null;
-      } else if (paymentMethod === 'payos') {
-        order.payos_transaction_no = transactionNo || null;
       }
 
       if (isSuccess) {
@@ -1094,7 +1088,7 @@ export class OrdersService implements OnModuleInit {
         order.cancelled_at = null;
 
         if (wasPreviouslyCancelled) {
-          this.logger.log(
+          console.log(
             `[Order Payment] Khôi phục đơn hàng #${order.id} bị hủy trước đó do nhận thanh toán online thành công!`,
           );
           // Trừ lại kho vì trước đó đã hoàn kho khi hủy
@@ -1196,7 +1190,7 @@ export class OrdersService implements OnModuleInit {
       where: {
         status: OrderStatus.PENDING,
         payment_status: PaymentStatus.PENDING,
-        payment_method: In(['vnpay', 'momo', 'payos']),
+        payment_method: In(['vnpay']),
         created_at: Raw((alias) => `${alias} < NOW() - INTERVAL '15 minutes'`),
       },
       relations: {
@@ -1210,7 +1204,7 @@ export class OrdersService implements OnModuleInit {
       return;
     }
 
-    this.logger.log(
+    console.log(
       `[Order Cleanup] Phát hiện ${unpaidOrders.length} đơn hàng quá hạn thanh toán.`,
     );
 
@@ -1264,12 +1258,12 @@ export class OrdersService implements OnModuleInit {
         await queryRunner.manager.save(order);
 
         await queryRunner.commitTransaction();
-        this.logger.log(
+        console.log(
           `[Order Cleanup] Hủy thành công đơn hàng ID ${order.id} do quá hạn thanh toán.`,
         );
       } catch (error) {
         await queryRunner.rollbackTransaction();
-        this.logger.error(
+        console.error(
           `[Order Cleanup] Lỗi khi hủy đơn hàng ID ${order.id}:`,
           error.stack,
         );
@@ -1606,7 +1600,7 @@ export class OrdersService implements OnModuleInit {
       // Dùng TxnRef gốc của giao dịch thanh toán (nếu có), nếu không dùng format orderId_timestamp
       const txnRef = order.vnpay_txn_ref || `${order.id}_${Date.now()}`;
 
-      this.logger.log(`[VNPAY Refund] Bắt đầu hoàn tiền đơn hàng #${order.id}, TxnRef gốc: ${txnRef}, số tiền: ${refundAmount}đ`);
+      console.log(`[VNPAY Refund] Bắt đầu hoàn tiền đơn hàng #${order.id}, TxnRef gốc: ${txnRef}, số tiền: ${refundAmount}đ`);
 
       const refundResult = await this.vnpayService.refundTransaction({
         txnRef,
@@ -1617,7 +1611,7 @@ export class OrdersService implements OnModuleInit {
         ipAddr: '127.0.0.1',
       });
 
-      this.logger.log(`[VNPAY Refund] Kết quả: ${JSON.stringify(refundResult)}`);
+      console.log(`[VNPAY Refund] Kết quả: ${JSON.stringify(refundResult)}`);
 
       if (!refundResult.success) {
         throw new BadRequestException(
@@ -1640,7 +1634,7 @@ export class OrdersService implements OnModuleInit {
           voidReason,
         );
       } catch (err) {
-        this.logger.error('Lỗi khi tự động hủy phiếu bảo hành:', err);
+        console.error('Lỗi khi tự động hủy phiếu bảo hành:', err);
       }
     }
 
@@ -1749,19 +1743,19 @@ export class OrdersService implements OnModuleInit {
 
       try {
         const fs = require('fs');
-        this.logger.debug(`[PDFGen] process.cwd(): ${process.cwd()}`);
-        this.logger.debug(`[PDFGen] Regular Font Path: ${fontRegularPath}`);
-        this.logger.debug(`[PDFGen] Regular Font Exists: ${fs.existsSync(fontRegularPath)}`);
+        console.log(`[PDFGen] process.cwd(): ${process.cwd()}`);
+        console.log(`[PDFGen] Regular Font Path: ${fontRegularPath}`);
+        console.log(`[PDFGen] Regular Font Exists: ${fs.existsSync(fontRegularPath)}`);
         if (fs.existsSync(fontRegularPath)) {
-          this.logger.debug(`[PDFGen] Regular Font Size: ${fs.statSync(fontRegularPath).size} bytes`);
+          console.log(`[PDFGen] Regular Font Size: ${fs.statSync(fontRegularPath).size} bytes`);
         }
-        this.logger.debug(`[PDFGen] Bold Font Path: ${fontBoldPath}`);
-        this.logger.debug(`[PDFGen] Bold Font Exists: ${fs.existsSync(fontBoldPath)}`);
+        console.log(`[PDFGen] Bold Font Path: ${fontBoldPath}`);
+        console.log(`[PDFGen] Bold Font Exists: ${fs.existsSync(fontBoldPath)}`);
         if (fs.existsSync(fontBoldPath)) {
-          this.logger.debug(`[PDFGen] Bold Font Size: ${fs.statSync(fontBoldPath).size} bytes`);
+          console.log(`[PDFGen] Bold Font Size: ${fs.statSync(fontBoldPath).size} bytes`);
         }
       } catch (err) {
-        this.logger.error(`[PDFGen] Font diagnostics failed: ${err.message}`);
+        console.error(`[PDFGen] Font diagnostics failed: ${err.message}`);
       }
 
       doc.registerFont('Roboto-Regular', fontRegularPath);

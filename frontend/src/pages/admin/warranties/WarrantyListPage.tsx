@@ -22,8 +22,22 @@ import TableLoader from '@/components/TableLoader';
 import AdminPageHeader from '@/components/AdminPageHeader';
 import StatCard from '@/components/StatCard';
 import StatusBadge from '@/components/StatusBadge';
+import { formatDate } from '@/utils/format';
+
 import toast from 'react-hot-toast';
 import { useDebounce } from '@/hooks/useDebounce';
+
+interface WarrantyClaimLog {
+  id: number;
+  claim_reason: string | null;
+  claim_images: string[] | null;
+  claim_status: 'claiming' | 'processing' | 'completed' | 'rejected';
+  resolution_note: string | null;
+  resolution_type?: string | null;
+  assigned_technician?: string | null;
+  appointment_date: string | null;
+  created_at: string;
+}
 
 interface Warranty {
   id: number;
@@ -36,12 +50,16 @@ interface Warranty {
   warranty_months: number;
   start_date: string;
   end_date: string;
+  appointment_date?: string | null;
   status: 'active' | 'expired' | 'voided';
   claim_status: 'none' | 'claiming' | 'processing' | 'completed' | 'rejected';
   claim_reason: string | null;
   claim_images: string[] | null;
   resolution_note: string | null;
+  resolution_type?: string | null;
+  assigned_technician?: string | null;
   created_at: string;
+  claim_logs?: WarrantyClaimLog[];
   product?: {
     id: number;
     name: string;
@@ -67,6 +85,24 @@ interface Warranty {
     phone: string;
   };
 }
+
+const getVariantText = (variant: any) => {
+  if (!variant) return null;
+  if (variant.name) return variant.name;
+  if (variant.attributes && typeof variant.attributes === 'object') {
+    const entries = Object.entries(variant.attributes).filter(([_, v]) => Boolean(v));
+    if (entries.length > 0) {
+      return entries
+        .map(([key, val]: [string, any]) => {
+          const str = String(val);
+          const cleanVal = str.includes('|') ? str.split('|')[0].trim() : str.trim();
+          return `${key}: ${cleanVal}`;
+        })
+        .join(' | ');
+    }
+  }
+  return variant.sku ? `SKU: ${variant.sku}` : null;
+};
 
 export default function WarrantyListPage() {
   const [warranties, setWarranties] = useState<Warranty[]>([]);
@@ -94,6 +130,9 @@ export default function WarrantyListPage() {
   const [decision, setDecision] = useState<'accept' | 'reject'>('accept');
   const [claimStatus, setClaimStatus] = useState<'none' | 'claiming' | 'processing' | 'completed' | 'rejected'>('processing');
   const [resolutionNote, setResolutionNote] = useState('');
+  const [resolutionType, setResolutionType] = useState<string>('repair');
+  const [assignedTechnician, setAssignedTechnician] = useState<string>('');
+  const [appointmentDate, setAppointmentDate] = useState('');
   const [processingSubmit, setProcessingSubmit] = useState(false);
 
   // Xem ảnh phóng to
@@ -177,6 +216,13 @@ export default function WarrantyListPage() {
       setClaimStatus('none');
     }
     setResolutionNote(w.resolution_note || '');
+    setResolutionType(w.resolution_type || (w.claim_status === 'rejected' ? 'reject' : 'repair'));
+    setAssignedTechnician(w.assigned_technician || '');
+    setAppointmentDate(
+      w.appointment_date
+        ? new Date(w.appointment_date).toISOString().slice(0, 16)
+        : ''
+    );
     setIsModalOpen(true);
   };
 
@@ -201,6 +247,9 @@ export default function WarrantyListPage() {
         status: cardStatus,
         claim_status: targetClaimStatus,
         resolution_note: resolutionNote || undefined,
+        resolution_type: decision === 'reject' ? 'reject' : resolutionType,
+        assigned_technician: assignedTechnician || undefined,
+        appointment_date: appointmentDate ? appointmentDate : null,
       });
 
       toast.success('Cập nhật tiến độ bảo hành thành công!');
@@ -271,11 +320,6 @@ export default function WarrantyListPage() {
           <span className="text-xs text-slate-400 font-medium italic">Không có yêu cầu</span>
         );
     }
-  };
-
-  const formatDate = (dStr?: string) => {
-    if (!dStr) return '-';
-    return new Date(dStr).toLocaleDateString('vi-VN');
   };
 
   return (
@@ -406,9 +450,9 @@ export default function WarrantyListPage() {
                       <div className="font-bold text-slate-700 line-clamp-1">
                         {w.product?.name || `Sản phẩm #${w.product_id}`}
                       </div>
-                      {w.variant && (
+                      {getVariantText(w.variant) && (
                         <div className="text-[11px] text-slate-400 mt-0.5">
-                          Phân loại: {w.variant.name}
+                          Phân loại: {getVariantText(w.variant)}
                         </div>
                       )}
                     </td>
@@ -495,9 +539,9 @@ export default function WarrantyListPage() {
                       {selectedWarranty.product?.name || `Sản phẩm #${selectedWarranty.product_id}`}
                     </span>
                   </p>
-                  {selectedWarranty.variant && (
+                  {getVariantText(selectedWarranty.variant) && (
                     <p className="text-slate-500 pl-5">
-                      Phân loại: <span className="font-medium text-slate-700">{selectedWarranty.variant.name}</span>
+                      Phân loại: <span className="font-medium text-slate-700">{getVariantText(selectedWarranty.variant)}</span>
                     </p>
                   )}
                   <p className="flex items-center gap-2 text-slate-600 mt-2">
@@ -640,6 +684,64 @@ export default function WarrantyListPage() {
                       </div>
                     </div>
 
+                    {/* Phương án xử lý cụ thể & Kỹ thuật viên */}
+                    {decision === 'accept' && (
+                      <div className="space-y-3 bg-slate-50 border border-slate-200 p-3.5">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-2">
+                            Phương án bảo hành:
+                          </label>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                            <button
+                              type="button"
+                              onClick={() => setResolutionType('home_service')}
+                              className={`p-2 border text-left flex items-center gap-1.5 cursor-pointer transition ${
+                                resolutionType === 'home_service'
+                                  ? 'border-blue-500 bg-blue-50/60 font-bold text-blue-900'
+                                  : 'border-slate-200 bg-white text-slate-700'
+                              }`}
+                            >
+                               KTV hỗ trợ tại nhà
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setResolutionType('repair')}
+                              className={`p-2 border text-left flex items-center gap-1.5 cursor-pointer transition ${
+                                resolutionType === 'repair'
+                                  ? 'border-amber-500 bg-amber-50/60 font-bold text-amber-900'
+                                  : 'border-slate-200 bg-white text-slate-700'
+                              }`}
+                            >
+                               Thu hồi về Xưởng sửa
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setResolutionType('replace')}
+                              className={`p-2 border text-left flex items-center gap-1.5 cursor-pointer transition ${
+                                resolutionType === 'replace'
+                                  ? 'border-purple-500 bg-purple-50/60 font-bold text-purple-900'
+                                  : 'border-slate-200 bg-white text-slate-700'
+                              }`}
+                            >
+                              <span>🔄</span> Đổi mới 1:1
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                            Kỹ thuật viên / Đội thợ phụ trách:
+                          </label>
+                          <input
+                            type="text"
+                            value={assignedTechnician}
+                            onChange={(e) => setAssignedTechnician(e.target.value)}
+                            className="w-full text-xs border border-slate-200 p-2 bg-white focus:outline-none focus:border-amber-500 font-medium"
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     {/* Tiến độ nếu Chấp nhận */}
                     {decision === 'accept' && (
                       <div>
@@ -682,6 +784,33 @@ export default function WarrantyListPage() {
                       </div>
                     )}
 
+                    {/* Lịch hẹn kỹ thuật viên */}
+                    {decision === 'accept' && (
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                          <Calendar size={13} className="text-amber-600" />
+                          {resolutionType === 'home_service'
+                            ? 'Lịch hẹn Kỹ thuật viên đến nhà kiểm tra:'
+                            : resolutionType === 'repair' || resolutionType === 'replace'
+                            ? 'Lịch hẹn đến thu hồi về xưởng:'
+                            : 'Lịch hẹn hỗ trợ / xử lý bảo hành:'}
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={appointmentDate}
+                          onChange={(e) => setAppointmentDate(e.target.value)}
+                          className="w-full text-xs border border-slate-200 p-2.5 rounded-none focus:outline-none focus:border-amber-500 font-mono"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          {resolutionType === 'home_service'
+                            ? 'Hệ thống sẽ thông báo lịch KTV đến tận nhà trên sổ bảo hành của khách hàng.'
+                            : resolutionType === 'repair' || resolutionType === 'replace'
+                            ? 'Hệ thống sẽ thông báo lịch nhân viên tới thu hồi trên sổ bảo hành của khách.'
+                            : 'Hệ thống sẽ hiển thị lịch hẹn này trên sổ bảo hành của khách hàng.'}
+                        </p>
+                      </div>
+                    )}
+
                     {/* Ghi chú kỹ thuật / Lý do từ chối */}
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
@@ -695,8 +824,8 @@ export default function WarrantyListPage() {
                         rows={3}
                         placeholder={
                           decision === 'reject'
-                            ? 'Ví dụ: Sản phẩm bị ngâm nước / Đã hết thời hạn bảo hành / Hỏng hóc do va đập ngoại lực...'
-                            : 'Ví dụ: Đã thay thế linh kiện nệm ghế mới / Đổi mới sản phẩm 1:1 cho khách hàng...'
+                            ? 'Ví dụ: Sản phẩm ngấm nước nở gỗ / Hỏng hóc do va đập ngoại lực / Đã quá hạn bảo hành...'
+                            : 'Ví dụ: Đã xử lý sơn dặm trầy xước / Thay thanh ray trượt hộc tủ mới / Hẹn ngày giao sofa đổi mới...'
                         }
                         value={resolutionNote}
                         onChange={(e) => setResolutionNote(e.target.value)}
@@ -710,6 +839,64 @@ export default function WarrantyListPage() {
                   </div>
                 )}
               </div>
+
+              {/* Lịch sử Log Bảo Hành đã gom nhóm */}
+              {(() => {
+                const uniqueLogs: WarrantyClaimLog[] = [];
+                const seenReasons = new Set<string>();
+                (selectedWarranty.claim_logs || []).forEach((log) => {
+                  const key = log.claim_reason ? log.claim_reason.trim().toLowerCase() : `log_${log.id}`;
+                  if (!seenReasons.has(key)) {
+                    seenReasons.add(key);
+                    uniqueLogs.push(log);
+                  }
+                });
+
+                if (uniqueLogs.length === 0) return null;
+
+                return (
+                  <div className="border border-slate-100 p-4 space-y-3 bg-slate-50/50">
+                    <h3 className="font-bold text-slate-800 text-xs uppercase tracking-wider border-b border-slate-200 pb-2 flex items-center gap-1.5">
+                      <ClipboardList size={14} className="text-amber-600" /> Lịch sử Nhật ký Xử lý Bảo hành ({uniqueLogs.length} đợt)
+                    </h3>
+                    <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                      {uniqueLogs.map((log, idx) => (
+                        <div key={log.id || idx} className="bg-white border border-slate-200 p-3 rounded-none text-xs space-y-1.5 shadow-2xs">
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                            <span className="font-bold text-slate-700">Đợt #{uniqueLogs.length - idx}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">{formatDate(log.created_at)}</span>
+                          </div>
+                          {log.claim_reason && (
+                            <p className="text-slate-600"><strong className="text-slate-700">Lý do sự cố:</strong> {log.claim_reason}</p>
+                          )}
+                          {log.resolution_type && (
+                            <p className="text-slate-700 font-semibold text-[11px]">
+                              <strong>Phương án:</strong>{' '}
+                              {log.resolution_type === 'repair' && 'Thu hồi về xưởng sửa chữa'}
+                              {log.resolution_type === 'replace' && 'Đổi mới sản phẩm 1:1'}
+                              {log.resolution_type === 'home_service' && 'KTV mộc hỗ trợ tại nhà'}
+                              {log.resolution_type === 'reject' && 'Từ chối bảo hành'}
+                            </p>
+                          )}
+                          {log.assigned_technician && (
+                            <p className="text-blue-800 font-mono text-[11px]">
+                              <strong>Kỹ thuật viên:</strong> {log.assigned_technician}
+                            </p>
+                          )}
+                          {log.resolution_note && (
+                            <p className="text-purple-800 bg-purple-50 p-2 border border-purple-100"><strong className="text-purple-900">Ghi chú xử lý:</strong> {log.resolution_note}</p>
+                          )}
+                          {log.appointment_date && (
+                            <p className="text-amber-800 bg-amber-50 p-1.5 border border-amber-100 flex items-center gap-1 font-mono text-[11px]">
+                              <Calendar size={12} /> Lịch hẹn: {formatDate(log.appointment_date)}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Modal Actions */}

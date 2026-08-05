@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -18,7 +17,6 @@ import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class StockIssuesService {
-  private readonly logger = new Logger(StockIssuesService.name);
 
   constructor(
     @InjectRepository(StockIssue)
@@ -237,7 +235,7 @@ export class StockIssuesService {
                 reference_link: '/admin/inventory',
               });
             } catch (err) {
-              this.logger.error('Lỗi khi gửi thông báo tồn kho thấp:', err);
+              console.error('Lỗi khi gửi thông báo tồn kho thấp:', err);
             }
           }
         }

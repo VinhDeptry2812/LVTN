@@ -153,8 +153,6 @@ export default function Footer() {
               <p className="text-xs text-on-surface-variant mb-3 font-medium">Phương thức thanh toán:</p>
               <div className="flex flex-wrap gap-2 text-xs">
                 <span className="px-2.5 py-1 bg-surface-container-lowest border border-outline-variant/30 rounded font-bold text-primary">VNPay</span>
-                <span className="px-2.5 py-1 bg-surface-container-lowest border border-outline-variant/30 rounded font-bold text-pink-600">MoMo</span>
-                <span className="px-2.5 py-1 bg-surface-container-lowest border border-outline-variant/30 rounded font-bold text-blue-700">Visa / MC</span>
                 <span className="px-2.5 py-1 bg-surface-container-lowest border border-outline-variant/30 rounded font-semibold text-on-surface">COD</span>
               </div>
             </div>
@@ -164,7 +162,7 @@ export default function Footer() {
 
         {/* Bottom Bar / Copyright */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-on-surface-variant">
-          <p>© 2024 Nội thất. Tất cả các quyền được bảo lưu.</p>
+          <p>© 2026 Nội thất. Tất cả các quyền được bảo lưu.</p>
           <div className="flex gap-6">
             <a href="#" className="hover:underline hover:text-primary">Điều khoản sử dụng</a>
             <a href="#" className="hover:underline hover:text-primary">Chính sách bảo mật</a>

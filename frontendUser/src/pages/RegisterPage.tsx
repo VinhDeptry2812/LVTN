@@ -2,6 +2,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../services/auth.service';
 import { useAuthStore } from '../store/useAuthStore';
+import { useCartStore } from '../store/useCartStore';
 import toast from 'react-hot-toast';
 import Footer from '../components/Footer';
 import Header from '../components/Header';
@@ -30,6 +31,7 @@ const RegisterPage: React.FC = () => {
         password,
       });
       setAuth(response.access_token, response.refresh_token, response.user);
+      await useCartStore.getState().syncCartOnLogin();
       toast.success('Đăng ký tài khoản thành công!');
       navigate('/');
     } catch (error: any) {

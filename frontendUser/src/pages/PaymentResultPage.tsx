@@ -41,7 +41,7 @@ export default function PaymentResultPage() {
       );
     }
 
-    // Process payment verification with backend if VNPay/MoMo params exist
+    // Process payment verification with backend if VNPay params exist
     if (searchParams.has('vnp_ResponseCode')) {
       setPaymentMethod('Cổng thanh toán VNPAY');
       api.get(`/payment/vnpay-return?${searchParams.toString()}`)
@@ -55,46 +55,6 @@ export default function PaymentResultPage() {
         })
         .catch((err) => {
           console.error('Lỗi xác thực thanh toán VNPAY:', err);
-          setStatus('failed');
-        });
-    } else if (searchParams.has('resultCode')) {
-      setPaymentMethod('Ví điện tử MoMo');
-      api.get(`/payment/momo-verify?${searchParams.toString()}`)
-        .then((response) => {
-          if (response.data.success) {
-            setStatus('success');
-            clearCart();
-          } else {
-            setStatus('failed');
-          }
-        })
-        .catch((err) => {
-          console.error('Lỗi xác thực thanh toán MoMo:', err);
-          setStatus('failed');
-        });
-    } else if (searchParams.has('orderCode')) {
-      setPaymentMethod('Chuyển khoản VietQR (PayOS)');
-      const payosOrderCode = searchParams.get('orderCode');
-      if (payosOrderCode) {
-        setOrderCode(payosOrderCode);
-      }
-      api.get(`/payment/payos-verify?${searchParams.toString()}`)
-        .then((response) => {
-          if (response.data.success) {
-            setStatus('success');
-            clearCart();
-            if (response.data.order?.total_price) {
-              setAmount(
-                new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
-                  .format(Number(response.data.order.total_price))
-              );
-            }
-          } else {
-            setStatus('failed');
-          }
-        })
-        .catch((err) => {
-          console.error('Lỗi xác thực thanh toán PayOS:', err);
           setStatus('failed');
         });
     } else {

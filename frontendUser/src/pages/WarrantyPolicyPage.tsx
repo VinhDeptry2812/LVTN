@@ -254,10 +254,10 @@ const WarrantyPolicyPage: React.FC = () => {
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Link
-                to="/profile?tab=warranty"
+                to="/warranty-lookup"
                 className="px-8 py-3.5 bg-white text-primary font-label-md font-bold uppercase tracking-wider hover:bg-neutral-100 transition-colors shadow-md inline-flex items-center gap-2"
               >
-                Tra cứu bảo hành cá nhân <ArrowRight size={18} />
+                Tra cứu bảo hành ngay <ArrowRight size={18} />
               </Link>
               <a
                 href="tel:19006789"

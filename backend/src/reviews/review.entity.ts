@@ -36,6 +36,9 @@ export class Review {
   @Column({ type: 'boolean', default: false })
   is_anonymous: boolean; // Tùy chọn ẩn danh của đánh giá
 
+  @Column({ type: 'int', default: 0 })
+  edit_count: number; // Số lần đã chỉnh sửa (tối đa 1 lần)
+
   @CreateDateColumn()
   created_at: Date;
 

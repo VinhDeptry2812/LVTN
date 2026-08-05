@@ -11,6 +11,8 @@ export interface ProductSectionCarouselProps {
   itemsToShow?: number;
   viewAllLink?: string;
   bgClass?: string;
+  sectionPaddingClass?: string;
+  contentPaddingClass?: string;
   onAddToCart?: (product: ProductFrontend) => void;
 }
 
@@ -21,6 +23,8 @@ const ProductSectionCarousel: React.FC<ProductSectionCarouselProps> = ({
   itemsToShow: itemsToShowProp,
   viewAllLink = '/shop',
   bgClass = 'bg-surface',
+  sectionPaddingClass = 'py-8 md:pb-2 md:pt-18 lg:py-sp-xl lg:pt-0',
+  contentPaddingClass = 'px-sp-md md:px-lg',
 }) => {
   const [responsiveItemsToShow, setResponsiveItemsToShow] = useState(4);
 
@@ -105,8 +109,8 @@ const ProductSectionCarousel: React.FC<ProductSectionCarouselProps> = ({
   if (products.length === 0) return null;
 
   return (
-    <section className={`py-8 md:pb-2 md:pt-18 lg:py-sp-xl  lg:pt-0 ${bgClass}`}>
-      <div className="max-w-container-max mx-auto px-sp-md md:px-lg">
+    <section className={`${sectionPaddingClass} ${bgClass}`}>
+      <div className={`max-w-container-max mx-auto ${contentPaddingClass}`}>
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-0 lg:mb-0 gap-2 sm:gap-sp-md border-b border-outline-variant/20 md:pb-6">
           <div>
             <h2 className="font-headline-lg text-xl sm:text-headline-lg text-on-surface mb-1 sm:mb-2">{title}</h2>

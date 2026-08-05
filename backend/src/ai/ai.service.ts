@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
@@ -9,7 +9,6 @@ import { SendChatMessageDto } from './dto/chat.dto';
 
 @Injectable()
 export class AiService implements OnModuleInit {
-  private readonly logger = new Logger(AiService.name);
   private ai: GoogleGenAI;
 
   constructor(
@@ -29,7 +28,7 @@ export class AiService implements OnModuleInit {
     // Tự động kiểm tra extension pgvector & đồng bộ embedding khi backend khởi chạy
     setTimeout(() => {
       this.syncProductEmbeddings().catch((err) =>
-        this.logger.warn('Lỗi tự động đồng bộ embedding:', err.message),
+        console.warn('Lỗi tự động đồng bộ embedding:', err.message),
       );
     }, 5000);
   }
@@ -47,7 +46,7 @@ export class AiService implements OnModuleInit {
       });
       return response.embeddings?.[0]?.values || null;
     } catch (error) {
-      this.logger.error('Lỗi khi tạo Vector Embedding:', error);
+      console.error('Lỗi khi tạo Vector Embedding:', error);
       return null;
     }
   }
@@ -59,7 +58,7 @@ export class AiService implements OnModuleInit {
     try {
       await this.productRepository.query('CREATE EXTENSION IF NOT EXISTS vector;');
     } catch (e) {
-      this.logger.warn('Không thể khởi tạo extension vector trên Postgres:', e.message);
+      console.warn('Không thể khởi tạo extension vector trên Postgres:', e.message);
     }
 
     const products = await this.productRepository.find({
@@ -80,7 +79,7 @@ export class AiService implements OnModuleInit {
     }
 
     if (syncedCount > 0) {
-      this.logger.log(`Đã đồng bộ thành công Vector Embedding cho ${syncedCount}/${products.length} sản phẩm.`);
+      console.log(`Đã đồng bộ thành công Vector Embedding cho ${syncedCount}/${products.length} sản phẩm.`);
     }
     return { synced: syncedCount, total: products.length };
   }
@@ -139,7 +138,7 @@ Yêu cầu về định dạng đầu ra:
           contents: prompt,
         });
       } catch (firstErr: any) {
-        this.logger.warn(
+        console.warn(
           'Model gemini-2.5-flash bận hoặc chạm hạn mức, tự động chuyển sang gemini-flash-latest...',
         );
         response = await this.ai.models.generateContent({
@@ -149,7 +148,7 @@ Yêu cầu về định dạng đầu ra:
       }
       return response.text || 'Không thể tạo mô tả cho sản phẩm này.';
     } catch (error) {
-      this.logger.error('Lỗi Gemini API:', error);
+      console.error('Lỗi Gemini API:', error);
       throw new InternalServerErrorException(
         'Không thể tạo mô tả tự động lúc này.',
       );
@@ -218,7 +217,7 @@ Yêu cầu về định dạng đầu ra:
           }
         }
       } catch (err) {
-        this.logger.warn('Không thể tìm kiếm bằng pgvector (sẽ dùng bộ lọc từ khóa làm fallback):', err.message);
+        console.warn('Không thể tìm kiếm bằng pgvector (sẽ dùng bộ lọc từ khóa làm fallback):', err.message);
       }
 
       if (isDiscountQuery) {
@@ -328,7 +327,7 @@ HƯỚNG DẪN BẮT BUỘC: Hãy THÀNH THẬT và LỊCH SỰ thông báo cho 
 Nếu khách hàng đặt các câu hỏi sử dụng từ xưng hô như "cái này", "sản phẩm này", "mẫu này", "nó", "giá sao", "kích thước bao nhiêu", "còn hàng không"... thì BẠN PHẢI ƯU TIÊN HIỂU LÀ KHÁCH HÀNG ĐANG HỎI VỀ SẢN PHẨM "${curProd.name}" NÀY!`;
           }
         } catch (e) {
-          this.logger.error('Lỗi khi lấy sản phẩm đang xem:', e);
+          console.error('Lỗi khi lấy sản phẩm đang xem:', e);
         }
       }
 
@@ -383,7 +382,7 @@ Tư vấn viên:`;
           contents: fullPrompt,
         });
       } catch (firstErr: any) {
-        this.logger.warn(
+        console.warn(
           'Model gemini-2.5-flash bận hoặc chạm hạn mức, tự động chuyển sang gemini-flash-latest...',
         );
         response = await this.ai.models.generateContent({
@@ -426,7 +425,7 @@ Tư vấn viên:`;
         suggestedProducts,
       };
     } catch (error: any) {
-      this.logger.error('Lỗi khi Chat AI tư vấn:', error);
+      console.error('Lỗi khi Chat AI tư vấn:', error);
 
       const isQuotaError =
         error?.status === 429 ||

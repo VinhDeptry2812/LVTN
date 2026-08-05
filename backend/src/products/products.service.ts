@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
-  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not, In } from 'typeorm';
@@ -22,7 +21,6 @@ import { OrderStatus } from '../orders/order.entity';
 
 @Injectable()
 export class ProductsService {
-  private readonly logger = new Logger(ProductsService.name);
   private cachedPromotions: { data: Promotion[]; timestamp: number } | null = null;
   private readonly PROMO_CACHE_TTL = 60 * 1000; // 60 giây cache
 
@@ -823,7 +821,7 @@ export class ProductsService {
         await this.cloudinaryService
           .deleteImageByUrl(url)
           .catch((e) =>
-            this.logger.error('Lỗi khi xóa ảnh mô tả trên Cloudinary:', e),
+            console.error('Lỗi khi xóa ảnh mô tả trên Cloudinary:', e),
           );
       }
     }
@@ -1127,7 +1125,7 @@ export class ProductsService {
 
       // Trigger low stock warning asynchronously if stock is low
       this.checkLowStockAlert(variantId, stock, manager).catch((err) => {
-        this.logger.error('Error triggering low stock warning:', err);
+        console.error('Error triggering low stock warning:', err);
       });
 
       return savedVariant;

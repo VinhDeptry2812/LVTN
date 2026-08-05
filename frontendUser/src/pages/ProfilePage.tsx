@@ -166,7 +166,7 @@ const ProfilePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col font-body-md text-on-surface">
+    <div className="pt-10 md:pt-0min-h-screen bg-background flex flex-col font-body-md text-on-surface">
       <Header />
 
       <main className="flex-grow py-12 md:py-20 bg-background mt-16 md:mt-20">

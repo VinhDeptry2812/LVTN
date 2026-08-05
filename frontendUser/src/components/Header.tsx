@@ -212,6 +212,7 @@ export default function Header() {
     try {
       const response = await authService.login({ email: loginEmail, password: loginPassword });
       setAuth(response.access_token, response.refresh_token, response.user);
+      await useCartStore.getState().syncCartOnLogin();
       toast.success('Đăng nhập thành công!');
       setLoginEmail('');
       setLoginPassword('');

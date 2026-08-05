@@ -14,6 +14,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
+import { SyncCartDto } from './dto/sync-cart.dto';
 
 @Controller('cart')
 @UseGuards(JwtAuthGuard)
@@ -23,6 +24,14 @@ export class CartController {
   @Get()
   async getCart(@GetUser('id') userId: number) {
     return this.cartService.getCart(userId);
+  }
+
+  @Post('sync')
+  async syncCart(
+    @GetUser('id') userId: number,
+    @Body() syncCartDto: SyncCartDto,
+  ) {
+    return this.cartService.syncCart(userId, syncCartDto);
   }
 
   @Post('items')

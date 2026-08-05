@@ -23,11 +23,7 @@ export default function PaymentResultPage() {
         const params = Object.fromEntries(searchParams.entries());
         const queryString = new URLSearchParams(params).toString();
 
-        // Kiểm tra xem đây là callback của MoMo hay VNPAY
-        const isMomo = searchParams.has('partnerCode') || searchParams.has('resultCode');
-        const endpoint = isMomo 
-          ? `http://localhost:3000/payment/momo-verify?${queryString}`
-          : `http://localhost:3000/payment/vnpay-return?${queryString}`;
+        const endpoint = `http://localhost:3000/payment/vnpay-return?${queryString}`;
 
         const response = await fetch(endpoint);
         const data = await response.json();
@@ -78,7 +74,7 @@ export default function PaymentResultPage() {
               {result.transactionNo && (
                 <div style={styles.infoRow}>
                   <span style={styles.infoLabel}>
-                    {searchParams.has('partnerCode') ? 'Mã giao dịch MoMo:' : 'Mã giao dịch VNPAY:'}
+                    Mã giao dịch VNPAY:
                   </span>
                   <span style={styles.infoValue}>{result.transactionNo}</span>
                 </div>

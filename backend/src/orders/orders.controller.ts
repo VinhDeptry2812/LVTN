@@ -12,13 +12,11 @@ import {
   ParseIntPipe,
   DefaultValuePipe,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { OrdersService } from './orders.service';
 import { VnpayService } from '../vnpay/vnpay.service';
-import { MomoService } from '../momo/momo.service';
-import { PayosService } from '../payos/payos.service';
-import { Inject, forwardRef } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -35,9 +33,6 @@ export class OrdersController {
   constructor(
     private readonly ordersService: OrdersService,
     private readonly vnpayService: VnpayService,
-    @Inject(forwardRef(() => MomoService))
-    private readonly momoService: MomoService,
-    private readonly payosService: PayosService,
   ) {}
 
   // 1. APIs cho Khách hàng
@@ -63,9 +58,15 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard)
   async createOrder(
     @GetUser('id') userId: number,
+    @GetUser('role') role: UserRole,
     @Body() createOrderDto: CreateOrderDto,
     @Req() req: Request,
   ) {
+    if (role === UserRole.ADMIN || role === UserRole.STAFF) {
+      throw new ForbiddenException(
+        'Tài khoản Quản trị/Nhân viên không được phép đặt hàng mua sắm cá nhân. Vui lòng sử dụng tài khoản Khách hàng.',
+      );
+    }
     const order = await this.ordersService.createOrder(userId, createOrderDto);
 
     // Nếu phương thức thanh toán là VNPAY, tự động tạo URL thanh toán
@@ -80,32 +81,6 @@ export class OrdersController {
         Number(order.total_amount),
         `Thanh toan don hang #${order.id} - FurniShop`,
         ipAddr,
-      );
-
-      return {
-        order,
-        paymentUrl,
-      };
-    }
-
-    // Nếu phương thức thanh toán là MoMo, tự động tạo URL thanh toán MoMo
-    if (createOrderDto.payment_method === PaymentMethod.MOMO) {
-      const paymentUrl = await this.momoService.createPaymentUrl(
-        order.id,
-        Number(order.total_amount),
-      );
-
-      return {
-        order,
-        paymentUrl,
-      };
-    }
-
-    // Nếu phương thức thanh toán là PayOS, tự động tạo URL thanh toán PayOS
-    if (createOrderDto.payment_method === PaymentMethod.PAYOS) {
-      const paymentUrl = await this.payosService.createPaymentUrl(
-        order.id,
-        Number(order.total_amount),
       );
 
       return {
@@ -137,30 +112,6 @@ export class OrdersController {
         Number(order.total_amount),
         `Thanh toan don hang #${order.id} - FurniShop`,
         ipAddr,
-      );
-
-      return {
-        order,
-        paymentUrl,
-      };
-    }
-
-    if (createOrderDto.payment_method === PaymentMethod.MOMO) {
-      const paymentUrl = await this.momoService.createPaymentUrl(
-        order.id,
-        Number(order.total_amount),
-      );
-
-      return {
-        order,
-        paymentUrl,
-      };
-    }
-
-    if (createOrderDto.payment_method === PaymentMethod.PAYOS) {
-      const paymentUrl = await this.payosService.createPaymentUrl(
-        order.id,
-        Number(order.total_amount),
       );
 
       return {
@@ -245,24 +196,6 @@ export class OrdersController {
         Number(order.total_amount),
         `Thanh toan don hang #${order.id} - FurniShop`,
         ipAddr,
-      );
-
-      return { paymentUrl };
-    }
-
-    if (order.payment_method === PaymentMethod.MOMO) {
-      const paymentUrl = await this.momoService.createPaymentUrl(
-        order.id,
-        Number(order.total_amount),
-      );
-
-      return { paymentUrl };
-    }
-
-    if (order.payment_method === PaymentMethod.PAYOS) {
-      const paymentUrl = await this.payosService.createPaymentUrl(
-        order.id,
-        Number(order.total_amount),
       );
 
       return { paymentUrl };

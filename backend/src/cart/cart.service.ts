@@ -11,6 +11,7 @@ import { Product } from '../products/product.entity';
 import { ProductVariant } from '../products/product-variant.entity';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
+import { SyncCartDto } from './dto/sync-cart.dto';
 
 @Injectable()
 export class CartService {
@@ -32,6 +33,8 @@ export class CartService {
         items: {
           product: {
             images: true,
+            detail: true,
+            variants: true,
           },
           variant: true,
         },
@@ -110,6 +113,22 @@ export class CartService {
     }
 
     await this.cartItemRepository.save(cartItem);
+    return this.getCart(userId);
+  }
+
+  async syncCart(userId: number, dto: SyncCartDto): Promise<Cart> {
+    if (dto.items && dto.items.length > 0) {
+      for (const itemDto of dto.items) {
+        try {
+          await this.addToCart(userId, itemDto);
+        } catch (error: any) {
+          console.warn(
+            `Lỗi đồng bộ sản phẩm ID=${itemDto.product_id}:`,
+            error?.message,
+          );
+        }
+      }
+    }
     return this.getCart(userId);
   }
 

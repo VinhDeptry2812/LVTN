@@ -11,7 +11,7 @@ export interface CreateOrderPayload {
   shipping_address: string;
   phone: string;
   notes?: string;
-  payment_method: 'cod' | 'vnpay' | 'momo' | 'payos';
+  payment_method: 'cod' | 'vnpay';
   voucher_code?: string;
   items: OrderItemPayload[];
 }

@@ -94,7 +94,7 @@ export default function ProductDetailPage() {
     filteredTotal: 0,
     currentPage: 1,
     totalPages: 1,
-    limit: 6,
+    limit: 3,
     allImages: [],
     starCounts: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
   });
@@ -105,6 +105,47 @@ export default function ProductDetailPage() {
   const [reviewPage, setReviewPage] = useState<number>(1);
   const [reviewsLoading, setReviewsLoading] = useState<boolean>(false);
   const reviewsSectionRef = useRef<HTMLDivElement>(null);
+  const reviewsScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollReviews = (direction: 'left' | 'right') => {
+    if (reviewsScrollRef.current) {
+      const scrollAmount = direction === 'left' ? -380 : 380;
+      reviewsScrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  // Drag-to-scroll cho Review Carousel
+  const [isDraggingReviews, setIsDraggingReviews] = useState(false);
+  const [dragStartX, setDragStartX] = useState(0);
+  const [dragScrollLeft, setDragScrollLeft] = useState(0);
+  const [hasDragged, setHasDragged] = useState(false);
+
+  const handleReviewsMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!reviewsScrollRef.current) return;
+    setIsDraggingReviews(true);
+    setHasDragged(false);
+    setDragStartX(e.pageX - reviewsScrollRef.current.offsetLeft);
+    setDragScrollLeft(reviewsScrollRef.current.scrollLeft);
+  };
+
+  const handleReviewsMouseLeave = () => {
+    setIsDraggingReviews(false);
+  };
+
+  const handleReviewsMouseUp = () => {
+    setIsDraggingReviews(false);
+  };
+
+  const handleReviewsMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDraggingReviews || !reviewsScrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - reviewsScrollRef.current.offsetLeft;
+    const walk = (x - dragStartX) * 1.5;
+    if (Math.abs(walk) > 5) {
+      setHasDragged(true);
+    }
+    reviewsScrollRef.current.scrollLeft = dragScrollLeft - walk;
+  };
 
   const [recommendedProducts, setRecommendedProducts] = useState<ProductFrontend[]>([]);
   const [frequentlyBoughtProducts, setFrequentlyBoughtProducts] = useState<ProductFrontend[]>([]);
@@ -121,6 +162,7 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     if (id) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
       setLoading(true);
       fetchProductById(id)
         .then(data => {
@@ -199,7 +241,7 @@ export default function ProductDetailPage() {
       try {
         const stored = localStorage.getItem('recently_viewed_products');
         let list: ProductFrontend[] = stored ? JSON.parse(stored) : [];
-        
+
         // Lấy danh sách hiển thị (loại bỏ sản phẩm đang xem hiện tại)
         const filtered = list.filter((p) => String(p.id) !== String(product.id));
         setRecentlyViewedProducts(filtered);
@@ -213,21 +255,28 @@ export default function ProductDetailPage() {
     }
   }, [product]);
 
-  // Effect tải đánh giá với phân trang Server-side (Option 1B)
+  // Effect tải đánh giá với phân trang Xem thêm (limit: 3)
   useEffect(() => {
     if (id) {
       setReviewsLoading(true);
       fetchProductReviews(id, {
         page: reviewPage,
-        limit: 6, // 6 reviews / page (tạo thành 3 hàng x 2 cột hoàn hảo)
+        limit: 2,
         rating: reviewRatingFilter,
         sort: reviewSort,
       })
-        .then(data => {
-          setReviewsData(data);
+        .then((data) => {
+          if (reviewPage === 1) {
+            setReviewsData(data);
+          } else {
+            setReviewsData((prev) => ({
+              ...data,
+              reviews: [...prev.reviews, ...data.reviews],
+            }));
+          }
           setReviewsLoading(false);
         })
-        .catch(err => {
+        .catch((err) => {
           console.error('Lỗi khi tải đánh giá sản phẩm:', err);
           setReviewsLoading(false);
         });
@@ -245,10 +294,9 @@ export default function ProductDetailPage() {
     setReviewPage(1);
   };
 
-  const handlePageChange = (newPage: number) => {
-    setReviewPage(newPage);
-    if (reviewsSectionRef.current) {
-      reviewsSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const handleLoadMoreReviews = () => {
+    if ((reviewsData.currentPage ?? 1) < (reviewsData.totalPages ?? 1)) {
+      setReviewPage((prev) => prev + 1);
     }
   };
 
@@ -819,22 +867,22 @@ export default function ProductDetailPage() {
 
               {/* Specifications (Moved below variants) */}
               {product.specs && (
-                Array.isArray(product.specs) 
-                  ? product.specs.length > 0 
+                Array.isArray(product.specs)
+                  ? product.specs.length > 0
                   : Object.keys(product.specs).length > 0
               ) && (
-                <div className="py-2 space-y-1 !mt-2">
-                  {(Array.isArray(product.specs)
-                    ? product.specs.map((item: any) => [item.key, item.value])
-                    : Object.entries(product.specs)
-                  ).map(([key, value]) => (
-                    <p key={key} className="text-body-sm text-on-surface">
-                      <span className="font-bold capitalize">{key}: </span><br />
-                      <span className="text-on-surface-variant whitespace-pre-line">{value}</span>
-                    </p>
-                  ))}
-                </div>
-              )}
+                  <div className="py-2 space-y-1 !mt-2">
+                    {(Array.isArray(product.specs)
+                      ? product.specs.map((item: any) => [item.key, item.value])
+                      : Object.entries(product.specs)
+                    ).map(([key, value]) => (
+                      <p key={key} className="text-body-sm text-on-surface">
+                        <span className="font-bold capitalize">{key}: </span><br />
+                        <span className="text-on-surface-variant whitespace-pre-line">{value}</span>
+                      </p>
+                    ))}
+                  </div>
+                )}
 
               {/* Trạng thái tồn kho của biến thể */}
               <div className="text-sm flex items-center gap-2 !mt-4">
@@ -1047,7 +1095,7 @@ export default function ProductDetailPage() {
                     <div className="flex justify-center mt-6">
                       <button
                         onClick={() => setDescExpanded(prev => !prev)}
-                        className="flex items-center gap-2 px-6 py-2.5 border border-[#5A6B53] text-[#5A6B53] rounded-full text-sm font-semibold hover:bg-[#5A6B53] hover:text-white transition-all duration-300"
+                        className="flex items-center gap-2 px-6 py-2.5 border border-[#5A6B53] text-[#5A6B53] rounded-none text-sm font-semibold hover:bg-[#5A6B53] hover:text-white transition-all duration-300"
                       >
                         <span className="material-symbols-outlined text-base leading-none">{descExpanded ? 'expand_less' : 'expand_more'}</span>
                         {descExpanded ? 'Thu gọn' : 'Xem thêm'}
@@ -1067,7 +1115,7 @@ export default function ProductDetailPage() {
 
           {/* Reviews Section - Seamless Organic Minimalist Layout with Server-Side Pagination */}
           <section ref={reviewsSectionRef} className="mt-16 pt-12 border-t border-[#EBE5DB] w-full">
-            
+
             {/* Section Heading */}
             <div className="flex flex-col items-center mb-10 text-center">
               <span className="text-xs font-bold uppercase tracking-widest text-[#5A6B53] mb-2">
@@ -1081,19 +1129,18 @@ export default function ProductDetailPage() {
 
             {/* Filter Pills & Sort Controls Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#EBE5DB] pb-4 mb-6">
-              
-              {/* Star Filter Pills */}
-              <div className="flex flex-wrap items-center gap-2">
+
+              {/* Star Filter Pills - Horizontal Scroll on Mobile */}
+              <div className="flex overflow-x-auto no-scrollbar items-center gap-2 max-w-full -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap py-1">
                 <button
                   onClick={() => handleRatingFilterChange('all')}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-200 border cursor-pointer flex items-center gap-1.5 ${
-                    reviewRatingFilter === 'all'
-                      ? 'bg-[#5A6B53] border-[#5A6B53] text-white shadow-2xs'
-                      : 'border-[#EBE5DB] text-on-surface-variant bg-white hover:border-[#5A6B53] hover:text-[#5A6B53]'
-                  }`}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all duration-200 border cursor-pointer flex items-center gap-1.5 shrink-0 ${reviewRatingFilter === 'all'
+                      ? 'bg-[#5A6B53] border-[#5A6B53] text-white shadow-xs'
+                      : 'border-[#EBE5DB] text-on-surface-variant bg-transparent hover:border-[#5A6B53] hover:text-[#5A6B53]'
+                    }`}
                 >
                   <span>Tất cả</span>
-                  <span className={`px-1.5 py-0.2 text-[10px] rounded-full ${reviewRatingFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                  <span className={`px-2 py-0.5 text-[10px] rounded-full font-semibold ${reviewRatingFilter === 'all' ? 'bg-white/25 text-white' : 'bg-[#EBE5DB]/60 text-slate-700'}`}>
                     {reviewsData.totalReviews}
                   </span>
                 </button>
@@ -1105,17 +1152,16 @@ export default function ProductDetailPage() {
                     <button
                       key={stars}
                       onClick={() => handleRatingFilterChange(stars)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 border flex items-center gap-1 cursor-pointer ${
-                        isSelected
-                          ? 'bg-[#5A6B53] border-[#5A6B53] text-white shadow-2xs'
-                          : 'border-[#EBE5DB] text-on-surface-variant bg-white hover:border-[#5A6B53] hover:text-[#5A6B53]'
-                      }`}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-200 border flex items-center gap-1 cursor-pointer shrink-0 ${isSelected
+                          ? 'bg-[#5A6B53] border-[#5A6B53] text-white shadow-xs'
+                          : 'border-[#EBE5DB] text-on-surface-variant bg-transparent hover:border-[#5A6B53] hover:text-[#5A6B53]'
+                        }`}
                     >
                       <span>{stars}</span>
                       <span className="material-symbols-outlined text-xs text-amber-400" style={{ fontVariationSettings: "'FILL' 1" }}>
                         star
                       </span>
-                      <span className={`px-1.5 py-0.2 text-[10px] rounded-full ml-0.5 ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                      <span className={`px-2 py-0.5 text-[10px] rounded-full font-semibold ml-0.5 ${isSelected ? 'bg-white/25 text-white' : 'bg-[#EBE5DB]/60 text-slate-700'}`}>
                         {count}
                       </span>
                     </button>
@@ -1123,8 +1169,8 @@ export default function ProductDetailPage() {
                 })}
               </div>
 
-              {/* Sort Selector */}
-              <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+              {/* Sort Selector & Navigation Buttons */}
+              <div className="flex items-center justify-between sm:justify-start gap-3 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-[#EBE5DB]/60">
                 <span className="text-xs text-on-surface-variant font-medium flex items-center gap-1">
                   <span className="material-symbols-outlined text-sm">sort</span>
                   Sắp xếp:
@@ -1132,16 +1178,36 @@ export default function ProductDetailPage() {
                 <select
                   value={reviewSort}
                   onChange={(e) => handleSortChange(e.target.value as any)}
-                  className="bg-white border border-[#EBE5DB] text-on-surface text-xs font-semibold px-3 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#5A6B53] cursor-pointer"
+                  className="bg-transparent border border-[#EBE5DB] text-on-surface text-xs font-semibold px-3 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#5A6B53] cursor-pointer"
                 >
                   <option value="newest">Mới nhất</option>
                   <option value="highest">Đánh giá cao nhất</option>
                   <option value="lowest">Đánh giá thấp nhất</option>
                 </select>
+
+                {/* Navigation Arrows for Carousel */}
+                {reviewsData.reviews.length > 0 && (
+                  <div className="flex items-center gap-1.5 ml-auto sm:ml-2">
+                    <button
+                      onClick={() => scrollReviews('left')}
+                      className="w-8 h-8 rounded-full border border-[#EBE5DB] flex items-center justify-center text-on-surface-variant hover:border-[#5A6B53] hover:text-[#5A6B53] hover:bg-[#5A6B53]/5 transition-all cursor-pointer"
+                      title="Cuộn sang trái"
+                    >
+                      <span className="material-symbols-outlined text-base">chevron_left</span>
+                    </button>
+                    <button
+                      onClick={() => scrollReviews('right')}
+                      className="w-8 h-8 rounded-full border border-[#EBE5DB] flex items-center justify-center text-on-surface-variant hover:border-[#5A6B53] hover:text-[#5A6B53] hover:bg-[#5A6B53]/5 transition-all cursor-pointer"
+                      title="Cuộn sang phải"
+                    >
+                      <span className="material-symbols-outlined text-base">chevron_right</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Review Cards List - SEAMLESS STREAM (NO BOXES) */}
+            {/* Review Cards Carousel Stream */}
             <div className="relative min-h-[150px]">
               {reviewsLoading && (
                 <div className="absolute inset-0 bg-white/70 backdrop-blur-2xs flex items-center justify-center z-10 rounded-xl">
@@ -1153,7 +1219,16 @@ export default function ProductDetailPage() {
               )}
 
               {reviewsData.reviews.length > 0 ? (
-                <div className="divide-y divide-[#EBE5DB]">
+                <div
+                  ref={reviewsScrollRef}
+                  onMouseDown={handleReviewsMouseDown}
+                  onMouseLeave={handleReviewsMouseLeave}
+                  onMouseUp={handleReviewsMouseUp}
+                  onMouseMove={handleReviewsMouseMove}
+                  className={`flex overflow-x-auto gap-4 sm:gap-6 py-2 no-scrollbar snap-x snap-mandatory scroll-smooth select-none ${
+                    isDraggingReviews ? 'cursor-grabbing' : 'cursor-grab'
+                  }`}
+                >
                   {reviewsData.reviews.map((rev: Review) => {
                     const avatarColorClass = getAvatarStyle(rev.user?.name || 'Khách');
                     const firstLetter = rev.user?.name ? rev.user.name.charAt(0).toUpperCase() : 'K';
@@ -1162,64 +1237,67 @@ export default function ProductDetailPage() {
                     return (
                       <div
                         key={rev.id}
-                        className="py-6 first:pt-2 last:pb-2 transition-colors duration-200"
+                        className="w-[280px] sm:w-[340px] md:w-[380px] shrink-0 snap-start p-5 rounded-2xl border border-[#EBE5DB] bg-transparent hover:border-[#5A6B53]/40 transition-all flex flex-col justify-between"
                       >
-                        {/* Header: User Profile & Rating */}
-                        <div className="flex items-start justify-between gap-4 mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full shrink-0 flex items-center justify-center font-bold text-sm tracking-wider ${avatarColorClass}`}>
-                              {firstLetter}
-                            </div>
-                            <div className="flex flex-col min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-bold text-on-surface text-sm">
-                                  {rev.user?.name || 'Khách hàng'}
-                                </span>
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
-                                  <span className="material-symbols-outlined text-[12px] text-emerald-600">verified</span>
-                                  Đã mua hàng
-                                </span>
+                        <div>
+                          {/* Header: User Profile & Rating */}
+                          <div className="flex items-start justify-between gap-3 mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-full shrink-0 flex items-center justify-center font-bold text-sm tracking-wider ${avatarColorClass}`}>
+                                {firstLetter}
                               </div>
-                              
-                              {/* Date & Rating Stars Row */}
-                              <div className="flex items-center gap-3 mt-1">
-                                <div className="flex text-amber-400">
-                                  {Array.from({ length: 5 }).map((_, i) => (
-                                    <span
-                                      key={i}
-                                      className="material-symbols-outlined text-sm"
-                                      style={{ fontVariationSettings: rev.rating > i ? "'FILL' 1" : "'FILL' 0" }}
-                                    >
-                                      star
-                                    </span>
-                                  ))}
+                              <div className="flex flex-col min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-bold text-on-surface text-sm truncate max-w-[140px]">
+                                    {rev.user?.name || 'Khách hàng'}
+                                  </span>
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shrink-0">
+                                    <span className="material-symbols-outlined text-[10px] text-emerald-600">verified</span>
+                                    Đã mua
+                                  </span>
                                 </div>
-                                <span className="text-[11px] text-on-surface-variant/60 font-sans">
-                                  {new Date(rev.created_at).toLocaleDateString('vi-VN', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric',
-                                  })}
-                                </span>
+
+                                {/* Date & Rating Stars Row */}
+                                <div className="flex items-center gap-2 mt-1">
+                                  <div className="flex text-amber-400">
+                                    {Array.from({ length: 5 }).map((_, i) => (
+                                      <span
+                                        key={i}
+                                        className="material-symbols-outlined text-xs"
+                                        style={{ fontVariationSettings: rev.rating > i ? "'FILL' 1" : "'FILL' 0" }}
+                                      >
+                                        star
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <span className="text-[11px] text-on-surface-variant/60 font-sans">
+                                    {new Date(rev.created_at).toLocaleDateString('vi-VN', {
+                                      year: 'numeric',
+                                      month: 'numeric',
+                                      day: 'numeric',
+                                    })}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
 
-                        {/* Comment Content */}
-                        <p className="text-on-surface/90 leading-relaxed text-sm whitespace-pre-wrap font-normal mb-3 pl-13">
-                          {rev.comment}
-                        </p>
+                          {/* Comment Content */}
+                          <p className="text-on-surface/90 leading-relaxed text-sm whitespace-pre-wrap font-normal mb-3 line-clamp-4">
+                            {rev.comment}
+                          </p>
+                        </div>
 
                         {/* Photo Attachments inside card */}
                         {hasImage && (
-                          <div className="pl-13 pt-1">
+                          <div className="pt-3 border-t border-[#EBE5DB]/60 mt-auto">
                             <div className="flex flex-wrap gap-2">
                               {rev.images!.map((imgUrl: string, idx: number) => (
                                 <div
                                   key={idx}
-                                  className="w-16 h-16 sm:w-20 sm:h-20 overflow-hidden border border-[#EBE5DB] rounded-xl cursor-zoom-in hover:opacity-90 transition-all duration-200 shrink-0 bg-white relative group"
+                                  className="w-16 h-16 sm:w-20 sm:h-20 overflow-hidden border border-[#EBE5DB] rounded-xl cursor-zoom-in hover:opacity-90 hover:shadow-md transition-all duration-200 shrink-0 bg-white relative group shadow-xs"
                                   onClick={() => {
+                                    if (hasDragged) return;
                                     setZoomImage(imgUrl);
                                     setZoomType('review');
                                     setIsZoomOpen(true);
@@ -1228,10 +1306,10 @@ export default function ProductDetailPage() {
                                   <img
                                     src={productCardImage(imgUrl)}
                                     alt={`review-thumb-${rev.id}-${idx}`}
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
                                   />
                                   <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center text-white">
-                                    <span className="material-symbols-outlined text-base">zoom_in</span>
+                                    <span className="material-symbols-outlined text-sm">zoom_in</span>
                                   </div>
                                 </div>
                               ))}
@@ -1241,9 +1319,37 @@ export default function ProductDetailPage() {
                       </div>
                     );
                   })}
+
+                  {/* Slim Action Card for "Xem thêm đánh giá" at the end of Carousel */}
+                  {(reviewsData.currentPage ?? 1) < (reviewsData.totalPages ?? 1) && (
+                    <div
+                      onClick={() => {
+                        if (hasDragged) return;
+                        handleLoadMoreReviews();
+                      }}
+                      className="w-[140px] sm:w-[170px] shrink-0 snap-start min-h-[220px] p-4 rounded-2xl border-2 border-dashed border-[#5A6B53]/40 bg-[#5A6B53]/5 hover:bg-[#5A6B53] hover:border-[#5A6B53] text-[#5A6B53] hover:text-white transition-all duration-300 flex flex-col items-center justify-center text-center cursor-pointer group shadow-2xs hover:shadow-md"
+                      title="Bấm để tải thêm đánh giá"
+                    >
+                      <div className="w-11 h-11 rounded-full bg-[#5A6B53]/15 group-hover:bg-white/20 flex items-center justify-center mb-3 transition-colors group-hover:scale-110 duration-300">
+                        {reviewsLoading ? (
+                          <span className="material-symbols-outlined text-xl animate-spin">progress_activity</span>
+                        ) : (
+                          <span className="material-symbols-outlined text-xl group-hover:translate-x-1 transition-transform duration-300">
+                            arrow_forward
+                          </span>
+                        )}
+                      </div>
+                      <span className="font-bold text-xs tracking-wide uppercase mb-1">
+                        {reviewsLoading ? 'Đang tải...' : 'Xem thêm'}
+                      </span>
+                      <span className="text-[11px] opacity-75 group-hover:opacity-90 font-normal">
+                        Còn {reviewsData.totalReviews - reviewsData.reviews.length} nhận xét
+                      </span>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="bg-white border border-[#EBE5DB] rounded-2xl text-center py-12 px-6 text-on-surface-variant/70">
+                <div className="bg-transparent border border-[#EBE5DB] rounded-2xl text-center py-12 px-6 text-on-surface-variant/70">
                   <span className="material-symbols-outlined text-4xl mb-2 text-slate-300 block">rate_review</span>
                   <p className="font-medium text-sm mb-1">Chưa tìm thấy nhận xét phù hợp</p>
                   <p className="text-xs text-on-surface-variant/60 max-w-sm mx-auto mb-4">
@@ -1254,7 +1360,7 @@ export default function ProductDetailPage() {
                   {reviewRatingFilter !== 'all' && (
                     <button
                       onClick={() => handleRatingFilterChange('all')}
-                      className="px-4 py-1.5 bg-[#5A6B53]/10 text-[#5A6B53] font-bold text-xs rounded-full hover:bg-[#5A6B53] hover:text-white transition-all duration-200 cursor-pointer"
+                      className="px-4 py-1.5 bg-transparent border border-[#5A6B53] text-[#5A6B53] font-bold text-xs rounded-none hover:bg-[#5A6B53] hover:text-white transition-all duration-200 cursor-pointer"
                     >
                       Xem tất cả đánh giá
                     </button>
@@ -1262,53 +1368,6 @@ export default function ProductDetailPage() {
                 </div>
               )}
             </div>
-
-            {/* Pagination Controls */}
-            {reviewsData.totalPages && reviewsData.totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-[#EBE5DB]">
-                <span className="text-xs text-on-surface-variant">
-                  Trang <strong className="text-on-surface">{reviewsData.currentPage}</strong> / {reviewsData.totalPages} (Tổng số <strong className="text-on-surface">{reviewsData.filteredTotal || reviewsData.totalReviews}</strong> đánh giá)
-                </span>
-
-                <div className="flex items-center gap-1.5">
-                  <button
-                    disabled={reviewsData.currentPage === 1}
-                    onClick={() => handlePageChange((reviewsData.currentPage || 1) - 1)}
-                    className="w-8 h-8 rounded-lg border border-[#EBE5DB] bg-white flex items-center justify-center text-on-surface disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#5A6B53] hover:text-white hover:border-[#5A6B53] transition-all duration-200 cursor-pointer"
-                    title="Trang trước"
-                  >
-                    <span className="material-symbols-outlined text-sm">chevron_left</span>
-                  </button>
-
-                  {Array.from({ length: reviewsData.totalPages }).map((_, idx) => {
-                    const pageNum = idx + 1;
-                    const isActive = pageNum === reviewsData.currentPage;
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => handlePageChange(pageNum)}
-                        className={`w-8 h-8 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${
-                          isActive
-                            ? 'bg-[#5A6B53] text-white'
-                            : 'bg-white border border-[#EBE5DB] text-on-surface hover:border-[#5A6B53] hover:text-[#5A6B53]'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-
-                  <button
-                    disabled={reviewsData.currentPage === reviewsData.totalPages}
-                    onClick={() => handlePageChange((reviewsData.currentPage || 1) + 1)}
-                    className="w-8 h-8 rounded-lg border border-[#EBE5DB] bg-white flex items-center justify-center text-on-surface disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#5A6B53] hover:text-white hover:border-[#5A6B53] transition-all duration-200 cursor-pointer"
-                    title="Trang tiếp"
-                  >
-                    <span className="material-symbols-outlined text-sm">chevron_right</span>
-                  </button>
-                </div>
-              </div>
-            )}
           </section>
 
           {/* 1. Carousel Sản phẩm liên quan */}
@@ -1319,6 +1378,8 @@ export default function ProductDetailPage() {
                 subtitle="Các sản phẩm cùng danh mục được nhiều khách hàng yêu thích"
                 products={recommendedProducts}
                 bgClass="bg-transparent"
+                sectionPaddingClass="py-0"
+                contentPaddingClass="px-0"
                 viewAllLink="/shop"
               />
             </div>
@@ -1332,6 +1393,8 @@ export default function ProductDetailPage() {
                 subtitle="Danh sách các sản phẩm bạn đã tham khảo gần đây"
                 products={recentlyViewedProducts}
                 bgClass="bg-transparent"
+                sectionPaddingClass="py-0"
+                contentPaddingClass="px-0"
                 viewAllLink="/shop"
               />
             </div>

@@ -5,8 +5,14 @@ export interface Review {
   rating: number;
   comment: string;
   images?: string[];
+  is_anonymous?: boolean;
+  edit_count?: number;
   created_at: string;
   user: {
+    name: string;
+  };
+  product?: {
+    id: number;
     name: string;
   };
 }
@@ -32,6 +38,7 @@ export interface ProductReviewsResponse {
 export interface CanReviewResponse {
   canReview: boolean;
   reason?: string;
+  review?: Review;
 }
 
 export const fetchProductReviews = async (
@@ -73,6 +80,22 @@ export const createReview = async (
 ): Promise<any> => {
   const response = await api.post('/reviews', {
     productId: Number(productId),
+    rating,
+    comment,
+    images,
+    isAnonymous,
+  });
+  return response.data;
+};
+
+export const updateReview = async (
+  reviewId: number,
+  rating: number,
+  comment: string,
+  images?: string[],
+  isAnonymous?: boolean
+): Promise<any> => {
+  const response = await api.patch(`/reviews/${reviewId}`, {
     rating,
     comment,
     images,

@@ -1,10 +1,9 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class MailService {
-  private readonly logger = new Logger(MailService.name);
   private transporter: nodemailer.Transporter;
 
   constructor(private configService: ConfigService) {
@@ -18,59 +17,88 @@ export class MailService {
     if (host === 'smtp.gmail.com' || (!host && user?.endsWith('@gmail.com'))) {
       this.transporter = nodemailer.createTransport({
         service: 'gmail',
-        auth: {
-          user,
-          pass,
-        },
+        auth: { user, pass },
       });
     } else {
       this.transporter = nodemailer.createTransport({
         host: host || 'smtp.gmail.com',
         port,
         secure,
-        auth: {
-          user,
-          pass,
-        },
-        tls: {
-          rejectUnauthorized: false, // Ngăn ngừa lỗi tự ngắt kết nối TLS trên môi trường Cloud Server (Render/Vercel)
-        },
+        auth: { user, pass },
+        tls: { rejectUnauthorized: false },
       });
     }
   }
 
+  // Header thương hiệu — Sage Green + Warm Cream
+  private get brandHeader(): string {
+    return `
+      <div style="background-color:#536257;padding:24px 32px;text-align:center;">
+        <h1 style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:4px;text-transform:uppercase;">Nội Thất</h1>
+        <p style="margin:6px 0 0;font-size:11px;color:#d6e7d9;letter-spacing:2px;text-transform:uppercase;">Nội Thất</p>
+      </div>`;
+  }
+
+  // Footer thương hiệu dùng chung
+  private get brandFooter(): string {
+    return `
+      <div style="border-top:1px solid #e4e2dd;margin-top:28px;padding-top:20px;text-align:center;">
+        <p style="margin:0 0 6px;font-size:13px;color:#6b5c4c;">Mọi thắc mắc vui lòng liên hệ</p>
+        <p style="margin:0 0 14px;font-size:15px;font-weight:700;color:#536257;">Hotline: 1900 xxxx</p>
+        <p style="margin:0;font-size:11px;color:#c3c8c2;">&copy; ${new Date().getFullYear()} Nội Thất. Email tự động, vui lòng không phản hồi.</p>
+      </div>`;
+  }
+
+  // Lấy cấu hình màu Badge trạng thái đơn hàng theo phong cách Nordic
+  private getStatusColor(s: string): { bg: string; fg: string; border: string } {
+    const m: Record<string, { bg: string; fg: string; border: string }> = {
+      pending:         { bg: '#fbf9f4', fg: '#6b5c4c', border: '#e4e2dd' },
+      confirmed:       { bg: '#d6e7d9', fg: '#243229', border: '#bacbbe' },
+      processing:      { bg: '#f4dfcb', fg: '#524436', border: '#d7c3b0' },
+      shipping:        { bg: '#d0e5fb', fg: '#1c3041', border: '#b4c9de' },
+      delivered:       { bg: '#d6e7d9', fg: '#111e16', border: '#bacbbe' },
+      completed:       { bg: '#536257', fg: '#ffffff', border: '#536257' },
+      cancelled:       { bg: '#ffdad6', fg: '#93000a', border: '#ffdad6' },
+      return_pending:  { bg: '#f4dfcb', fg: '#524436', border: '#d7c3b0' },
+      return_approved: { bg: '#d6e7d9', fg: '#243229', border: '#bacbbe' },
+      return_rejected: { bg: '#ffdad6', fg: '#93000a', border: '#ffdad6' },
+    };
+    return m[s] || { bg: '#f0eee9', fg: '#1b1c19', border: '#e4e2dd' };
+  }
+
+  // Wrapper email chung — Nordic Hearth style (sharp edges, warm cream bg)
+  private wrapEmail(body: string): string {
+    return `<div style="font-family:'Be Vietnam Pro',Arial,sans-serif;max-width:600px;margin:0 auto;background-color:#ffffff;border:1px solid #e4e2dd;">${this.brandHeader}<div style="padding:28px 32px;">${body}${this.brandFooter}</div></div>`;
+  }
+
   async sendOtpEmail(to: string, otp: string, userName: string) {
-    const htmlContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-        <h2 style="color: #4f46e5; text-align: center; margin-bottom: 20px;">Mã Xác Thực Khôi Phục Mật Khẩu</h2>
-        <p>Xin chào <strong>${userName || 'Khách hàng'}</strong>,</p>
-        <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn tại <strong>Nội Thất</strong>. Vui lòng sử dụng mã OTP dưới đây để hoàn tất quá trình:</p>
-        <div style="background-color: #f3f4f6; padding: 15px; text-align: center; font-size: 28px; font-weight: bold; letter-spacing: 5px; color: #1f2937; margin: 25px 0; border-radius: 4px; border: 1px solid #e5e7eb;">
-          ${otp}
-        </div>
-        <p style="color: #ef4444; font-size: 13px;">* Lưu ý: Mã OTP này có hiệu lực trong vòng 5 phút. Vui lòng không chia sẻ mã này cho bất kỳ ai khác.</p>
-        <p style="color: #6b7280; font-size: 13px;">Nếu bạn không yêu cầu thay đổi mật khẩu này, vui lòng bỏ qua email này.</p>
-        <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;" />
-        <p style="font-size: 12px; color: #9ca3af; text-align: center;">Đây là email tự động từ hệ thống Nội Thất. Vui lòng không phản hồi email này.</p>
+    const body = `
+      <h2 style="color:#1b1c19;font-size:18px;font-weight:600;margin:0 0 18px;text-align:center;">Mã Xác Thực Khôi Phục Mật Khẩu</h2>
+      <p style="color:#434844;font-size:14px;line-height:1.6;margin:0 0 6px;">Xin chào <strong>${userName || 'Khách hàng'}</strong>,</p>
+      <p style="color:#434844;font-size:14px;line-height:1.6;margin:0 0 20px;">Chúng tôi nhận được yêu cầu đặt lại mật khẩu. Vui lòng sử dụng mã OTP dưới đây:</p>
+      <div style="background-color:#fbf9f4;padding:18px;text-align:center;font-size:30px;font-weight:700;letter-spacing:8px;color:#536257;margin:0 0 20px;border:2px dashed #bacbbe;">
+        ${otp}
       </div>
-    `;
+      <div style="background-color:#ffdad6;border-left:4px solid #ba1a1a;padding:10px 14px;margin:0 0 14px;">
+        <p style="margin:0;color:#93000a;font-size:13px;font-weight:500;">⚠ Mã OTP có hiệu lực trong 5 phút. Không chia sẻ mã này cho bất kỳ ai.</p>
+      </div>
+      <p style="color:#c3c8c2;font-size:13px;margin:0;">Nếu bạn không yêu cầu thay đổi mật khẩu, vui lòng bỏ qua email này.</p>`;
 
     try {
       await this.transporter.sendMail({
-        from: `"Nội Thất Support" <${this.configService.get<string>('SMTP_USER')}>`,
+        from: `"Nội Thất" <${this.configService.get<string>('SMTP_USER')}>`,
         to,
-        subject: '[Nội thất] Mã OTP khôi phục mật khẩu',
-        html: htmlContent,
+        subject: '[Nội Thất] Mã OTP khôi phục mật khẩu',
+        html: this.wrapEmail(body),
       });
     } catch (error) {
-      this.logger.error('Lỗi gửi email OTP:', error);
-      throw new InternalServerErrorException(
-        'Không thể gửi email OTP, vui lòng kiểm tra cấu hình SMTP.',
-      );
+      console.error('Lỗi gửi email OTP:', error);
+      throw new InternalServerErrorException('Không thể gửi email OTP, vui lòng kiểm tra cấu hình SMTP.');
     }
   }
 
   async sendOrderStatusEmail(to: string, order: any, newStatus: string, pdfBuffer?: Buffer) {
+    // Bảng ánh xạ tên trạng thái hiển thị tiếng Việt
     const statusMap: Record<string, string> = {
       pending: 'Chờ thanh toán / Chờ xử lý',
       confirmed: 'Đã xác nhận',
@@ -80,100 +108,79 @@ export class MailService {
       completed: 'Hoàn thành',
       cancelled: 'Đã hủy',
       return_pending: 'Yêu cầu trả hàng đang chờ duyệt',
-      return_approved: 'Đã chấp nhận yêu cầu trả hàng',
-      return_rejected: 'Đã từ chối yêu cầu trả hàng',
+      return_approved: 'Đã chấp nhận trả hàng',
+      return_rejected: 'Đã từ chối trả hàng',
     };
 
     const statusName = statusMap[newStatus] || newStatus;
+    const sc = this.getStatusColor(newStatus);
     const subtotal = order.items.reduce((sum: number, item: any) => sum + Number(item.price) * item.quantity, 0);
 
-    const htmlContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-        <h2 style="color: #4f46e5; text-align: center; margin-bottom: 20px;">Cập Nhật Trạng Thái Đơn Hàng #${order.id}</h2>
-        <p>Xin chào <strong>${order.user?.name || 'Khách hàng'}</strong>,</p>
-        <p>Đơn hàng <strong>#${order.id}</strong> của bạn đã được cập nhật trạng thái mới:</p>
-        
-        <div style="background-color: #f3f4f6; padding: 15px; text-align: center; font-size: 20px; font-weight: bold; color: #4f46e5; margin: 20px 0; border-radius: 4px; border: 1px solid #e5e7eb;">
-          ${statusName}
-        </div>
+    // Xây dựng danh sách sản phẩm
+    const rows = order.items.map((item: any, i: number) => {
+      const bg = i % 2 === 0 ? '#ffffff' : '#fbf9f4';
+      const variant = item.variant
+        ? `<div style="margin-top:3px;"><span style="display:inline-block;background:#f0eee9;color:#6b5c4c;font-size:11px;padding:2px 6px;">${Object.values(item.variant.attributes || {}).map(v => String(v).split('|')[0]).join(', ')}</span></div>`
+        : '';
+      return `<tr style="background:${bg};"><td style="padding:10px 12px;border-bottom:1px solid #f0eee9;color:#1b1c19;font-size:13px;"><strong>${item.product?.name || 'Sản phẩm'}</strong>${variant}</td><td style="padding:10px 12px;text-align:center;border-bottom:1px solid #f0eee9;color:#434844;font-size:13px;">${item.quantity}</td><td style="padding:10px 12px;text-align:right;border-bottom:1px solid #f0eee9;color:#1b1c19;font-size:13px;font-weight:600;">${Number(item.price).toLocaleString('vi-VN')} ₫</td></tr>`;
+    }).join('');
 
+    // Dòng giảm giá voucher (nếu có)
+    const discountRow = order.discount_amount > 0
+      ? `<tr><td style="padding:5px 0;color:#ba1a1a;font-size:13px;">Giảm giá (Voucher):</td><td style="padding:5px 0;text-align:right;color:#ba1a1a;font-weight:600;font-size:13px;">-${Number(order.discount_amount).toLocaleString('vi-VN')} ₫</td></tr>`
+      : '';
 
+    const body = `
+      <h2 style="color:#1b1c19;font-size:17px;font-weight:600;margin:0 0 4px;text-align:center;">Cập Nhật Đơn Hàng #${order.id}</h2>
+      <p style="text-align:center;color:#737873;font-size:13px;margin:0 0 22px;">Xin chào <strong style="color:#1b1c19;">${order.user?.name || 'Khách hàng'}</strong>, đơn hàng của bạn đã được cập nhật.</p>
 
-        <h3 style="color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; margin-top: 25px;">Chi tiết đơn hàng</h3>
-        <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px;">
-          <thead>
-            <tr style="background-color: #f9fafb; border-bottom: 1px solid #e5e7eb;">
-              <th style="text-align: left; padding: 8px;">Sản phẩm</th>
-              <th style="text-align: center; padding: 8px;">SL</th>
-              <th style="text-align: right; padding: 8px;">Đơn giá</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${order.items.map((item: any) => `
-              <tr style="border-bottom: 1px solid #f3f4f6;">
-                <td style="padding: 8px; color: #4b5563;">
-                  ${item.product?.name || 'Sản phẩm'}
-                  ${item.variant ? `<br/><span style="font-size: 12px; color: #9ca3af;">Phân loại: ${Object.values(item.variant.attributes || {}).map(v => String(v).split('|')[0]).join(', ')}</span>` : ''}
-                </td>
-                <td style="padding: 8px; text-align: center; color: #4b5563;">${item.quantity}</td>
-                <td style="padding: 8px; text-align: right; color: #4b5563;">${Number(item.price).toLocaleString('vi-VN')} đ</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-
-        <table style="width: 100%; font-size: 14px; color: #4b5563; margin-top: 20px;">
-          <tr>
-            <td style="padding: 4px 0;">Tạm tính:</td>
-            <td style="text-align: right; font-weight: bold; padding: 4px 0;">${Number(subtotal).toLocaleString('vi-VN')} đ</td>
-          </tr>
-          ${order.discount_amount > 0 ? `
-          <tr style="color: #dc2626;">
-            <td style="padding: 4px 0;">Giảm giá (Voucher):</td>
-            <td style="text-align: right; font-weight: bold; padding: 4px 0;">-${Number(order.discount_amount).toLocaleString('vi-VN')} đ</td>
-          </tr>
-          ` : ''}
-          <tr>
-            <td style="padding: 4px 0;">Phí vận chuyển:</td>
-            <td style="text-align: right; font-weight: bold; padding: 4px 0;">${Number(order.shipping_fee).toLocaleString('vi-VN')} đ</td>
-          </tr>
-          <tr style="font-size: 16px; color: #111827; font-weight: bold; border-top: 1px solid #e5e7eb;">
-            <td style="padding: 8px 0 4px 0; border-top: 1px solid #e5e7eb;">Tổng cộng:</td>
-            <td style="text-align: right; color: #4f46e5; padding: 8px 0 4px 0; border-top: 1px solid #e5e7eb;">${Number(order.total_amount).toLocaleString('vi-VN')} đ</td>
-          </tr>
-        </table>
-
-        <div style="margin-top: 25px; font-size: 13px; color: #6b7280; background-color: #f9fafb; padding: 12px; border-radius: 4px; line-height: 1.6;">
-          <strong>Địa chỉ nhận hàng:</strong> ${order.shipping_address}<br/>
-          <strong>Số điện thoại:</strong> ${order.phone}<br/>
-          <strong>Phương thức thanh toán:</strong> ${order.payment_method.toUpperCase()}
-        </div>
-
-        <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 25px 0;" />
-        <p style="font-size: 12px; color: #9ca3af; text-align: center;">Mọi thắc mắc vui lòng liên hệ hotline 1900 xxxx. Xin cảm ơn quý khách!</p>
+      <div style="background:${sc.bg};padding:14px 20px;text-align:center;font-size:16px;font-weight:700;color:${sc.fg};margin:0 0 24px;border:1px solid ${sc.border};">
+        ${statusName}
       </div>
-    `;
+
+      <p style="color:#1b1c19;font-size:14px;font-weight:600;margin:0 0 10px;padding-bottom:8px;border-bottom:2px solid #536257;">Chi tiết đơn hàng</p>
+      <table style="width:100%;border-collapse:collapse;margin:0 0 20px;">
+        <thead><tr style="background:#f0eee9;">
+          <th style="text-align:left;padding:8px 12px;font-size:11px;color:#737873;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Sản phẩm</th>
+          <th style="text-align:center;padding:8px 12px;font-size:11px;color:#737873;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">SL</th>
+          <th style="text-align:right;padding:8px 12px;font-size:11px;color:#737873;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Đơn giá</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+
+      <div style="background:#fbf9f4;padding:14px 16px;margin:0 0 20px;">
+        <table style="width:100%;font-size:13px;color:#434844;">
+          <tr><td style="padding:5px 0;">Tạm tính:</td><td style="padding:5px 0;text-align:right;font-weight:600;">${Number(subtotal).toLocaleString('vi-VN')} ₫</td></tr>
+          ${discountRow}
+          <tr><td style="padding:5px 0;">Phí vận chuyển:</td><td style="padding:5px 0;text-align:right;font-weight:600;">${Number(order.shipping_fee).toLocaleString('vi-VN')} ₫</td></tr>
+          <tr style="border-top:2px solid #e4e2dd;"><td style="padding:10px 0 0;font-size:15px;font-weight:700;color:#1b1c19;">Tổng cộng:</td><td style="padding:10px 0 0;text-align:right;font-size:16px;font-weight:700;color:#536257;">${Number(order.total_amount).toLocaleString('vi-VN')} ₫</td></tr>
+        </table>
+      </div>
+
+      <div style="background:#fbf9f4;padding:14px 16px;font-size:13px;color:#434844;line-height:1.8;">
+        <table style="width:100;">
+          <tr><td style="padding:2px 0;width:130px;color:#6b5c4c;font-weight:600;vertical-align:top;">Địa chỉ:</td><td style="padding:2px 0;color:#1b1c19;">${order.shipping_address}</td></tr>
+          <tr><td style="padding:2px 0;color:#6b5c4c;font-weight:600;">Điện thoại:</td><td style="padding:2px 0;color:#1b1c19;">${order.phone}</td></tr>
+          <tr><td style="padding:2px 0;color:#6b5c4c;font-weight:600;">Thanh toán:</td><td style="padding:2px 0;color:#1b1c19;font-weight:600;">${order.payment_method.toUpperCase()}</td></tr>
+        </table>
+      </div>`;
 
     try {
       const mailOptions: any = {
-        from: `"Nội Thất Support" <${this.configService.get<string>('SMTP_USER')}>`,
+        from: `"Nội Thất" <${this.configService.get<string>('SMTP_USER')}>`,
         to,
-        subject: `[Nội Thất] Cập nhật đơn hàng #${order.id} - Trạng thái: ${statusName}`,
-        html: htmlContent,
+        subject: `[Nội Thất] Đơn hàng #${order.id} — ${statusName}`,
+        html: this.wrapEmail(body),
       };
 
+      // Đính kèm hóa đơn PDF nếu có (trạng thái hoàn thành)
       if (pdfBuffer) {
-        mailOptions.attachments = [
-          {
-            filename: `Hoa_Don_HD${order.id}.pdf`,
-            content: pdfBuffer,
-          },
-        ];
+        mailOptions.attachments = [{ filename: `Hoa_Don_HD${order.id}.pdf`, content: pdfBuffer }];
       }
 
       await this.transporter.sendMail(mailOptions);
     } catch (error) {
-      this.logger.error('Lỗi gửi email thông báo đơn hàng:', error);
+      console.error('Lỗi gửi email thông báo đơn hàng:', error);
     }
   }
 }

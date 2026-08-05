@@ -3,7 +3,8 @@ import api from '@/services/api';
 import toast from 'react-hot-toast';
 import ConfirmModal from '@/components/ConfirmModal';
 import useConfirmModal from '@/hooks/useConfirmModal';
-import { formatPrice } from '@/utils/format';
+import { formatPrice, formatDate } from '@/utils/format';
+
 import AdminPagination from '@/components/AdminPagination';
 import TableLoader from '@/components/TableLoader';
 import AdminPageHeader from '@/components/AdminPageHeader';
@@ -248,17 +249,6 @@ export default function OrderListPage() {
 
 
 
-
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleString('vi-VN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
