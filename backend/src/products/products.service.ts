@@ -381,7 +381,7 @@ export class ProductsService {
     }
   }
 
-  async getRelatedProducts(id: number): Promise<Product[]> {
+  async getRelatedProducts(id: number, limit: number = 12): Promise<Product[]> {
     const product = await this.findOne(id);
     if (!product) {
       throw new NotFoundException(`Không tìm thấy sản phẩm với ID ${id}`);
@@ -417,28 +417,7 @@ export class ProductsService {
       return Math.abs(priceA - currentPrice) - Math.abs(priceB - currentPrice);
     });
 
-    let recommended = sameCategory.slice(0, 4);
-
-    // 2. Nếu không đủ 4, lấy thêm từ các danh mục khác
-    if (recommended.length < 4) {
-      const padCount = 4 - recommended.length;
-      const excludedIds = [id, ...recommended.map((p) => p.id)];
-      const diffCategory = await this.productsRepository.find({
-        where: {
-          id: Not(In(excludedIds)),
-          is_active: true,
-        },
-        relations: {
-          category: true,
-          detail: true,
-          variants: true,
-          images: true,
-          reviews: true,
-        },
-        take: padCount,
-      });
-      recommended = [...recommended, ...diffCategory];
-    }
+    const recommended = sameCategory.slice(0, limit);
 
     recommended.forEach((p) => {
       const totalReviews = p.reviews?.length || 0;
@@ -455,7 +434,7 @@ export class ProductsService {
     return await this.applyActivePromotions(recommended);
   }
 
-  async getFrequentlyBoughtTogether(id: number): Promise<Product[]> {
+  async getFrequentlyBoughtTogether(id: number, limit: number = 12): Promise<Product[]> {
     const product = await this.findOne(id);
     if (!product) {
       throw new NotFoundException(`Không tìm thấy sản phẩm với ID ${id}`);
@@ -479,7 +458,7 @@ export class ProductsService {
       .andWhere('oi.product_id != :id')
       .groupBy('oi.product_id')
       .orderBy('count', 'DESC')
-      .limit(4)
+      .limit(limit)
       .setParameter('id', id)
       .getRawMany();
 
@@ -500,49 +479,6 @@ export class ProductsService {
           reviews: true,
         },
       });
-    }
-
-    // Fallback 1: Gợi ý các sản phẩm khác cùng category (nếu mua kèm < 4)
-    if (recommendations.length < 4) {
-      const padCount = 4 - recommendations.length;
-      const excludedIds = [id, ...recommendations.map((p) => p.id)];
-      const padProducts = await this.productsRepository.find({
-        where: {
-          category: { id: product.category?.id },
-          id: Not(In(excludedIds)),
-          is_active: true,
-        },
-        relations: {
-          category: true,
-          detail: true,
-          variants: true,
-          images: true,
-          reviews: true,
-        },
-        take: padCount,
-      });
-      recommendations = [...recommendations, ...padProducts];
-    }
-
-    // Fallback 2: Gợi ý sản phẩm bất kỳ nếu vẫn chưa đủ 4
-    if (recommendations.length < 4) {
-      const padCount = 4 - recommendations.length;
-      const excludedIds = [id, ...recommendations.map((p) => p.id)];
-      const padProducts = await this.productsRepository.find({
-        where: {
-          id: Not(In(excludedIds)),
-          is_active: true,
-        },
-        relations: {
-          category: true,
-          detail: true,
-          variants: true,
-          images: true,
-          reviews: true,
-        },
-        take: padCount,
-      });
-      recommendations = [...recommendations, ...padProducts];
     }
 
     recommendations.forEach((p) => {
@@ -677,37 +613,6 @@ export class ProductsService {
       products.sort((a, b) => {
         return productIds.indexOf(a.id) - productIds.indexOf(b.id);
       });
-    }
-
-    // Fallback: if not enough best sellers, pad with other products
-    if (products.length < limit) {
-      const excludedIds = products.map((p) => p.id);
-      const padProducts = await this.productsRepository.find({
-        where: excludedIds.length > 0 ? { id: Not(In(excludedIds)), is_active: true } : { is_active: true },
-        relations: {
-          category: true,
-          detail: true,
-          variants: true,
-          images: true,
-          reviews: true,
-        },
-        take: limit - products.length,
-      });
-
-      padProducts.forEach((p) => {
-        p.soldCount = 0;
-        const totalReviews = p.reviews?.length || 0;
-        p.averageRating =
-          totalReviews > 0
-            ? Number(
-                (
-                  p.reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
-                ).toFixed(1),
-              )
-            : 0;
-      });
-
-      products.push(...padProducts);
     }
 
     return await this.applyActivePromotions(products);

@@ -261,7 +261,7 @@ export default function ProductDetailPage() {
       setReviewsLoading(true);
       fetchProductReviews(id, {
         page: reviewPage,
-        limit: 2,
+        limit: 3,
         rating: reviewRatingFilter,
         sort: reviewSort,
       })
@@ -300,8 +300,7 @@ export default function ProductDetailPage() {
     }
   };
 
-  // Không dùng grid ảnh thực tế riêng biệt nữa vì đã đưa ảnh vào từng card nhận xét kiểu MOHO
-
+  // Không dùng grid ảnh thực tế riêng biệt nữa vì đã đưa ảnh vào từng card nhận xét kiểu
   const [isShippingOpen, setIsShippingOpen] = useState(false);
   const [isZoomOpen, setIsZoomOpen] = useState(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);

@@ -76,14 +76,20 @@ export class ProductsController {
 
   @ApiOperation({ summary: 'Lấy sản phẩm liên quan (Public)' })
   @Get(':id/related')
-  getRelatedProducts(@Param('id', ParseIntPipe) id: number) {
-    return this.productsService.getRelatedProducts(id);
+  getRelatedProducts(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.productsService.getRelatedProducts(id, limit ? Number(limit) : 12);
   }
 
   @ApiOperation({ summary: 'Lấy sản phẩm thường mua cùng nhau (Public)' })
   @Get(':id/frequently-bought-together')
-  getFrequentlyBoughtTogether(@Param('id', ParseIntPipe) id: number) {
-    return this.productsService.getFrequentlyBoughtTogether(id);
+  getFrequentlyBoughtTogether(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.productsService.getFrequentlyBoughtTogether(id, limit ? Number(limit) : 12);
   }
 
   @ApiOperation({ summary: 'Lấy chi tiết 1 sản phẩm (Public)' })

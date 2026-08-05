@@ -5,13 +5,13 @@ import api from '@/services/api';
 import StatusBadge from '@/components/StatusBadge';
 import { formatPrice, formatDate } from '@/utils/format';
 
-import { 
-  Package, 
-  TrendingUp, 
-  Plus, 
-  ArrowRight, 
-  ShoppingBag, 
-  Clock, 
+import {
+  Package,
+  TrendingUp,
+  Plus,
+  ArrowRight,
+  ShoppingBag,
+  Clock,
   DollarSign,
   TrendingDown,
   ArrowUpRight,
@@ -108,7 +108,7 @@ export default function DashboardPage() {
   });
 
   const fetchData = async (
-    isManualRefresh = false, 
+    isManualRefresh = false,
     selectedTimeframe = timeframe,
     sDate = startDate,
     eDate = endDate
@@ -116,7 +116,7 @@ export default function DashboardPage() {
     if (isManualRefresh) setRefreshing(true);
     try {
       const isStaff = profile?.role === 'staff';
-      
+
       if (isStaff) {
         // Đối với nhân viên: không gọi API lấy doanh thu (/orders/admin/stats)
         const [prodRes, catRes, recentOrdersRes, pendingOrdersRes, invRes, returnRes, bestSellersRes, warrantyRes] = await Promise.all([
@@ -323,7 +323,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      
+
       {/* Sleek Modern Page Header*/}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-200/80 gap-4">
         <div>
@@ -368,7 +368,7 @@ export default function DashboardPage() {
 
       {/* Revenue Bar Chart & Extra Statistics Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Biểu đồ Doanh Thu Dạng Cột (Bar Chart) */}
         {!isStaff && (
           <div className="lg:col-span-2 bg-white rounded-none border border-slate-200/80 p-6 shadow-sm flex flex-col space-y-4">
@@ -386,62 +386,57 @@ export default function DashboardPage() {
                   {timeframe === 'custom' && `Doanh thu từ ${startDate} đến ${endDate}`}
                 </p>
               </div>
-              
+
               {/* Nút bấm chuyển đổi mốc thời gian */}
               <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center bg-slate-100 p-1 rounded-none border border-slate-200 text-xs font-semibold">
                   <button
                     type="button"
                     onClick={() => setTimeframe('7days')}
-                    className={`px-2.5 py-1 rounded-none transition-all ${
-                      timeframe === '7days'
+                    className={`px-2.5 py-1 rounded-none transition-all ${timeframe === '7days'
                         ? 'bg-indigo-600 text-white shadow-sm font-bold'
                         : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     7 ngày
                   </button>
                   <button
                     type="button"
                     onClick={() => setTimeframe('30days')}
-                    className={`px-2.5 py-1 rounded-none transition-all ${
-                      timeframe === '30days'
+                    className={`px-2.5 py-1 rounded-none transition-all ${timeframe === '30days'
                         ? 'bg-indigo-600 text-white shadow-sm font-bold'
                         : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     30 ngày
                   </button>
                   <button
                     type="button"
                     onClick={() => setTimeframe('6months')}
-                    className={`px-2.5 py-1 rounded-none transition-all ${
-                      timeframe === '6months'
+                    className={`px-2.5 py-1 rounded-none transition-all ${timeframe === '6months'
                         ? 'bg-indigo-600 text-white shadow-sm font-bold'
                         : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     6 tháng
                   </button>
                   <button
                     type="button"
                     onClick={() => setTimeframe('year')}
-                    className={`px-2.5 py-1 rounded-none transition-all ${
-                      timeframe === 'year'
+                    className={`px-2.5 py-1 rounded-none transition-all ${timeframe === 'year'
                         ? 'bg-indigo-600 text-white shadow-sm font-bold'
                         : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     Năm nay
                   </button>
                   <button
                     type="button"
                     onClick={() => setTimeframe('custom')}
-                    className={`px-2.5 py-1 rounded-none transition-all ${
-                      timeframe === 'custom'
+                    className={`px-2.5 py-1 rounded-none transition-all ${timeframe === 'custom'
                         ? 'bg-indigo-600 text-white shadow-sm font-bold'
                         : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                      }`}
                   >
                     Tùy chỉnh
                   </button>
@@ -490,22 +485,22 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={stats?.chartData || stats?.monthlyRevenue || []} margin={{ top: 15, right: 15, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                  <XAxis 
-                    dataKey="label" 
+                  <XAxis
+                    dataKey="label"
                     tick={{ fill: '#64748B', fontSize: 11, fontWeight: 600 }}
                     axisLine={{ stroke: '#E2E8F0' }}
                     tickLine={false}
                   />
-                  <YAxis 
+                  <YAxis
                     tickFormatter={(val) => val >= 1000000 ? `${(val / 1000000).toFixed(0)}M` : `${(val / 1000).toFixed(0)}k`}
                     tick={{ fill: '#64748B', fontSize: 11, fontWeight: 600 }}
                     axisLine={false}
                     tickLine={false}
                   />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#0F172A', 
-                      borderRadius: '0px', 
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#0F172A',
+                      borderRadius: '0px',
                       border: '1px solid #334155',
                       color: '#F8FAFC',
                       fontSize: '12px',
@@ -514,9 +509,9 @@ export default function DashboardPage() {
                     labelStyle={{ color: '#94A3B8', fontWeight: 700 }}
                     formatter={(value: any) => [formatPrice(Number(value) || 0), 'Doanh thu']}
                   />
-                  <Bar 
-                    dataKey="revenue" 
-                    fill="#4F46E5" 
+                  <Bar
+                    dataKey="revenue"
+                    fill="#4F46E5"
                     radius={[2, 2, 0, 0]}
                     maxBarSize={45}
                   />
@@ -538,8 +533,8 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3.5 flex-1">
             {extraKpis.map((kpi) => (
-              <div 
-                key={kpi.title} 
+              <div
+                key={kpi.title}
                 className="flex items-center gap-3.5 p-3 rounded-none border border-slate-100 hover:border-slate-200 hover:bg-slate-50/60 transition-all"
               >
                 <div className={`p-2.5 rounded-none ${kpi.bgColor} shrink-0`}>
@@ -591,7 +586,7 @@ export default function DashboardPage() {
 
       {/* Grid 3 cột: Cảnh báo Tồn Kho, Top Sản Phẩm Bán Chạy, Đơn Hàng Mới Nhận */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* 1. Cảnh báo tồn kho sắp hết */}
         <div className="space-y-4 flex flex-col">
           <div className="flex items-center justify-between">
@@ -645,11 +640,10 @@ export default function DashboardPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-none text-xs font-black ${
-                            item.stock <= 0 
-                              ? 'bg-rose-100 text-rose-700 border border-rose-300' 
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-none text-xs font-black ${item.stock <= 0
+                              ? 'bg-rose-100 text-rose-700 border border-rose-300'
                               : 'bg-amber-100 text-amber-800 border border-amber-300'
-                          }`}>
+                            }`}>
                             {item.stock <= 0 ? 'Hết hàng (0)' : `Còn ${item.stock}`}
                           </span>
                         </td>
@@ -704,11 +698,10 @@ export default function DashboardPage() {
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            <span className={`w-5 h-5 flex items-center justify-center font-black text-[10px] rounded-none shrink-0 ${
-                              idx === 0 ? 'bg-amber-400 text-slate-900' :
-                              idx === 1 ? 'bg-slate-300 text-slate-800' :
-                              idx === 2 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-500'
-                            }`}>
+                            <span className={`w-5 h-5 flex items-center justify-center font-black text-[10px] rounded-none shrink-0 ${idx === 0 ? 'bg-amber-400 text-slate-900' :
+                                idx === 1 ? 'bg-slate-300 text-slate-800' :
+                                  idx === 2 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-500'
+                              }`}>
                               {idx + 1}
                             </span>
                             <div className="overflow-hidden">

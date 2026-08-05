@@ -180,13 +180,13 @@ export const fetchProductById = async (id: string): Promise<ProductFrontend> => 
   return mapBackendProductToFrontend(response.data);
 };
 
-export const fetchRelatedProducts = async (id: string): Promise<ProductFrontend[]> => {
-  const response = await api.get(`/products/${id}/related`);
+export const fetchRelatedProducts = async (id: string, limit?: number): Promise<ProductFrontend[]> => {
+  const response = await api.get(`/products/${id}/related`, { params: { limit } });
   return response.data.map(mapBackendProductToFrontend);
 };
 
-export const fetchFrequentlyBoughtTogether = async (id: string): Promise<ProductFrontend[]> => {
-  const response = await api.get(`/products/${id}/frequently-bought-together`);
+export const fetchFrequentlyBoughtTogether = async (id: string, limit?: number): Promise<ProductFrontend[]> => {
+  const response = await api.get(`/products/${id}/frequently-bought-together`, { params: { limit } });
   return response.data.map(mapBackendProductToFrontend);
 };
 
