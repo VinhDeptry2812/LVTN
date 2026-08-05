@@ -44,6 +44,7 @@ export class VouchersController {
     return {
       id: result.voucher.id,
       code: result.voucher.code,
+      description: result.voucher.description,
       discount_type: result.voucher.discount_type,
       discount_value: Number(result.voucher.discount_value),
       discountAmount: result.discountAmount,
@@ -61,8 +62,10 @@ export class VouchersController {
 
   @ApiOperation({ summary: 'Lấy các mã voucher đang hoạt động (Khách hàng)' })
   @Get('active')
-  findActive() {
-    return this.vouchersService.findActiveVouchers();
+  findActive(@Query('userId') userId?: string) {
+    return this.vouchersService.findActiveVouchers(
+      userId ? +userId : undefined,
+    );
   }
 
   @ApiBearerAuth()

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
@@ -172,6 +172,7 @@ export default function CheckoutPage() {
   const [appliedVoucher, setAppliedVoucher] = useState<{
     id: number;
     code: string;
+    description?: string | null;
     discount_type: 'percentage' | 'fixed_amount';
     discount_value: number;
     discountAmount: number;
@@ -180,11 +181,36 @@ export default function CheckoutPage() {
   const [activeVouchers, setActiveVouchers] = useState<any[]>([]);
   const [isLoadingActiveVouchers, setIsLoadingActiveVouchers] = useState(false);
 
+  // Tính số lượng voucher khả dụng
+  const eligibleVouchersCount = useMemo(() => {
+    return activeVouchers.filter((v) => {
+      const minVal = Number(v.min_order_value || 0);
+      const isUsedByUser = Boolean(v.is_used_by_user);
+      return subtotal >= minVal && !isUsedByUser;
+    }).length;
+  }, [activeVouchers, subtotal]);
+  // Sắp xếp danh sách voucher (Khả dụng, thiếu điều kiện, (ẩn) đã dùng).
+  const sortedModalVouchers = useMemo(() => {
+    return activeVouchers
+      .filter((v) => !v.is_used_by_user)
+      .sort((a, b) => {
+        const minA = Number(a.min_order_value || 0);
+        const minB = Number(b.min_order_value || 0);
+        const eligibleA = subtotal >= minA;
+        const eligibleB = subtotal >= minB;
+        if (eligibleA && !eligibleB) return -1;
+        if (!eligibleA && eligibleB) return 1;
+        return 0;
+      });
+  }, [activeVouchers, subtotal]);
+
   useEffect(() => {
     const fetchActiveVouchers = async () => {
       try {
         setIsLoadingActiveVouchers(true);
-        const res = await api.get('/vouchers/active');
+        const res = await api.get('/vouchers/active', {
+          params: { userId: user?.id },
+        });
         setActiveVouchers(res.data || []);
       } catch (err) {
         console.error('Lỗi lấy danh sách mã giảm giá:', err);
@@ -193,7 +219,7 @@ export default function CheckoutPage() {
       }
     };
     fetchActiveVouchers();
-  }, []);
+  }, [user?.id]);
 
   const [shippingFee, setShippingFee] = useState<number>(0);
   const [isBulky, setIsBulky] = useState<boolean>(false);
@@ -497,8 +523,8 @@ export default function CheckoutPage() {
                   <p className="text-xs text-gray-500 mt-0.5">
                     {appliedVoucher
                       ? 'Đã áp dụng mã ưu đãi cho đơn hàng'
-                      : activeVouchers.length > 0
-                      ? `Có ${activeVouchers.length} mã giảm giá khả dụng`
+                      : eligibleVouchersCount > 0
+                      ? `Có ${eligibleVouchersCount} mã giảm giá khả dụng`
                       : 'Nhấn để xem các mã ưu đãi'}
                   </p>
                 </div>
@@ -970,13 +996,13 @@ export default function CheckoutPage() {
                   <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                   Đang tải danh sách mã...
                 </div>
-              ) : activeVouchers.length === 0 ? (
+              ) : sortedModalVouchers.length === 0 ? (
                 <div className="text-center py-10 text-gray-400 text-sm">
                   <span className="material-symbols-outlined text-4xl block mb-2 text-gray-300">search_off</span>
                   Hiện không có mã giảm giá công khai nào khả dụng.
                 </div>
               ) : (
-                activeVouchers.map((v) => {
+                sortedModalVouchers.map((v) => {
                   const minVal = Number(v.min_order_value || 0);
                   const isEligible = subtotal >= minVal;
                   const isSelected = appliedVoucher?.code === v.code;
@@ -999,7 +1025,7 @@ export default function CheckoutPage() {
                           ? 'border-emerald-500 bg-emerald-50/70 shadow-sm ring-1 ring-emerald-500/30'
                           : isEligible
                           ? 'border-dashed border-amber-300 bg-amber-50/30 hover:border-primary hover:bg-amber-50/70 hover:shadow-xs'
-                          : 'border-gray-200 bg-gray-50/50 opacity-60'
+                          : 'border-gray-200 bg-gray-50/50 opacity-70'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">

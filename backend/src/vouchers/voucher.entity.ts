@@ -61,8 +61,17 @@ export class Voucher {
   @Column({ type: 'int', nullable: true })
   usage_limit: number | null;
 
+  @Column({ type: 'int', default: 1 })
+  usage_limit_per_user: number;
+
   @Column({ type: 'int', default: 0 })
   used_count: number;
+
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
+
+  @Column({ type: 'boolean', default: true })
+  is_public: boolean;
 
   @Column({ type: 'boolean', default: true })
   is_active: boolean;

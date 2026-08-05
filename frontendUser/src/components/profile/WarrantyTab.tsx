@@ -150,7 +150,7 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
       <div className="bg-white border border-stone-200/80 rounded-lg p-5 sm:p-6 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-100 pb-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-700 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-full bg-[#536257]/10 text-[#536257] flex items-center justify-center shrink-0">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
@@ -174,7 +174,7 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
               placeholder="Tìm kiếm theo tên sản phẩm, mã bảo hành (BH...) hoặc số Serial..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 text-xs border border-stone-200 rounded-lg focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600/20 bg-stone-50/50 transition"
+              className="w-full pl-9 pr-8 py-2 text-xs border border-stone-200 rounded-lg focus:outline-none focus:border-[#536257] focus:ring-1 focus:ring-[#536257]/20 bg-stone-50/50 transition"
             />
             {searchTerm && (
               <button
@@ -208,8 +208,8 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
               onClick={() => setStatusFilter('active')}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
                 statusFilter === 'active'
-                  ? 'bg-emerald-700 text-white shadow-xs'
-                  : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200/50'
+                  ? 'bg-[#536257] text-white shadow-xs'
+                  : 'bg-[#536257]/10 text-[#536257] hover:bg-[#536257]/20 border border-[#536257]/30'
               }`}
             >
               Còn hạn ({stats.active})
@@ -219,8 +219,8 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
               onClick={() => setStatusFilter('claiming_processing')}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
                 statusFilter === 'claiming_processing'
-                  ? 'bg-amber-600 text-white shadow-xs'
-                  : 'bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-200/50'
+                  ? 'bg-[#8c7a6b] text-white shadow-xs'
+                  : 'bg-[#8c7a6b]/10 text-[#6b5c4c] hover:bg-[#8c7a6b]/20 border border-[#6b5c4c]/30'
               }`}
             >
               Đang xử lý ({stats.claimingProcessing})
@@ -243,7 +243,7 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
       {/* 2. Warranties List */}
       {isLoadingWarranties ? (
         <div className="bg-white border border-stone-200/80 rounded-lg p-16 text-center flex flex-col items-center justify-center gap-3 shadow-xs">
-          <span className="material-symbols-outlined animate-spin text-4xl text-amber-600 font-light">sync</span>
+          <span className="material-symbols-outlined animate-spin text-4xl text-[#536257] font-light">sync</span>
           <p className="text-xs text-stone-500 font-medium">Đang đồng bộ dữ liệu phiếu bảo hành...</p>
         </div>
       ) : filteredWarranties.length === 0 ? (
@@ -265,7 +265,7 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
             <button
               type="button"
               onClick={() => { setSearchTerm(''); setStatusFilter('all'); }}
-              className="mt-2 text-xs font-semibold text-amber-700 hover:text-amber-800 underline cursor-pointer"
+              className="mt-2 text-xs font-semibold text-[#536257] hover:text-[#3d4940] underline cursor-pointer"
             >
               Xóa bộ lọc & tìm kiếm
             </button>
@@ -290,9 +290,9 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
                 <div
                   className={`absolute top-0 left-0 bottom-0 w-1.5 ${
                     isClaiming || isProcessing
-                      ? 'bg-amber-500'
+                      ? 'bg-[#8c7a6b]'
                       : isActive
-                      ? 'bg-emerald-500'
+                      ? 'bg-[#536257]'
                       : 'bg-stone-300'
                   }`}
                 />
@@ -322,7 +322,7 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
 
                       {/* Code & Serial Pills */}
                       <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <span className="font-mono font-bold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200/80 flex items-center gap-1">
+                        <span className="font-mono font-bold text-[#536257] bg-[#536257]/10 px-2.5 py-0.5 rounded-md border border-[#536257]/20 flex items-center gap-1">
                           
                           Mã : {w.code}
                         </span>
@@ -353,7 +353,7 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
                                 <img
                                   src={imgUrl}
                                   alt={`Ảnh lỗi ${idx + 1}`}
-                                  className="w-9 h-9 object-cover rounded-md border border-stone-200 hover:ring-2 hover:ring-amber-500 transition"
+                                  className="w-9 h-9 object-cover rounded-md border border-stone-200 hover:ring-2 hover:ring-[#536257] transition"
                                 />
                               </a>
                             ))}
@@ -369,12 +369,12 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
                     <div className="flex flex-wrap lg:flex-col items-start lg:items-end gap-1.5">
                       <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider border flex items-center gap-1.5 ${
                         isActive
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          ? 'bg-[#536257]/10 text-[#536257] border-[#536257]/30'
                           : isExpired
                           ? 'bg-stone-100 text-stone-600 border-stone-200'
                           : 'bg-rose-50 text-rose-800 border-rose-200'
                       }`}>
-                        <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse' : 'bg-stone-400'}`} />
+                        <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-[#536257] animate-pulse' : 'bg-stone-400'}`} />
                         {isActive && 'Còn hạn bảo hành'}
                         {w.status === 'expired' && 'Đã hết hạn'}
                         {w.status === 'voided' && 'Phiếu bị hủy'}
@@ -383,11 +383,11 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
                       {w.claim_status && w.claim_status !== 'none' && (
                         <span className={`px-2.5 py-1 rounded-md text-[11px] font-medium border flex items-center gap-1.5 ${
                           isClaiming
-                            ? 'bg-amber-50 text-amber-900 border-amber-300'
+                            ? 'bg-[#8c7a6b]/10 text-[#6b5c4c] border-[#6b5c4c]/30'
                             : isProcessing
                             ? 'bg-blue-50 text-blue-900 border-blue-200'
                             : isCompleted
-                            ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                            ? 'bg-[#536257]/10 text-[#536257] border-[#536257]/30'
                             : 'bg-rose-50 text-rose-900 border-rose-200'
                         }`}>
                           <Wrench className="w-3.5 h-3.5 shrink-0" />
@@ -408,7 +408,7 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
                           <button
                             type="button"
                             onClick={() => handleOpenClaimModal(w)}
-                            className="w-full lg:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs rounded-lg transition-all shadow-xs hover:shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                            className="w-full lg:w-auto px-4 py-2 bg-[#536257] hover:bg-[#435147] text-white font-medium text-xs rounded-lg transition-all shadow-xs hover:shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                           >
                             <Wrench className="w-3.5 h-3.5" />
                             Gửi yêu cầu bảo hành / sửa chữa
@@ -419,7 +419,7 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
                           <button
                             type="button"
                             onClick={() => handleOpenClaimModal(w)}
-                            className="w-full lg:w-auto px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-medium text-xs rounded-lg transition-all shadow-xs hover:shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                            className="w-full lg:w-auto px-4 py-2 bg-[#536257] hover:bg-[#435147] text-white font-medium text-xs rounded-lg transition-all shadow-xs hover:shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                           >
                             <Wrench className="w-3.5 h-3.5" />
                             Gửi yêu cầu đợt mới
@@ -444,17 +444,17 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
                 {/* Highlight Appointment Box (Callout) */}
                 {w.appointment_date && (
                   <div className="pl-2 sm:pl-3 pt-1">
-                    <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-300/80 rounded-lg p-3 sm:p-3.5 flex items-start gap-3 text-xs text-amber-950">
-                      <div className="w-8 h-8 rounded-full bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <div className="bg-gradient-to-r from-[#536257]/10 via-[#536257]/5 to-transparent border border-[#536257]/30 rounded-lg p-3 sm:p-3.5 flex items-start gap-3 text-xs text-stone-900">
+                      <div className="w-8 h-8 rounded-full bg-[#536257] text-white flex items-center justify-center shrink-0 shadow-xs">
                         <Clock className="w-4 h-4" />
                       </div>
                       <div className="space-y-0.5">
-                        <p className="font-bold text-amber-900 text-xs sm:text-sm flex items-center gap-1.5">
+                        <p className="font-bold text-[#536257] text-xs sm:text-sm flex items-center gap-1.5">
                           {w.resolution_type === 'repair' || w.resolution_type === 'replace'
                             ? 'Lịch Hẹn Thu Hồi Về Xưởng'
                             : 'Lịch Hẹn Kỹ Thuật Viên Tới Nhà'}
                         </p>
-                        <p className="font-mono text-xs font-semibold text-amber-800">
+                        <p className="font-mono text-xs font-semibold text-[#536257]">
                           Thời gian dự kiến: {formatDate(w.appointment_date)}
                         </p>
                         {w.assigned_technician && (
@@ -476,8 +476,8 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
                 {w.resolution_note && (
                   <div className="pl-2 sm:pl-3 pt-1">
                     <div className="bg-stone-50 border border-stone-200/80 rounded-lg p-3 text-xs text-stone-800 space-y-1">
-                      <span className="font-bold text-[11px] uppercase tracking-wider text-amber-800 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-amber-600" />
+                      <span className="font-bold text-[11px] uppercase tracking-wider text-[#536257] flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#536257]" />
                         Ghi chú từ Kỹ Thuật Viên:
                       </span>
                       <p className="text-stone-700 leading-relaxed break-words">{w.resolution_note}</p>
@@ -505,9 +505,9 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
                       <button
                         type="button"
                         onClick={() => setExpandedLogWarrantyId(expandedLogWarrantyId === w.id ? null : w.id)}
-                        className="text-xs font-semibold text-stone-700 hover:text-amber-700 flex items-center gap-1.5 cursor-pointer py-1 transition"
+                        className="text-xs font-semibold text-stone-700 hover:text-[#536257] flex items-center gap-1.5 cursor-pointer py-1 transition"
                       >
-                        <History className="w-4 h-4 text-amber-600" />
+                        <History className="w-4 h-4 text-[#536257]" />
                         <span>{expandedLogWarrantyId === w.id ? 'Thu gọn nhật ký bảo hành' : `Xem nhật ký lịch sử (${uniqueLogs.length} đợt)`}</span>
                         {expandedLogWarrantyId === w.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       </button>
@@ -518,7 +518,7 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
                           {uniqueLogs.map((log: any, index: number) => (
                             <div key={log.id || index} className="relative pl-4 space-y-1.5 text-xs">
                               {/* Dot indicator */}
-                              <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-4 ring-white" />
+                              <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-[#536257] ring-4 ring-white" />
 
                               <div className="flex items-center justify-between text-stone-500 font-mono text-[11px]">
                                 <span className="font-bold text-stone-800">Đợt #{uniqueLogs.length - index}</span>
@@ -556,7 +556,7 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
                               )}
 
                               {log.appointment_date && (
-                                <p className="text-amber-900 font-mono text-[11px] bg-amber-50/60 p-2 rounded-md border border-amber-200/60">
+                                <p className="text-[#536257] font-mono text-[11px] bg-[#536257]/10 p-2 rounded-md border border-[#536257]/20">
                                   📅 <strong>Lịch hẹn kiểm tra / thu hồi:</strong> {formatDate(log.appointment_date)}
                                 </p>
                               )}
@@ -582,7 +582,7 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
           >
             <div className="flex items-center justify-between border-b border-stone-100 pb-3.5">
               <h3 className="text-base font-bold text-stone-900 font-headline flex items-center gap-2">
-                <Wrench className="w-5 h-5 text-amber-600" />
+                <Wrench className="w-5 h-5 text-[#536257]" />
                 {selectedWarranty.claim_status === 'completed'
                   ? 'Gửi Yêu Cầu Bảo Hành Đợt Mới'
                   : selectedWarranty.claim_status === 'rejected'
@@ -598,8 +598,8 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
               </button>
             </div>
 
-            <div className="bg-amber-50/80 text-amber-950 p-3.5 rounded-lg border border-amber-200/70 text-xs space-y-1 font-mono">
-              <p>Mã bảo hành: <span className="font-bold text-amber-900">{selectedWarranty.code}</span></p>
+            <div className="bg-[#536257]/10 text-stone-900 p-3.5 rounded-lg border border-[#536257]/20 text-xs space-y-1 font-mono">
+              <p>Mã bảo hành: <span className="font-bold text-[#536257]">{selectedWarranty.code}</span></p>
               <p>Sản phẩm: <span className="font-semibold text-stone-900">{selectedWarranty.product?.name}</span></p>
             </div>
 
@@ -613,7 +613,7 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
                 placeholder="Vui lòng mô tả cụ thể sự cố (ví dụ: gãy chân ghế, bong tróc nệm, trầy xước bề mặt gỗ, khớp nối bị nứt...)"
                 value={claimReason}
                 onChange={(e) => setClaimReason(e.target.value)}
-                className="w-full text-xs border border-stone-200 rounded-lg p-3 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600/20 bg-stone-50/30 font-body-md transition"
+                className="w-full text-xs border border-stone-200 rounded-lg p-3 focus:outline-none focus:border-[#536257] focus:ring-1 focus:ring-[#536257]/20 bg-stone-50/30 font-body-md transition"
               />
             </div>
 
@@ -648,7 +648,7 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
                   </div>
                 ))}
                 {(claimImages.length + claimUpload.previews.length) < 4 && (
-                  <label className="aspect-square border border-dashed border-stone-300 hover:border-amber-600 hover:bg-amber-50/50 transition-all rounded-lg flex flex-col items-center justify-center gap-1 cursor-pointer text-stone-500 hover:text-amber-700">
+                  <label className="aspect-square border border-dashed border-stone-300 hover:border-[#536257] hover:bg-[#536257]/5 transition-all rounded-lg flex flex-col items-center justify-center gap-1 cursor-pointer text-stone-500 hover:text-[#536257]">
                     <Camera className="w-5 h-5" />
                     <span className="text-[10px] font-semibold">Tải ảnh</span>
                     <input
@@ -673,7 +673,7 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
               <button
                 type="submit"
                 disabled={isSubmittingClaim}
-                className="px-5 py-2 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                className="px-5 py-2 text-xs font-semibold text-white bg-[#536257] hover:bg-[#435147] disabled:opacity-50 rounded-lg shadow-sm transition flex items-center gap-1.5 cursor-pointer"
               >
                 {isSubmittingClaim ? 'Đang gửi...' : 'Gửi yêu cầu bảo hành'}
               </button>

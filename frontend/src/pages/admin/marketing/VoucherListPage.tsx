@@ -31,7 +31,10 @@ interface Voucher {
   start_date: string;
   end_date: string;
   usage_limit: number | null;
+  usage_limit_per_user?: number;
   used_count: number;
+  description?: string | null;
+  is_public?: boolean;
   is_active: boolean;
   created_at: string;
   apply_type?: 'all' | 'category' | 'product';
@@ -71,6 +74,7 @@ export default function VoucherListPage() {
   // Form State
   const [form, setForm] = useState({
     code: '',
+    description: '',
     discount_type: 'fixed_amount' as 'percentage' | 'fixed_amount',
     discount_value: 0,
     max_discount_amount: '' as string | number,
@@ -78,6 +82,8 @@ export default function VoucherListPage() {
     start_date: '',
     end_date: '',
     usage_limit: '' as string | number,
+    usage_limit_per_user: 1 as string | number,
+    is_public: true,
     is_active: true,
     apply_type: 'all' as 'all' | 'category' | 'product',
     category_ids: [] as number[],
@@ -114,7 +120,7 @@ export default function VoucherListPage() {
     fetchOptions();
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
 
@@ -172,6 +178,7 @@ export default function VoucherListPage() {
 
     setForm({
       code: '',
+      description: '',
       discount_type: 'fixed_amount',
       discount_value: 0,
       max_discount_amount: '',
@@ -179,6 +186,8 @@ export default function VoucherListPage() {
       start_date: formatForInput(now.toISOString()),
       end_date: formatForInput(nextWeek.toISOString()),
       usage_limit: '',
+      usage_limit_per_user: 1,
+      is_public: true,
       is_active: true,
       apply_type: 'all',
       category_ids: [],
@@ -192,6 +201,7 @@ export default function VoucherListPage() {
     setProductSearch('');
     setForm({
       code: v.code,
+      description: v.description || '',
       discount_type: v.discount_type,
       discount_value: Number(v.discount_value),
       max_discount_amount: v.max_discount_amount !== null ? Number(v.max_discount_amount) : '',
@@ -199,6 +209,8 @@ export default function VoucherListPage() {
       start_date: formatForInput(v.start_date),
       end_date: formatForInput(v.end_date),
       usage_limit: v.usage_limit !== null ? v.usage_limit : '',
+      usage_limit_per_user: v.usage_limit_per_user || 1,
+      is_public: v.is_public !== undefined ? v.is_public : true,
       is_active: v.is_active,
       apply_type: v.apply_type || 'all',
       category_ids: v.categories ? v.categories.map((c) => c.id) : [],
@@ -239,6 +251,7 @@ export default function VoucherListPage() {
 
     const payload = {
       code: form.code.trim().toUpperCase(),
+      description: form.description.trim() || undefined,
       discount_type: form.discount_type,
       discount_value: Number(form.discount_value),
       max_discount_amount: form.max_discount_amount !== '' ? Number(form.max_discount_amount) : undefined,
@@ -246,6 +259,8 @@ export default function VoucherListPage() {
       start_date: new Date(form.start_date).toISOString(),
       end_date: new Date(form.end_date).toISOString(),
       usage_limit: form.usage_limit !== '' ? Number(form.usage_limit) : undefined,
+      usage_limit_per_user: form.usage_limit_per_user !== '' ? Number(form.usage_limit_per_user) : 1,
+      is_public: form.is_public,
       is_active: form.is_active,
       apply_type: form.apply_type,
       category_ids: form.apply_type === 'category' ? form.category_ids : [],
@@ -349,10 +364,28 @@ export default function VoucherListPage() {
                       return (
                         <tr key={v.id} className="hover:bg-slate-50/70 transition-colors">
                           <td className="px-4 py-3 whitespace-nowrap">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50/80 border border-indigo-200/80 text-indigo-700 font-mono font-bold text-xs rounded tracking-wider shadow-2xs">
-                              <Ticket size={13} className="text-indigo-500 shrink-0" />
-                              {v.code}
-                            </span>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50/80 border border-indigo-200/80 text-indigo-700 font-mono font-bold text-xs rounded tracking-wider shadow-2xs">
+                                  <Ticket size={13} className="text-indigo-500 shrink-0" />
+                                  {v.code}
+                                </span>
+                                {v.is_public === false ? (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded border border-amber-300" title="Mã riêng tư (Không hiện ở checkout, phải tự nhập mã)">
+                                    Bí mật
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-medium px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200" title="Mã công khai (Hiển thị ở trang thanh toán)">
+                                    Công khai
+                                  </span>
+                                )}
+                              </div>
+                              {v.description && (
+                                <span className="text-[11px] text-slate-500 truncate max-w-[180px]">
+                                  {v.description}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <div className="flex flex-col">
@@ -649,6 +682,19 @@ export default function VoucherListPage() {
                     </div>
                   </div>
 
+                  {/* Mô tả Voucher */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-600 mb-1.5">Mô tả chương trình / Điều kiện</label>
+                    <textarea
+                      name="description"
+                      value={form.description}
+                      onChange={handleChange}
+                      rows={2}
+                      className="w-full px-4 py-2.5 rounded-none border border-slate-300 focus:border-slate-900 outline-none transition-all text-sm resize-none"
+                      placeholder="VD: Áp dụng cho đơn hàng đầu tiên từ 200k..."
+                    />
+                  </div>
+
                   <div className="flex gap-4">
                     <div className="w-1/2">
                       <label className="block text-sm font-medium text-slate-600 mb-1.5">Đơn hàng tối thiểu (₫)</label>
@@ -663,7 +709,7 @@ export default function VoucherListPage() {
                       />
                     </div>
                     <div className="w-1/2">
-                      <label className="block text-sm font-medium text-slate-600 mb-1.5">Giới hạn số lượt sử dụng</label>
+                      <label className="block text-sm font-medium text-slate-600 mb-1.5">Tổng số lượt dùng toàn sàn</label>
                       <input
                         type="number"
                         name="usage_limit"
@@ -678,6 +724,19 @@ export default function VoucherListPage() {
 
                   <div className="flex gap-4">
                     <div className="w-1/2">
+                      <label className="block text-sm font-medium text-slate-600 mb-1.5">Giới hạn lượt dùng / khách hàng *</label>
+                      <input
+                        type="number"
+                        name="usage_limit_per_user"
+                        value={form.usage_limit_per_user}
+                        onChange={handleChange}
+                        min="1"
+                        required
+                        className="w-full px-4 py-2.5 rounded-none border border-slate-300 focus:border-slate-900 outline-none transition-all text-sm"
+                        placeholder="Mặc định: 1"
+                      />
+                    </div>
+                    <div className="w-1/2">
                       <label className="block text-sm font-medium text-slate-600 mb-1.5">Ngày bắt đầu *</label>
                       <input
                         type="datetime-local"
@@ -688,7 +747,10 @@ export default function VoucherListPage() {
                         className="w-full px-4 py-2.5 rounded-none border border-slate-300 focus:border-slate-900 outline-none transition-all text-sm"
                       />
                     </div>
-                    <div className="w-1/2">
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="w-full">
                       <label className="block text-sm font-medium text-slate-600 mb-1.5">Ngày kết thúc *</label>
                       <input
                         type="datetime-local"
@@ -701,18 +763,34 @@ export default function VoucherListPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center pt-2">
-                    <input
-                      type="checkbox"
-                      id="is_active"
-                      name="is_active"
-                      checked={form.is_active}
-                      onChange={handleChange}
-                      className="w-4 h-4 text-slate-900 border-slate-300 rounded-none focus:ring-slate-900 focus:ring-0 focus:ring-offset-0"
-                    />
-                    <label htmlFor="is_active" className="ml-2 text-sm font-medium text-slate-800 cursor-pointer">
-                      Hiển thị kích hoạt mã giảm giá
-                    </label>
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="is_active"
+                        name="is_active"
+                        checked={form.is_active}
+                        onChange={handleChange}
+                        className="w-4 h-4 text-slate-900 border-slate-300 rounded-none focus:ring-slate-900 focus:ring-0 focus:ring-offset-0"
+                      />
+                      <label htmlFor="is_active" className="ml-2 text-sm font-medium text-slate-800 cursor-pointer">
+                        Kích hoạt mã giảm giá
+                      </label>
+                    </div>
+
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="is_public"
+                        name="is_public"
+                        checked={form.is_public}
+                        onChange={handleChange}
+                        className="w-4 h-4 text-slate-900 border-slate-300 rounded-none focus:ring-slate-900 focus:ring-0 focus:ring-offset-0"
+                      />
+                      <label htmlFor="is_public" className="ml-2 text-sm font-medium text-slate-800 cursor-pointer">
+                        Công khai ở Thanh toán
+                      </label>
+                    </div>
                   </div>
                 </div>
 
@@ -728,7 +806,7 @@ export default function VoucherListPage() {
                     </span>
 
                     {/* Premium design mock voucher */}
-                    <div className="relative border border-slate-300 bg-white p-6 shadow-sm flex flex-col justify-between h-48 w-full border-l-4 border-l-slate-900 overflow-hidden">
+                    <div className="relative border border-slate-300 bg-white p-5 shadow-sm flex flex-col justify-between min-h-[210px] w-full border-l-4 border-l-slate-900 overflow-hidden">
                       {/* Circle cuts in layout for ticket effect */}
                       <div className="absolute top-1/2 -left-2 w-4 h-4 rounded-full bg-slate-50 border border-slate-300 transform -translate-y-1/2"></div>
                       <div className="absolute top-1/2 -right-2 w-4 h-4 rounded-full bg-slate-50 border border-slate-300 transform -translate-y-1/2"></div>
@@ -737,18 +815,23 @@ export default function VoucherListPage() {
                         <div>
                           <div className="flex items-center gap-1.5 text-slate-900 font-bold tracking-wider text-xs">
                             <Tag size={12} />
-                            VOUCHER
+                            VOUCHER {form.is_public ? '' : '(RIÊNG TƯ)'}
                           </div>
-                          <h4 className="text-2xl font-extrabold text-slate-900 mt-2 tracking-wide font-mono">
+                          <h4 className="text-2xl font-extrabold text-slate-900 mt-1 tracking-wide font-mono">
                             {form.code.trim().toUpperCase() || 'CODE_PREVIEW'}
                           </h4>
+                          {form.description && (
+                            <p className="text-[11px] text-slate-500 line-clamp-2 mt-1">
+                              {form.description}
+                            </p>
+                          )}
                         </div>
                         <span className={`text-[9px] font-bold tracking-widest uppercase border px-2 py-0.5 ${form.is_active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
                           {form.is_active ? 'ACTIVE' : 'INACTIVE'}
                         </span>
                       </div>
 
-                      <div className="border-t border-dashed border-slate-200 pt-3">
+                      <div className="border-t border-dashed border-slate-200 pt-2.5 mt-2">
                         <div className="flex justify-between items-baseline text-slate-900">
                           <span className="text-xs text-slate-400">Giá trị ưu đãi:</span>
                           <span className="text-xl font-black">
@@ -768,6 +851,13 @@ export default function VoucherListPage() {
                         )}
 
                         <div className="flex justify-between items-center text-[10px] text-slate-500 mt-1">
+                          <span>Giới hạn / khách:</span>
+                          <span className="font-semibold text-slate-800">
+                            {form.usage_limit_per_user || 1} lần
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-[10px] text-slate-500 mt-0.5">
                           <span>Phạm vi:</span>
                           <span className="font-semibold text-slate-800">
                             {form.apply_type === 'category'

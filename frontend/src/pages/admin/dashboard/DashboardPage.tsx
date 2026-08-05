@@ -35,6 +35,8 @@ interface Product {
   is_active: boolean;
   category?: { name: string };
   created_at?: string;
+  soldCount?: number;
+  averageRating?: number;
 }
 
 interface Category {
@@ -49,6 +51,16 @@ interface RecentOrder {
   payment_status: string;
   created_at: string;
   user?: { name: string };
+}
+
+interface LowStockItem {
+  id: number;
+  sku: string;
+  stock: number;
+  product_name: string;
+  base_price: number;
+  attributes?: Record<string, string>;
+  image_url?: string;
 }
 
 interface ChartDataItem {
@@ -79,6 +91,9 @@ export default function DashboardPage() {
   const [, setCategories] = useState<Category[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [lowStockCount, setLowStockCount] = useState<number>(0);
+  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
+  const [bestSellers, setBestSellers] = useState<Product[]>([]);
+  const [pendingWarrantiesCount, setPendingWarrantiesCount] = useState<number>(0);
   const [returnOrdersCount, setReturnOrdersCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -104,13 +119,15 @@ export default function DashboardPage() {
       
       if (isStaff) {
         // Đối với nhân viên: không gọi API lấy doanh thu (/orders/admin/stats)
-        const [prodRes, catRes, recentOrdersRes, pendingOrdersRes, invRes, returnRes] = await Promise.all([
+        const [prodRes, catRes, recentOrdersRes, pendingOrdersRes, invRes, returnRes, bestSellersRes, warrantyRes] = await Promise.all([
           api.get('/products'),
           api.get('/categories'),
           api.get('/orders/admin?page=1&limit=5'),
           api.get('/orders/admin?page=1&limit=1&status=pending'),
-          api.get('/products/admin/inventory?filter=lowStock&limit=1').catch(() => ({ data: { total: 0 } })),
+          api.get('/products/admin/inventory?filter=lowStock&limit=5').catch(() => ({ data: { data: [], total: 0 } })),
           api.get('/orders/admin?isReturn=true&limit=1').catch(() => ({ data: { total: 0 } })),
+          api.get('/products/best-sellers?limit=5').catch(() => ({ data: [] })),
+          api.get('/warranties/admin/list?page=1&limit=1&status=PENDING').catch(() => ({ data: { total: 0 } })),
         ]);
         setProducts(prodRes.data);
         setCategories(catRes.data);
@@ -121,7 +138,10 @@ export default function DashboardPage() {
           recentOrders: recentOrdersRes.data.data,
         });
         setLowStockCount(invRes.data?.total || 0);
+        setLowStockItems(invRes.data?.data || []);
         setReturnOrdersCount(returnRes.data?.total || 0);
+        setBestSellers(Array.isArray(bestSellersRes.data) ? bestSellersRes.data : []);
+        setPendingWarrantiesCount(warrantyRes.data?.total || 0);
       } else {
         // Đối với Admin: gọi thống kê doanh thu theo mốc thời gian (timeframe) hoặc tùy chọn ngày (startDate, endDate)
         let url = `/orders/admin/stats?timeframe=${selectedTimeframe}`;
@@ -129,18 +149,23 @@ export default function DashboardPage() {
           url += `&startDate=${sDate}&endDate=${eDate}`;
         }
 
-        const [prodRes, catRes, statsRes, invRes, returnRes] = await Promise.all([
+        const [prodRes, catRes, statsRes, invRes, returnRes, bestSellersRes, warrantyRes] = await Promise.all([
           api.get('/products'),
           api.get('/categories'),
           api.get(url),
-          api.get('/products/admin/inventory?filter=lowStock&limit=1').catch(() => ({ data: { total: 0 } })),
+          api.get('/products/admin/inventory?filter=lowStock&limit=5').catch(() => ({ data: { data: [], total: 0 } })),
           api.get('/orders/admin?isReturn=true&limit=1').catch(() => ({ data: { total: 0 } })),
+          api.get('/products/best-sellers?limit=5').catch(() => ({ data: [] })),
+          api.get('/warranties/admin/list?page=1&limit=1&status=PENDING').catch(() => ({ data: { total: 0 } })),
         ]);
         setProducts(prodRes.data);
         setCategories(catRes.data);
         setStats(statsRes.data);
         setLowStockCount(invRes.data?.total || 0);
+        setLowStockItems(invRes.data?.data || []);
         setReturnOrdersCount(returnRes.data?.total || 0);
+        setBestSellers(Array.isArray(bestSellersRes.data) ? bestSellersRes.data : []);
+        setPendingWarrantiesCount(warrantyRes.data?.total || 0);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -183,11 +208,11 @@ export default function DashboardPage() {
       shadowColor: 'shadow-amber-500/20',
     },
     {
-      label: 'Tổng sản phẩm',
-      value: products.length,
-      icon: Package,
-      color: 'from-violet-500 to-purple-600',
-      shadowColor: 'shadow-violet-500/20',
+      label: 'Hàng sắp hết kho',
+      value: lowStockCount,
+      icon: AlertTriangle,
+      color: lowStockCount > 0 ? 'from-rose-500 to-red-600' : 'from-slate-500 to-slate-600',
+      shadowColor: lowStockCount > 0 ? 'shadow-rose-500/20' : 'shadow-slate-500/20',
     },
   ];
 
@@ -305,6 +330,9 @@ export default function DashboardPage() {
           <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             Tổng quan hệ thống
           </h1>
+          <p className="text-xs text-slate-500 font-medium mt-1">
+            Bảng điều khiển và theo dõi số liệu kinh doanh thời gian thực
+          </p>
         </div>
 
         <button
@@ -561,54 +589,69 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Grid: Recent Products & Recent Orders */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Grid 3 cột: Cảnh báo Tồn Kho, Top Sản Phẩm Bán Chạy, Đơn Hàng Mới Nhận */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Recent Products */}
-        <div className="space-y-4">
+        {/* 1. Cảnh báo tồn kho sắp hết */}
+        <div className="space-y-4 flex flex-col">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-extrabold text-slate-800">Sản phẩm mới thêm</h2>
-              <p className="text-xs text-slate-400 font-medium">Các sản phẩm nội thất vừa tạo</p>
+              <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                <AlertTriangle size={18} className="text-rose-600" />
+                Cảnh báo kho sắp hết
+              </h2>
+              <p className="text-xs text-slate-400 font-medium">Biến thể có tồn kho &le; 5 sản phẩm</p>
             </div>
             <Link
-              to="/admin/products"
-              className="text-xs text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-none transition-all"
+              to="/admin/warehouse/purchase-orders/create"
+              className="text-xs text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1 bg-rose-50 px-2.5 py-1 rounded-none transition-all"
             >
-              Tất cả <ArrowRight size={13} />
+              Nhập kho <ArrowRight size={13} />
             </Link>
           </div>
 
-          <div className="bg-white rounded-none border border-slate-200/80 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-none border border-slate-200/80 shadow-sm overflow-hidden flex-1">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200/80">
-                    <th className="text-left px-5 py-3.5 font-bold text-slate-500 text-xs tracking-wider uppercase">SKU</th>
-                    <th className="text-left px-5 py-3.5 font-bold text-slate-500 text-xs tracking-wider uppercase">Tên sản phẩm</th>
-                    <th className="text-right px-5 py-3.5 font-bold text-slate-500 text-xs tracking-wider uppercase">Giá bán</th>
+                    <th className="text-left px-4 py-3 font-bold text-slate-500 text-xs tracking-wider uppercase">Sản phẩm</th>
+                    <th className="text-center px-4 py-3 font-bold text-slate-500 text-xs tracking-wider uppercase">Tồn kho</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {products.length === 0 ? (
+                  {lowStockItems.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="text-center py-12 text-slate-400 font-medium">
-                        Chưa có sản phẩm nào.
+                      <td colSpan={2} className="text-center py-12 text-slate-400 font-medium text-xs">
+                        <CheckCircle2 size={24} className="mx-auto text-emerald-500 mb-1.5 opacity-80" />
+                        Kho hàng ổn định, không có sản phẩm nào chạm ngưỡng hết hàng.
                       </td>
                     </tr>
                   ) : (
-                    products.slice(0, 5).map((p) => (
+                    lowStockItems.slice(0, 5).map((item) => (
                       <tr
-                        key={p.id}
+                        key={item.id}
                         className="hover:bg-slate-50/60 transition-colors"
                       >
-                        <td className="px-5 py-3.5 font-mono text-xs text-slate-400 font-bold">{p.sku || '—'}</td>
-                        <td className="px-5 py-3.5">
-                          <span className="font-bold text-slate-700 hover:text-indigo-600 transition-colors cursor-pointer">{p.name}</span>
-                          <span className="block text-[10px] text-slate-400 mt-0.5 font-semibold">{p.category?.name || 'Chưa phân loại'}</span>
+                        <td className="px-4 py-3">
+                          <span className="font-bold text-slate-800 text-xs line-clamp-1">{item.product_name}</span>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="font-mono text-[10px] text-slate-400 font-bold">{item.sku || '—'}</span>
+                            {item.attributes && Object.keys(item.attributes).length > 0 && (
+                              <span className="text-[10px] text-indigo-600 bg-indigo-50 px-1.5 py-0.2 rounded-none font-semibold">
+                                {Object.values(item.attributes).join(' / ')}
+                              </span>
+                            )}
+                          </div>
                         </td>
-                        <td className="px-5 py-3.5 text-right font-black text-indigo-600">
-                          {formatPrice(p.base_price)}
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-none text-xs font-black ${
+                            item.stock <= 0 
+                              ? 'bg-rose-100 text-rose-700 border border-rose-300' 
+                              : 'bg-amber-100 text-amber-800 border border-amber-300'
+                          }`}>
+                            {item.stock <= 0 ? 'Hết hàng (0)' : `Còn ${item.stock}`}
+                          </span>
                         </td>
                       </tr>
                     ))
@@ -619,35 +662,107 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Recent Orders */}
-        <div className="space-y-4">
+        {/* 2. Top sản phẩm bán chạy nhất */}
+        <div className="space-y-4 flex flex-col">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-extrabold text-slate-800">Đơn hàng mới nhận</h2>
-              <p className="text-xs text-slate-400 font-medium">Đơn đặt hàng khách hàng mua gần đây</p>
+              <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                <TrendingUp size={18} className="text-emerald-600" />
+                Sản phẩm bán chạy
+              </h2>
+              <p className="text-xs text-slate-400 font-medium">Top sản phẩm doanh số tốt nhất</p>
             </div>
             <Link
-              to="/admin/orders"
-              className="text-xs text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-none transition-all"
+              to="/admin/products"
+              className="text-xs text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1 bg-indigo-50 px-2.5 py-1 rounded-none transition-all"
             >
               Tất cả <ArrowRight size={13} />
             </Link>
           </div>
 
-          <div className="bg-white rounded-none border border-slate-200/80 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-none border border-slate-200/80 shadow-sm overflow-hidden flex-1">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200/80">
-                    <th className="text-left px-5 py-3.5 font-bold text-slate-500 text-xs tracking-wider uppercase">Khách hàng</th>
-                    <th className="text-right px-5 py-3.5 font-bold text-slate-500 text-xs tracking-wider uppercase">Tổng tiền</th>
-                    <th className="text-center px-5 py-3.5 font-bold text-slate-500 text-xs tracking-wider uppercase">Trạng thái</th>
+                    <th className="text-left px-4 py-3 font-bold text-slate-500 text-xs tracking-wider uppercase">Sản phẩm</th>
+                    <th className="text-right px-4 py-3 font-bold text-slate-500 text-xs tracking-wider uppercase">Đã bán</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {bestSellers.length === 0 ? (
+                    <tr>
+                      <td colSpan={2} className="text-center py-12 text-slate-400 font-medium text-xs">
+                        Chưa có dữ liệu bán hàng.
+                      </td>
+                    </tr>
+                  ) : (
+                    bestSellers.slice(0, 5).map((p, idx) => (
+                      <tr
+                        key={p.id}
+                        className="hover:bg-slate-50/60 transition-colors"
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-5 h-5 flex items-center justify-center font-black text-[10px] rounded-none shrink-0 ${
+                              idx === 0 ? 'bg-amber-400 text-slate-900' :
+                              idx === 1 ? 'bg-slate-300 text-slate-800' :
+                              idx === 2 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                              {idx + 1}
+                            </span>
+                            <div className="overflow-hidden">
+                              <span className="font-bold text-slate-700 text-xs line-clamp-1">{p.name}</span>
+                              <span className="block text-[10px] text-slate-400 font-semibold">{formatPrice(p.base_price)}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="font-black text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-none border border-emerald-200">
+                            {p.soldCount || 0} sp
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Đơn hàng mới nhận */}
+        <div className="space-y-4 flex flex-col">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                <ShoppingCart size={18} className="text-indigo-600" />
+                Đơn hàng mới nhận
+              </h2>
+              <p className="text-xs text-slate-400 font-medium">Đơn đặt hàng vừa phát sinh</p>
+            </div>
+            <Link
+              to="/admin/orders"
+              className="text-xs text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1 bg-indigo-50 px-2.5 py-1 rounded-none transition-all"
+            >
+              Tất cả <ArrowRight size={13} />
+            </Link>
+          </div>
+
+          <div className="bg-white rounded-none border border-slate-200/80 shadow-sm overflow-hidden flex-1">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-200/80">
+                    <th className="text-left px-4 py-3 font-bold text-slate-500 text-xs tracking-wider uppercase">Khách hàng</th>
+                    <th className="text-right px-4 py-3 font-bold text-slate-500 text-xs tracking-wider uppercase">Tổng tiền</th>
+                    <th className="text-center px-4 py-3 font-bold text-slate-500 text-xs tracking-wider uppercase">Trạng thái</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {!stats || stats.recentOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="text-center py-12 text-slate-400 font-medium">
+                      <td colSpan={3} className="text-center py-12 text-slate-400 font-medium text-xs">
                         Chưa có đơn hàng nào gần đây.
                       </td>
                     </tr>
@@ -657,14 +772,14 @@ export default function DashboardPage() {
                         key={o.id}
                         className="hover:bg-slate-50/60 transition-colors"
                       >
-                        <td className="px-5 py-3.5">
-                          <div className="font-bold text-slate-700">{o.user?.name || 'Khách vãng lai'}</div>
-                          <div className="text-[10px] text-slate-400 font-semibold mt-0.5">{formatDate(o.created_at)}</div>
+                        <td className="px-4 py-3">
+                          <div className="font-bold text-slate-700 text-xs">{o.user?.name || 'Khách vãng lai'}</div>
+                          <div className="text-[10px] text-slate-400 font-semibold">{formatDate(o.created_at)}</div>
                         </td>
-                        <td className="px-5 py-3.5 text-right font-black text-slate-800">
+                        <td className="px-4 py-3 text-right font-black text-slate-800 text-xs">
                           {formatPrice(o.total_amount)}
                         </td>
-                        <td className="px-5 py-3.5 text-center">
+                        <td className="px-4 py-3 text-center">
                           <StatusBadge status={o.status} category="order" />
                         </td>
                       </tr>
@@ -681,3 +796,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

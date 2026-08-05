@@ -81,21 +81,55 @@ export class VouchersService {
     });
   }
 
-  async findActiveVouchers(): Promise<Voucher[]> {
+  async findActiveVouchers(userId?: number): Promise<any[]> {
     const now = new Date();
     const vouchers = await this.voucherRepository.find({
-      where: { is_active: true },
+      where: { is_active: true, is_public: true },
       relations: { categories: true, products: true },
       order: { created_at: 'DESC' },
     });
 
-    return vouchers.filter((v) => {
+    const activeVouchers = vouchers.filter((v) => {
       const start = new Date(v.start_date);
       const end = new Date(v.end_date);
       const isNotExpired = now >= start && now <= end;
       const hasUsageLeft =
         v.usage_limit === null || v.used_count < v.usage_limit;
       return isNotExpired && hasUsageLeft;
+    });
+
+    if (!userId) {
+      return activeVouchers.map((v) => ({
+        ...v,
+        is_used_by_user: false,
+      }));
+    }
+
+    const userOrders = await this.orderRepository.find({
+      where: {
+        user: { id: userId },
+        status: Not(OrderStatus.CANCELLED),
+      },
+      select: { voucher_code: true },
+    });
+
+    const codeUsageMap = new Map<string, number>();
+    for (const o of userOrders) {
+      if (o.voucher_code) {
+        codeUsageMap.set(
+          o.voucher_code,
+          (codeUsageMap.get(o.voucher_code) || 0) + 1,
+        );
+      }
+    }
+
+    return activeVouchers.map((v) => {
+      const userUsedCount = codeUsageMap.get(v.code) || 0;
+      const perUserLimit = v.usage_limit_per_user || 1;
+      return {
+        ...v,
+        is_used_by_user: userUsedCount >= perUserLimit,
+      };
     });
   }
 
@@ -229,9 +263,10 @@ export class VouchersService {
           status: Not(OrderStatus.CANCELLED),
         },
       });
-      if (orderCount > 0) {
+      const perUserLimit = voucher.usage_limit_per_user || 1;
+      if (orderCount >= perUserLimit) {
         throw new BadRequestException(
-          'Bạn đã sử dụng mã giảm giá này cho một đơn hàng trước đó.',
+          `Bạn đã sử dụng hết số lần tối đa (${perUserLimit} lần) cho mã giảm giá này.`,
         );
       }
     }

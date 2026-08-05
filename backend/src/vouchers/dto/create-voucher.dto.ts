@@ -53,6 +53,19 @@ export class CreateVoucherDto {
   usage_limit?: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(1)
+  usage_limit_per_user?: number;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  is_public?: boolean;
+
+  @IsOptional()
   @IsBoolean()
   is_active?: boolean;
 

@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import OrderHistoryTab from '@/components/profile/OrderHistoryTab';
 import AddressBookTab from '@/components/profile/AddressBookTab';
 import WarrantyTab from '@/components/profile/WarrantyTab';
+import VoucherTab from '@/components/profile/VoucherTab';
 
 const ProfilePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -227,6 +228,17 @@ const ProfilePage: React.FC = () => {
                 </button>
 
                 <button
+                  onClick={() => setSearchParams({ tab: 'vouchers' })}
+                  className={`flex items-center gap-3 w-full text-left py-3 px-4 rounded-sm transition-all duration-300 font-semibold text-xs uppercase tracking-wider font-headline border-l-4 ${activeTab === 'vouchers'
+                      ? 'bg-primary/8 text-primary border-primary'
+                      : 'text-on-surface-variant/70 hover:bg-surface-container-low hover:text-on-surface border-transparent'
+                    }`}
+                >
+                  <span className="material-symbols-outlined text-[20px]">confirmation_number</span>
+                  Kho mã giảm giá
+                </button>
+
+                <button
                   onClick={() => setSearchParams({ tab: 'address' })}
                   className={`flex items-center gap-3 w-full text-left py-3 px-4 rounded-sm transition-all duration-300 font-semibold text-xs uppercase tracking-wider font-headline border-l-4 ${activeTab === 'address'
                       ? 'bg-primary/8 text-primary border-primary'
@@ -442,7 +454,12 @@ const ProfilePage: React.FC = () => {
                 <WarrantyTab user={user} />
               )}
 
-              {/* TAB 4: SỔ ĐỊA CHỈ */}
+              {/* TAB 4: KHO MÃ GIẢM GIÁ */}
+              {activeTab === 'vouchers' && (
+                <VoucherTab user={user} />
+              )}
+
+              {/* TAB 5: SỔ ĐỊA CHỈ */}
               {activeTab === 'address' && (
                 <AddressBookTab user={user} token={token || ''} />
               )}
