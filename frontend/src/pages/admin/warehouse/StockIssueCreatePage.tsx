@@ -5,6 +5,7 @@ import api from '@/services/api';
 import toast from 'react-hot-toast';
 import { Search, Loader2, ArrowLeft, Plus, Trash2, X, AlertCircle, ArrowUpRight } from 'lucide-react';
 import { REASON_LABELS } from './StockIssueListPage';
+import { formatAttributeValue } from '@/utils/format';
 
 interface Variant {
   id: number;
@@ -246,7 +247,7 @@ export default function StockIssueCreatePage() {
                                 <span>SKU: {item.sku}</span>
                                 {Object.entries(item.attributes).map(([k, v]) => (
                                   <span key={k}>
-                                    | {k}: {v}
+                                    | {k}: {formatAttributeValue(v)}
                                   </span>
                                 ))}
                               </div>
@@ -460,7 +461,7 @@ export default function StockIssueCreatePage() {
                               <div className="font-semibold text-slate-800 truncate max-w-xs">{variant.product_name}</div>
                               <div className="text-[10px] text-slate-500 font-mono mt-0.5">
                                 SKU: {variant.sku}{' '}
-                                {Object.entries(variant.attributes).map(([k, v]) => `| ${k}: ${v}`)}
+                                {Object.entries(variant.attributes).map(([k, v]) => `| ${k}: ${formatAttributeValue(v)}`)}
                               </div>
                             </div>
                           </td>

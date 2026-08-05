@@ -19,3 +19,19 @@ export const formatDate = (dateStr?: string | Date | null): string => {
     return '-';
   }
 };
+
+// Hàm xử lý làm sạch giá trị của một thuộc tính (loại bỏ mã màu Hex phía sau ký tự '|' nếu có)
+export const formatAttributeValue = (val?: string | number | null): string => {
+  if (val === undefined || val === null) return '';
+  const strVal = String(val);
+  return strVal.includes('|') ? strVal.split('|')[0].trim() : strVal.trim();
+};
+
+// Hàm chuyển đổi đối tượng thuộc tính thành chuỗi hiển thị gọn gàng (VD: Màu sắc: Đen, Kích thước: L)
+export const formatAttributes = (attributes?: Record<string, any> | null): string => {
+  if (!attributes || Object.keys(attributes).length === 0) return '';
+  return Object.entries(attributes)
+    .map(([k, v]) => `${k}: ${formatAttributeValue(v)}`)
+    .join(', ');
+};
+

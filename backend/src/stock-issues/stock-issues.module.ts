@@ -6,6 +6,7 @@ import { StockIssue } from './stock-issue.entity';
 import { StockIssueItem } from './stock-issue-item.entity';
 import { ProductVariant } from '../products/product-variant.entity';
 import { InventoryTransaction } from '../products/inventory-transaction.entity';
+import { Order } from '../orders/order.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
@@ -15,6 +16,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       StockIssueItem,
       ProductVariant,
       InventoryTransaction,
+      Order,
     ]),
     NotificationsModule,
   ],

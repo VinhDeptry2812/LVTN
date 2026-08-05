@@ -35,6 +35,7 @@ interface PaginatedResponse {
 }
 
 export const REASON_LABELS: Record<string, { label: string; bg: string; text: string }> = {
+  order_sale: { label: 'Xuất bán đơn hàng', bg: 'bg-emerald-50', text: 'text-emerald-700' },
   damaged: { label: 'Hàng hỏng / lỗi', bg: 'bg-red-50', text: 'text-red-700' },
   expired: { label: 'Hết hạn sử dụng', bg: 'bg-orange-50', text: 'text-orange-700' },
   sample: { label: 'Hàng mẫu / Trưng bày', bg: 'bg-purple-50', text: 'text-purple-700' },
@@ -152,6 +153,7 @@ export default function StockIssueListPage() {
                 className="px-3 py-1.5 text-xs rounded-none border border-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500 bg-white cursor-pointer max-w-xs"
               >
                 <option value="all">Tất cả lý do</option>
+                <option value="order_sale">Xuất bán đơn hàng</option>
                 <option value="damaged">Hàng hỏng / lỗi</option>
                 <option value="expired">Hết hạn sử dụng</option>
                 <option value="sample">Hàng mẫu / Trưng bày</option>

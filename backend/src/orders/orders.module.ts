@@ -7,6 +7,8 @@ import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
 import { ProductVariant } from '../products/product-variant.entity';
 import { InventoryTransaction } from '../products/inventory-transaction.entity';
+import { StockIssue } from '../stock-issues/stock-issue.entity';
+import { StockIssueItem } from '../stock-issues/stock-issue-item.entity';
 import { CartModule } from '../cart/cart.module';
 import { VnpayModule } from '../vnpay/vnpay.module';
 import { VouchersModule } from '../vouchers/vouchers.module';
@@ -23,6 +25,8 @@ import { WarrantiesModule } from '../warranties/warranties.module';
       ProductVariant,
       OrderReturn,
       InventoryTransaction,
+      StockIssue,
+      StockIssueItem,
     ]),
     CartModule,
     forwardRef(() => VnpayModule),

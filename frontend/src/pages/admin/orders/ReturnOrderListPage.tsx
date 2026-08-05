@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatPrice, formatDate } from '@/utils/format';
+import { formatPrice, formatDate, formatAttributes } from '@/utils/format';
 import AdminPagination from '@/components/AdminPagination';
 import TableLoader from '@/components/TableLoader';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -572,9 +572,7 @@ export default function ReturnOrderListPage() {
                           <p className="font-bold text-slate-700 truncate">{item.product.name}</p>
                           {item.variant?.attributes && (
                             <p className="text-[10px] text-slate-400 mt-0.5">
-                              {Object.entries(item.variant.attributes)
-                                .map(([k, v]) => `${k}: ${v}`)
-                                .join(' | ')}
+                              {formatAttributes(item.variant.attributes)}
                             </p>
                           )}
                         </div>

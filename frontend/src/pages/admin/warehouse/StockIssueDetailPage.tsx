@@ -5,8 +5,8 @@ import api from '@/services/api';
 import toast from 'react-hot-toast';
 import ConfirmModal from '@/components/ConfirmModal';
 import useConfirmModal from '@/hooks/useConfirmModal';
-import { formatPrice } from '@/utils/format';
-import { ArrowLeft, Loader2, Calendar, User, CheckCircle2, XCircle, Clock, ShieldAlert, ArrowUpRight } from 'lucide-react';
+import { formatPrice, formatAttributeValue } from '@/utils/format';
+import { ArrowLeft, Loader2, Calendar, User, CheckCircle2, XCircle, Clock, ShieldAlert, ArrowUpRight, ShoppingBag } from 'lucide-react';
 import { REASON_LABELS } from './StockIssueListPage';
 
 interface UserType {
@@ -15,12 +15,21 @@ interface UserType {
   email?: string;
 }
 
+interface VariantImage {
+  id: number;
+  image_url: string;
+  is_thumbnail?: boolean;
+}
+
 interface Variant {
   id: number;
   sku: string;
+  image_url?: string;
+  images?: VariantImage[];
   attributes: Record<string, string>;
   product: {
     name: string;
+    images?: VariantImage[];
   };
 }
 
@@ -35,7 +44,8 @@ interface StockIssueItem {
 interface StockIssue {
   id: number;
   code: string;
-  reason: 'damaged' | 'expired' | 'sample' | 'internal_use' | 'other';
+  order_id?: number;
+  reason: 'order_sale' | 'damaged' | 'expired' | 'sample' | 'internal_use' | 'other';
   status: 'pending' | 'completed' | 'cancelled';
   total_amount: number;
   created_by: UserType;
@@ -54,6 +64,20 @@ export default function StockIssueDetailPage() {
   const [updating, setUpdating] = useState(false);
 
   const { confirmModal, openConfirm, closeConfirm } = useConfirmModal();
+
+  const getProductImage = (variant?: Variant) => {
+    if (!variant) return null;
+    if (variant.image_url) return variant.image_url;
+    if (variant.images && variant.images.length > 0) {
+      const thumb = variant.images.find((img) => img.is_thumbnail) || variant.images[0];
+      if (thumb?.image_url) return thumb.image_url;
+    }
+    if (variant.product?.images && variant.product.images.length > 0) {
+      const thumb = variant.product.images.find((img) => img.is_thumbnail) || variant.product.images[0];
+      if (thumb?.image_url) return thumb.image_url;
+    }
+    return null;
+  };
 
   const fetchIssueDetails = async () => {
     setLoading(true);
@@ -146,25 +170,43 @@ export default function StockIssueDetailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {issue.items.map((item) => (
-                    <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                      <td className="px-4 py-3">
-                        <div className="font-semibold text-slate-800">{item.variant?.product?.name}</div>
-                        <div className="text-[11px] text-slate-500 font-mono mt-0.5">
-                          SKU: {item.variant?.sku}{' '}
-                          {Object.entries(item.variant?.attributes || {}).map(([k, v]) => `| ${k}: ${v}`)}
-                        </div>
-                        {item.notes && <div className="text-xs text-amber-700 italic mt-1">Ghi chú: {item.notes}</div>}
-                      </td>
-                      <td className="px-4 py-3 text-center font-mono font-medium text-slate-800">{item.quantity}</td>
-                      <td className="px-4 py-3 text-right text-slate-700 font-medium">
-                        {formatPrice(item.unit_price)}
-                      </td>
-                      <td className="px-4 py-3 text-right font-bold text-slate-900">
-                        {formatPrice(item.quantity * item.unit_price)}
-                      </td>
-                    </tr>
-                  ))}
+                  {issue.items.map((item) => {
+                    const imageUrl = getProductImage(item.variant);
+                    return (
+                      <tr key={item.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            {imageUrl ? (
+                              <img
+                                src={imageUrl}
+                                alt={item.variant?.product?.name || 'Sản phẩm'}
+                                className="w-12 h-12 object-cover rounded-none border border-slate-200 bg-slate-50 shrink-0"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-none bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 font-bold shrink-0 text-xs uppercase">
+                                {item.variant?.product?.name?.charAt(0) || 'SP'}
+                              </div>
+                            )}
+                            <div>
+                              <div className="font-semibold text-slate-800">{item.variant?.product?.name}</div>
+                              <div className="text-[11px] text-slate-500 font-mono mt-0.5">
+                                SKU: {item.variant?.sku}{' '}
+                                {Object.entries(item.variant?.attributes || {}).map(([k, v]) => `| ${k}: ${formatAttributeValue(v)}`)}
+                              </div>
+                              {item.notes && <div className="text-xs text-amber-700 italic mt-1">Ghi chú: {item.notes}</div>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center font-mono font-medium text-slate-800">{item.quantity}</td>
+                        <td className="px-4 py-3 text-right text-slate-700 font-medium">
+                          {formatPrice(item.unit_price)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold text-slate-900">
+                          {formatPrice(item.quantity * item.unit_price)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -232,6 +274,20 @@ export default function StockIssueDetailPage() {
                 {reasonInfo.label}
               </span>
             </div>
+
+            {/* Linked Order */}
+            {issue.order_id && (
+              <div className="space-y-1.5 text-sm pt-2">
+                <label className="block text-xs font-semibold text-slate-500 uppercase">Đơn hàng liên quan</label>
+                <button
+                  onClick={() => navigate(`/admin/orders`)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-none border border-emerald-200 transition-colors cursor-pointer"
+                >
+                  <ShoppingBag size={14} />
+                  <span>Đơn hàng #{issue.order_id}</span>
+                </button>
+              </div>
+            )}
 
             {/* Timestamps & Personnel */}
             <div className="space-y-2.5 text-xs text-slate-600 pt-3 border-t border-slate-100">

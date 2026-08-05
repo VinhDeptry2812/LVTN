@@ -14,6 +14,7 @@ import { CreateStockIssueDto } from './dto/create-stock-issue.dto';
 import { UpdateStockIssueStatusDto } from './dto/update-stock-issue-status.dto';
 import { User } from '../users/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { Order, OrderStatus } from '../orders/order.entity';
 
 @Injectable()
 export class StockIssuesService {
@@ -80,6 +81,18 @@ export class StockIssuesService {
       await queryRunner.manager.save(savedIssue);
 
       await queryRunner.commitTransaction();
+
+      try {
+        await this.notificationsService.create({
+          title: 'Phiếu xuất kho mới',
+          message: `Phiếu xuất kho ${savedIssue.code} vừa được tạo thành công và đang chờ duyệt xuất kho.`,
+          type: 'info',
+          reference_link: `/admin/stock-issues/${savedIssue.id}`,
+        });
+      } catch (e) {
+        console.error('Lỗi khi tạo thông báo phiếu xuất kho:', e);
+      }
+
       return this.findOne(savedIssue.id);
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -141,7 +154,10 @@ export class StockIssuesService {
         reviewed_by: true,
         items: {
           variant: {
-            product: true,
+            images: true,
+            product: {
+              images: true,
+            },
           },
         },
       },
@@ -239,10 +255,43 @@ export class StockIssuesService {
             }
           }
         }
+
+        // Tự động chuyển Đơn hàng liên quan sang trạng thái Đã xác nhận (CONFIRMED)
+        if (issue.order_id) {
+          const order = await queryRunner.manager.findOne(Order, {
+            where: { id: issue.order_id },
+          });
+          if (order && order.status === OrderStatus.PENDING) {
+            order.status = OrderStatus.CONFIRMED;
+            order.confirmed_at = new Date();
+            await queryRunner.manager.save(order);
+          }
+        }
       }
 
       const savedIssue = await queryRunner.manager.save(issue);
       await queryRunner.commitTransaction();
+
+      try {
+        if (updateStatusDto.status === StockIssueStatus.COMPLETED) {
+          await this.notificationsService.create({
+            title: 'Phiếu xuất kho đã được duyệt',
+            message: `Phiếu xuất kho ${savedIssue.code || `#PXK${savedIssue.id}`} đã được duyệt xuất kho thực tế. Tồn kho đã được cập nhật.`,
+            type: 'info',
+            reference_link: `/admin/stock-issues/${savedIssue.id}`,
+          });
+        } else if (updateStatusDto.status === StockIssueStatus.CANCELLED) {
+          await this.notificationsService.create({
+            title: 'Phiếu xuất kho đã bị hủy',
+            message: `Phiếu xuất kho ${savedIssue.code || `#PXK${savedIssue.id}`} đã bị hủy.`,
+            type: 'info',
+            reference_link: `/admin/stock-issues/${savedIssue.id}`,
+          });
+        }
+      } catch (e) {
+        console.error('Lỗi khi tạo thông báo cập nhật phiếu xuất kho:', e);
+      }
+
       return this.findOne(savedIssue.id);
     } catch (error) {
       await queryRunner.rollbackTransaction();

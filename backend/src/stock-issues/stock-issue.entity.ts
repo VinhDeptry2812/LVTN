@@ -11,6 +11,8 @@ import {
 import { User } from '../users/user.entity';
 import { StockIssueItem } from './stock-issue-item.entity';
 
+import { Order } from '../orders/order.entity';
+
 export enum StockIssueStatus {
   PENDING = 'pending',
   COMPLETED = 'completed',
@@ -18,6 +20,7 @@ export enum StockIssueStatus {
 }
 
 export enum StockIssueReason {
+  ORDER_SALE = 'order_sale',  // Xuất bán đơn hàng
   DAMAGED = 'damaged',        // Hàng hỏng/lỗi
   EXPIRED = 'expired',        // Hết hạn sử dụng
   SAMPLE = 'sample',          // Hàng mẫu / Trưng bày
@@ -39,6 +42,13 @@ export class StockIssue {
   })
   reason: StockIssueReason;
 
+  @Column({ nullable: true })
+  order_id: number | null;
+
+  @ManyToOne(() => Order, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'order_id' })
+  order: Order | null;
+
   @OneToMany(() => StockIssueItem, (item) => item.stock_issue, {
     cascade: true,
   })
@@ -53,9 +63,9 @@ export class StockIssue {
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   total_amount: number;
 
-  @ManyToOne(() => User, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => User, { onDelete: 'RESTRICT', nullable: true })
   @JoinColumn({ name: 'created_by_id' })
-  created_by: User;
+  created_by: User | null;
 
   @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'reviewed_by_id' })
