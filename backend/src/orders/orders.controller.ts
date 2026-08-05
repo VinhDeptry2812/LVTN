@@ -149,8 +149,9 @@ export class OrdersController {
   async cancelMyOrder(
     @GetUser('id') userId: number,
     @Param('id', ParseIntPipe) orderId: number,
+    @Body() body?: { reason?: string },
   ) {
-    return this.ordersService.cancelOrder(userId, orderId);
+    return this.ordersService.cancelOrder(userId, orderId, body?.reason);
   }
 
   @Post('my-orders/:id/complete')

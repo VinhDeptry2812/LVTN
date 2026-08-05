@@ -72,7 +72,27 @@ export class OrdersService implements OnModuleInit {
     return code;
   }
 
-  private triggerOrderStatusEmailNotification(orderId: number, status: OrderStatus): void {
+  private triggerOrderStatusEmailNotification(
+    orderId: number,
+    status: OrderStatus,
+    cancelledByRole?: 'user' | 'admin' | 'system' | string,
+    cancelReason?: string,
+  ): void {
+    // Danh sách các trạng thái mốc quan trọng được phép gửi email thông báo
+    const ALLOWED_EMAIL_STATUSES: OrderStatus[] = [
+      OrderStatus.PENDING,
+      OrderStatus.SHIPPING,
+      OrderStatus.COMPLETED,
+      OrderStatus.CANCELLED,
+      OrderStatus.RETURN_APPROVED,
+      OrderStatus.RETURN_REJECTED,
+    ];
+
+    // Nếu trạng thái mới không nằm trong danh sách được phép thì không gửi email
+    if (!ALLOWED_EMAIL_STATUSES.includes(status)) {
+      return;
+    }
+
     this.orderRepository.findOne({
       where: { id: orderId },
       relations: {
@@ -85,8 +105,11 @@ export class OrdersService implements OnModuleInit {
     }).then(async (order) => {
       if (order && order.user?.email) {
         let pdfBuffer: Buffer | undefined = undefined;
-        // Chỉ đính kèm hóa đơn khi mới tạo đơn hàng (PENDING) để tránh gửi lặp lại khi chuyển trạng thái
-        if (status === OrderStatus.PENDING) {
+        // Chỉ đính kèm hóa đơn PDF khi thanh toán thành công (PAID) hoặc khi giao hàng/hoàn thành (DELIVERED/COMPLETED)
+        const isPaid = order.payment_status === PaymentStatus.PAID;
+        const isDeliveredOrCompleted = status === OrderStatus.DELIVERED || status === OrderStatus.COMPLETED;
+
+        if ((isPaid || isDeliveredOrCompleted) && status !== OrderStatus.CANCELLED) {
           try {
             pdfBuffer = await this.generateInvoicePdf(order.id);
           } catch (pdfErr) {
@@ -94,7 +117,8 @@ export class OrdersService implements OnModuleInit {
           }
         }
 
-        this.mailService.sendOrderStatusEmail(order.user.email, order, status, pdfBuffer).catch((err) => {
+        const effectiveReason = cancelReason || order.cancel_reason || undefined;
+        this.mailService.sendOrderStatusEmail(order.user.email, order, status, pdfBuffer, cancelledByRole, effectiveReason).catch((err) => {
           console.error('Lỗi khi gửi email thông báo đơn hàng:', err);
         });
       }
@@ -443,7 +467,7 @@ export class OrdersService implements OnModuleInit {
     return order;
   }
 
-  async cancelOrder(userId: number, orderId: number): Promise<Order> {
+  async cancelOrder(userId: number, orderId: number, reason?: string): Promise<Order> {
     const order = await this.orderRepository.findOne({
       where: { id: orderId, user: { id: userId } },
       relations: {
@@ -507,10 +531,13 @@ export class OrdersService implements OnModuleInit {
 
       order.status = OrderStatus.CANCELLED;
       order.cancelled_at = new Date();
+      if (reason) {
+        order.cancel_reason = reason;
+      }
       const updatedOrder = await queryRunner.manager.save(order);
 
       await queryRunner.commitTransaction();
-      this.triggerOrderStatusEmailNotification(order.id, OrderStatus.CANCELLED);
+      this.triggerOrderStatusEmailNotification(order.id, OrderStatus.CANCELLED, 'user', reason);
       return updatedOrder;
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -703,6 +730,9 @@ export class OrdersService implements OnModuleInit {
           order.completed_at = new Date();
         } else if (dto.status === OrderStatus.CANCELLED) {
           order.cancelled_at = new Date();
+          if (dto.cancel_reason) {
+            order.cancel_reason = dto.cancel_reason;
+          }
         }
       }
       if (dto.payment_status) order.payment_status = dto.payment_status;
@@ -712,7 +742,7 @@ export class OrdersService implements OnModuleInit {
       await queryRunner.commitTransaction();
 
       if (dto.status) {
-        this.triggerOrderStatusEmailNotification(order.id, dto.status);
+        this.triggerOrderStatusEmailNotification(order.id, dto.status, 'admin', dto.cancel_reason);
         if (dto.status === OrderStatus.COMPLETED) {
           try {
             await this.warrantiesService.generateForOrder(order.id);
@@ -1172,7 +1202,7 @@ export class OrdersService implements OnModuleInit {
 
       const savedOrder = await queryRunner.manager.save(order);
       await queryRunner.commitTransaction();
-      this.triggerOrderStatusEmailNotification(order.id, order.status);
+      this.triggerOrderStatusEmailNotification(order.id, order.status, 'system');
       return savedOrder;
     } catch (error) {
       await queryRunner.rollbackTransaction();

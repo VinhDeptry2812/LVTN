@@ -120,6 +120,9 @@ export class Order {
   @Column({ type: 'timestamp', nullable: true })
   cancelled_at: Date | null;
 
+  @Column({ type: 'text', nullable: true })
+  cancel_reason: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 

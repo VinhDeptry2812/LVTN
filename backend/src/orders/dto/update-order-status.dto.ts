@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { OrderStatus, PaymentStatus } from '../order.entity';
 
 export class UpdateOrderStatusDto {
@@ -9,4 +9,9 @@ export class UpdateOrderStatusDto {
   @IsOptional()
   @IsEnum(PaymentStatus)
   payment_status?: PaymentStatus;
+
+  @IsOptional()
+  @IsString()
+  cancel_reason?: string;
 }
+

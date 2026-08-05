@@ -97,7 +97,14 @@ export class MailService {
     }
   }
 
-  async sendOrderStatusEmail(to: string, order: any, newStatus: string, pdfBuffer?: Buffer) {
+  async sendOrderStatusEmail(
+    to: string,
+    order: any,
+    newStatus: string,
+    pdfBuffer?: Buffer,
+    cancelledByRole?: 'user' | 'admin' | 'system' | string,
+    cancelReason?: string,
+  ) {
     // Bảng ánh xạ tên trạng thái hiển thị tiếng Việt
     const statusMap: Record<string, string> = {
       pending: 'Chờ thanh toán / Chờ xử lý',
@@ -116,6 +123,32 @@ export class MailService {
     const sc = this.getStatusColor(newStatus);
     const subtotal = order.items.reduce((sum: number, item: any) => sum + Number(item.price) * item.quantity, 0);
 
+    // Xây dựng Banner thông tin người hủy đơn nếu trạng thái là CANCELLED
+    let cancelBanner = '';
+    if (newStatus === 'cancelled') {
+      let executorText = 'Hệ thống';
+      if (cancelledByRole === 'user') {
+        executorText = `${order.user?.name || 'Khách hàng'} (Tự hủy)`;
+      } else if (cancelledByRole === 'admin') {
+        executorText = 'Cửa hàng';
+      } else if (cancelledByRole) {
+        executorText = cancelledByRole;
+      }
+
+      const displayReason = cancelReason || order.cancel_reason;
+      const reasonHtml = displayReason 
+        ? `<p style="margin:4px 0 0;color:#93000a;font-size:13px;">Lý do hủy: <strong>${displayReason}</strong></p>` 
+        : '';
+
+      cancelBanner = `
+        <div style="background-color:#ffdad6;border-left:4px solid #ba1a1a;padding:12px 16px;margin:0 0 20px;">
+          <p style="margin:0;color:#93000a;font-size:14px;font-weight:600;">Chi tiết hủy đơn hàng:</p>
+          <p style="margin:4px 0 0;color:#93000a;font-size:13px;">Đơn hàng đã được hủy bởi: <strong>${executorText}</strong></p>
+          ${reasonHtml}
+        </div>
+      `;
+    }
+
     // Xây dựng danh sách sản phẩm
     const rows = order.items.map((item: any, i: number) => {
       const bg = i % 2 === 0 ? '#ffffff' : '#fbf9f4';
@@ -130,13 +163,40 @@ export class MailService {
       ? `<tr><td style="padding:5px 0;color:#ba1a1a;font-size:13px;">Giảm giá (Voucher):</td><td style="padding:5px 0;text-align:right;color:#ba1a1a;font-weight:600;font-size:13px;">-${Number(order.discount_amount).toLocaleString('vi-VN')} ₫</td></tr>`
       : '';
 
+    // Xây dựng Banner thông báo Hóa đơn / Xác nhận đơn hàng
+    let invoiceInfoBanner = '';
+    if (newStatus === 'pending') {
+      invoiceInfoBanner = `
+        <div style="background-color:#e8f0fe;border-left:4px solid #1a73e8;padding:12px 16px;margin:0 0 20px;">
+          <p style="margin:0;color:#174ea6;font-size:13px;line-height:1.5;">
+            📌 <strong>Thông báo:</strong> Cảm ơn bạn đã đặt hàng. Đơn hàng hiện đang ở trạng thái <strong>Chờ xử lý</strong>. Hóa đơn thanh toán chính thức (file PDF) sẽ được đính kèm và gửi đến bạn ngay sau khi hoàn tất thanh toán / giao hàng.
+          </p>
+        </div>
+      `;
+    } else if (pdfBuffer) {
+      invoiceInfoBanner = `
+        <div style="background-color:#e6f4ea;border-left:4px solid #137333;padding:12px 16px;margin:0 0 20px;">
+          <p style="margin:0;color:#0d652d;font-size:13px;line-height:1.5;">
+            📄 <strong>Hóa đơn thanh toán:</strong> Hóa đơn chi tiết chính thức của đơn hàng đã được đính kèm dưới dạng file PDF (<code>Hoa_Don_HD${order.id}.pdf</code>) trong email này.
+          </p>
+        </div>
+      `;
+    }
+
+    const titleText = newStatus === 'pending'
+      ? `Xác Nhận Đặt Hàng #${order.id}`
+      : (pdfBuffer ? `Hóa Đơn Thanh Toán #${order.id}` : `Cập Nhật Đơn Hàng #${order.id}`);
+
     const body = `
-      <h2 style="color:#1b1c19;font-size:17px;font-weight:600;margin:0 0 4px;text-align:center;">Cập Nhật Đơn Hàng #${order.id}</h2>
-      <p style="text-align:center;color:#737873;font-size:13px;margin:0 0 22px;">Xin chào <strong style="color:#1b1c19;">${order.user?.name || 'Khách hàng'}</strong>, đơn hàng của bạn đã được cập nhật.</p>
+      <h2 style="color:#1b1c19;font-size:17px;font-weight:600;margin:0 0 4px;text-align:center;">${titleText}</h2>
+      <p style="text-align:center;color:#737873;font-size:13px;margin:0 0 22px;">Xin chào <strong style="color:#1b1c19;">${order.user?.name || 'Khách hàng'}</strong>, ${newStatus === 'pending' ? 'cảm ơn bạn đã mua sắm tại cửa hàng của chúng tôi.' : 'thông tin đơn hàng của bạn đã được cập nhật.'}</p>
 
       <div style="background:${sc.bg};padding:14px 20px;text-align:center;font-size:16px;font-weight:700;color:${sc.fg};margin:0 0 24px;border:1px solid ${sc.border};">
         ${statusName}
       </div>
+
+      ${cancelBanner}
+      ${invoiceInfoBanner}
 
       <p style="color:#1b1c19;font-size:14px;font-weight:600;margin:0 0 10px;padding-bottom:8px;border-bottom:2px solid #536257;">Chi tiết đơn hàng</p>
       <table style="width:100%;border-collapse:collapse;margin:0 0 20px;">
@@ -166,14 +226,21 @@ export class MailService {
       </div>`;
 
     try {
+      let subjectText = `[Nội Thất] Đơn hàng #${order.id} — ${statusName}`;
+      if (newStatus === 'pending') {
+        subjectText = `[Nội Thất] Xác nhận đặt hàng thành công #${order.id}`;
+      } else if (pdfBuffer) {
+        subjectText = `[Nội Thất] Hóa đơn thanh toán đơn hàng #${order.id}`;
+      }
+
       const mailOptions: any = {
         from: `"Nội Thất" <${this.configService.get<string>('SMTP_USER')}>`,
         to,
-        subject: `[Nội Thất] Đơn hàng #${order.id} — ${statusName}`,
+        subject: subjectText,
         html: this.wrapEmail(body),
       };
 
-      // Đính kèm hóa đơn PDF nếu có (trạng thái hoàn thành)
+      // Đính kèm hóa đơn PDF nếu có (trạng thái thanh toán thành công / hoàn thành)
       if (pdfBuffer) {
         mailOptions.attachments = [{ filename: `Hoa_Don_HD${order.id}.pdf`, content: pdfBuffer }];
       }

@@ -71,6 +71,7 @@ interface Order {
   delivered_at?: string;
   completed_at?: string;
   cancelled_at?: string;
+  cancel_reason?: string;
   user?: { name: string; email: string };
   items: OrderItem[];
   voucher_code?: string;
@@ -98,6 +99,11 @@ export default function OrderListPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+
+  // State cho Modal Hủy Đơn Hàng Admin
+  const [adminCancelModalOrderId, setAdminCancelModalOrderId] = useState<number | null>(null);
+  const [adminCancelReasonOption, setAdminCancelReasonOption] = useState<string>('Sản phẩm hết hàng trong kho');
+  const [adminCustomCancelReason, setAdminCustomCancelReason] = useState<string>('');
 
   const { confirmModal, openConfirm, closeConfirm } = useConfirmModal();
   const [stats, setStats] = useState<{
@@ -204,20 +210,26 @@ export default function OrderListPage() {
   };
 
   const handleUpdateStatus = (orderId: number, status: string, paymentStatus?: string) => {
+    if (status === 'cancelled') {
+      setAdminCancelModalOrderId(orderId);
+      setAdminCancelReasonOption('Sản phẩm hết hàng trong kho');
+      setAdminCustomCancelReason('');
+      return;
+    }
+
     let statusMsg = '';
     if (status === 'confirmed') statusMsg = 'xác nhận đơn hàng này';
     else if (status === 'shipping') statusMsg = 'bắt đầu giao hàng đơn hàng này';
     else if (status === 'delivered') statusMsg = 'xác nhận đã giao thành công đơn hàng này';
     else if (status === 'completed') statusMsg = 'hoàn thành đơn hàng này';
-    else if (status === 'cancelled') statusMsg = 'hủy đơn hàng này';
     else if (paymentStatus === 'paid') statusMsg = 'xác nhận đã thanh toán đơn hàng này';
     else statusMsg = 'cập nhật trạng thái đơn hàng này';
 
     openConfirm({
       title: 'Cập nhật trạng thái đơn hàng',
       message: `Bạn có chắc chắn muốn ${statusMsg}?`,
-      confirmText: status === 'cancelled' ? 'Hủy đơn' : 'Cập nhật',
-      type: status === 'cancelled' ? 'danger' : 'warning',
+      confirmText: 'Cập nhật',
+      type: 'warning',
       onConfirm: async () => {
         closeConfirm();
         setUpdatingId(orderId);
@@ -245,6 +257,35 @@ export default function OrderListPage() {
         }
       }
     });
+  };
+
+  const handleConfirmAdminCancelOrder = async () => {
+    if (!adminCancelModalOrderId) return;
+    const finalReason = adminCancelReasonOption === 'Lý do khác' ? adminCustomCancelReason.trim() : adminCancelReasonOption;
+    if (adminCancelReasonOption === 'Lý do khác' && !finalReason) {
+      toast.error('Vui lòng nhập chi tiết lý do hủy đơn.');
+      return;
+    }
+
+    setUpdatingId(adminCancelModalOrderId);
+    try {
+      const payload = { status: 'cancelled', cancel_reason: finalReason };
+      const response = await api.patch(`/orders/admin/${adminCancelModalOrderId}/status`, payload);
+      const updatedOrder = response.data;
+
+      setOrders(prev => prev.map(o => o.id === adminCancelModalOrderId ? updatedOrder : o));
+      if (selectedOrder && selectedOrder.id === adminCancelModalOrderId) {
+        setSelectedOrder(updatedOrder);
+      }
+
+      fetchStats();
+      toast.success('Hủy đơn hàng thành công!');
+      setAdminCancelModalOrderId(null);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi hủy đơn hàng.');
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
 
@@ -839,6 +880,12 @@ export default function OrderListPage() {
                           <div className="text-slate-400 text-[10px] mt-0.5">
                             {selectedOrder.cancelled_at ? formatDate(selectedOrder.cancelled_at) : 'Không còn hiệu lực xử lý'}
                           </div>
+                          {selectedOrder.cancel_reason && (
+                            <div className="mt-2 bg-rose-50 border border-rose-200 text-rose-800 p-2.5 rounded-none text-xs">
+                              <strong className="block font-bold text-[10px] uppercase text-rose-900 mb-0.5">Lý do hủy đơn:</strong>
+                              {selectedOrder.cancel_reason}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="relative opacity-40">
@@ -1021,6 +1068,107 @@ export default function OrderListPage() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Modal Hủy Đơn Hàng Admin */}
+      {adminCancelModalOrderId !== null && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-none shadow-2xl w-full max-w-md overflow-hidden flex flex-col border border-slate-200">
+            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-none bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
+                  !
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                    Xác nhận hủy đơn hàng #{adminCancelModalOrderId}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">Yêu cầu nhập lý do hủy đơn (Admin)</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setAdminCancelModalOrderId(null)}
+                className="text-slate-400 hover:text-slate-600 font-bold text-lg p-1"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-700 block">
+                  Lý do hủy đơn hàng <span className="text-rose-600">*</span>
+                </label>
+                <div className="space-y-2">
+                  {[
+                    'Sản phẩm hết hàng trong kho',
+                    'Khách hàng yêu cầu hủy qua điện thoại',
+                    'Thông tin giao hàng không chính xác / nghi ngờ giả mạo',
+                    'Đơn hàng trùng lặp',
+                    'Lý do khác',
+                  ].map((option) => (
+                    <label
+                      key={option}
+                      className={`flex items-center gap-3 p-2.5 rounded-none border text-xs cursor-pointer transition ${
+                        adminCancelReasonOption === option
+                          ? 'border-rose-600 bg-rose-50/50 font-medium text-rose-900'
+                          : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="adminCancelReason"
+                        value={option}
+                        checked={adminCancelReasonOption === option}
+                        onChange={() => setAdminCancelReasonOption(option)}
+                        className="accent-rose-600"
+                      />
+                      <span>{option}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {adminCancelReasonOption === 'Lý do khác' && (
+                <div className="space-y-1.5 animate-fadeIn">
+                  <label className="text-xs font-semibold text-slate-700 block">
+                    Nhập chi tiết lý do <span className="text-rose-600">*</span>
+                  </label>
+                  <textarea
+                    value={adminCustomCancelReason}
+                    onChange={(e) => setAdminCustomCancelReason(e.target.value)}
+                    placeholder="Nhập lý do cụ thể..."
+                    rows={3}
+                    className="w-full text-xs p-2.5 rounded-none border border-slate-200 focus:border-rose-600 focus:outline-none bg-slate-50"
+                  />
+                </div>
+              )}
+
+              <div className="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-none text-[11px] leading-relaxed">
+                <strong>Lưu ý:</strong> Lý do hủy đơn sẽ được gửi trực tiếp đến Email của khách hàng và lưu lại trong nhật ký hệ thống.
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setAdminCancelModalOrderId(null)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-none transition"
+                disabled={updatingId !== null}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAdminCancelOrder}
+                disabled={updatingId !== null}
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-none transition shadow-sm disabled:opacity-50"
+              >
+                {updatingId !== null ? 'Đang xử lý...' : 'Xác nhận hủy đơn'}
+              </button>
+            </div>
           </div>
         </div>
       )}
