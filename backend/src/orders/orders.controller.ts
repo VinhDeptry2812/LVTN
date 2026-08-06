@@ -28,6 +28,10 @@ import { RequestReturnDto } from './dto/request-return.dto';
 import { HandleReturnDto } from './dto/handle-return.dto';
 import { OrderStatus, PaymentMethod, PaymentStatus } from './order.entity';
 
+/**
+ * Controller quản lý đơn hàng
+ * Xử lý các request từ khách hàng (đặt hàng, tra cứu, hủy, thanh toán) và quản trị viên (danh sách, thống kê, duyệt trả hàng)
+ */
 @Controller('orders')
 export class OrdersController {
   constructor(
@@ -37,6 +41,11 @@ export class OrdersController {
 
   // 1. APIs cho Khách hàng
 
+  /**
+   * Tính phí vận chuyển dự kiến dựa trên danh sách sản phẩm và tỉnh/thành phố
+   * @param body Danh sách sản phẩm và tên tỉnh/thành phố giao hàng
+   * @returns {Promise<{ shipping_fee: number; is_bulky: boolean }>} Phí vận chuyển và cờ hàng cồng kềnh
+   */
   @Post('calculate-shipping')
   async calculateShipping(
     @Body() body: { items: { product_id: number; quantity: number }[]; province?: string },
@@ -54,6 +63,14 @@ export class OrdersController {
     };
   }
 
+  /**
+   * Tạo đơn hàng mới cho người dùng đã đăng nhập (Khách hàng)
+   * @param userId ID người dùng từ JWT Token
+   * @param role Vai trò người dùng
+   * @param createOrderDto Dữ liệu tạo đơn hàng
+   * @param req Đối tượng Request từ Express
+   * @returns {Promise<{ order: Order; paymentUrl: string | null }>} Thông tin đơn hàng và URL thanh toán (nếu là VNPAY)
+   */
   @Post()
   @UseGuards(JwtAuthGuard)
   async createOrder(
@@ -93,7 +110,12 @@ export class OrdersController {
     return { order, paymentUrl: null };
   }
 
-  // Guest order endpoint without JwtAuthGuard
+  /**
+   * Tạo đơn hàng cho khách vãng lai (Guest Order - không cần đăng nhập)
+   * @param createOrderDto Dữ liệu tạo đơn hàng của khách vãng lai
+   * @param req Đối tượng Request từ Express
+   * @returns {Promise<{ order: Order; paymentUrl: string | null }>} Thông tin đơn hàng và URL thanh toán
+   */
   @Post('guest')
   async createGuestOrder(
     @Body() createOrderDto: CreateOrderDto,
@@ -123,6 +145,14 @@ export class OrdersController {
     return { order, paymentUrl: null };
   }
 
+  /**
+   * Lấy danh sách đơn hàng cá nhân của người dùng
+   * @param userId ID người dùng từ Token
+   * @param page Trang hiện tại (phân trang)
+   * @param limit Số lượng đơn hàng trên mỗi trang
+   * @param status Lọc theo trạng thái đơn hàng
+   * @returns Danh sách đơn hàng phân trang
+   */
   @Get('my-orders')
   @UseGuards(JwtAuthGuard)
   async getMyOrders(
@@ -134,6 +164,13 @@ export class OrdersController {
     return this.ordersService.getMyOrders(userId, page, limit, status);
   }
 
+  /**
+   * Lấy thông tin chi tiết của 1 đơn hàng cá nhân
+   * @param userId ID người dùng
+   * @param role Vai trò người dùng
+   * @param orderId ID đơn hàng
+   * @returns Chi tiết đơn hàng bao gồm danh sách sản phẩm
+   */
   @Get('my-orders/:id')
   @UseGuards(JwtAuthGuard)
   async getMyOrderDetails(
@@ -144,6 +181,13 @@ export class OrdersController {
     return this.ordersService.getOrderDetails(userId, orderId, role);
   }
 
+  /**
+   * Khách hàng yêu cầu hủy đơn hàng
+   * @param userId ID người dùng
+   * @param orderId ID đơn hàng cần hủy
+   * @param body Lý do hủy đơn hàng (tùy chọn)
+   * @returns Đơn hàng sau khi cập nhật trạng thái hủy
+   */
   @Post('my-orders/:id/cancel')
   @UseGuards(JwtAuthGuard)
   async cancelMyOrder(
@@ -154,6 +198,12 @@ export class OrdersController {
     return this.ordersService.cancelOrder(userId, orderId, body?.reason);
   }
 
+  /**
+   * Khách hàng xác nhận đã nhận hàng thành công (Hoàn tất đơn hàng)
+   * @param userId ID người dùng
+   * @param orderId ID đơn hàng
+   * @returns Đơn hàng sau khi cập nhật trạng thái COMPLETED
+   */
   @Post('my-orders/:id/complete')
   @UseGuards(JwtAuthGuard)
   async completeMyOrder(
@@ -163,6 +213,13 @@ export class OrdersController {
     return this.ordersService.completeOrder(userId, orderId);
   }
 
+  /**
+   * Tạo lại đường dẫn thanh toán trực tuyến VNPAY cho đơn hàng chưa thanh toán
+   * @param userId ID người dùng
+   * @param orderId ID đơn hàng
+   * @param req Request từ Express
+   * @returns {{ paymentUrl: string }} URL thanh toán VNPAY mới
+   */
   @Post('my-orders/:id/repay')
   @UseGuards(JwtAuthGuard)
   async repayOrder(
@@ -207,6 +264,13 @@ export class OrdersController {
     );
   }
 
+  /**
+   * Khách hàng gửi yêu cầu trả hàng / hoàn tiền
+   * @param userId ID người dùng
+   * @param orderId ID đơn hàng
+   * @param dto Lý do và hình ảnh đính kèm yêu cầu trả hàng
+   * @returns Kết quả ghi nhận yêu cầu đổi trả
+   */
   @Post('my-orders/:id/return')
   @UseGuards(JwtAuthGuard)
   async requestMyOrderReturn(
@@ -219,6 +283,17 @@ export class OrdersController {
 
   // 2. APIs cho Admin
 
+  /**
+   * [Admin/Staff] Lấy danh sách toàn bộ đơn hàng trong hệ thống với bộ lọc đa năng
+   * @param page Trang cần truy vấn
+   * @param limit Số lượng bản ghi mỗi trang
+   * @param status Trạng thái đơn hàng (PENDING, PROCESSING, SHIPPED, v.v.)
+   * @param search Từ khóa tìm kiếm (tên, email, SĐT khách hàng, mã đơn)
+   * @param paymentMethod Phương thức thanh toán (COD, VNPAY)
+   * @param dateRange Khoảng thời gian
+   * @param isReturn Lọc đơn hàng có yêu cầu trả hàng hay không
+   * @returns Danh sách đơn hàng phân trang kèm tổng số lượng
+   */
   @Get('admin')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.STAFF)
@@ -242,6 +317,13 @@ export class OrdersController {
     );
   }
 
+  /**
+   * [Admin] Lấy dữ liệu thống kê tổng quan doanh thu, số đơn hàng cho Dashboard
+   * @param timeframe Khung thời gian (day, week, month, year)
+   * @param startDate Ngày bắt đầu tùy chọn
+   * @param endDate Ngày kết thúc tùy chọn
+   * @returns Dữ liệu thống kê doanh thu và chỉ số tăng trưởng
+   */
   @Get('admin/stats')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
@@ -253,6 +335,12 @@ export class OrdersController {
     return this.ordersService.getDashboardStatsAdmin(timeframe, startDate, endDate);
   }
 
+  /**
+   * [Admin/Staff] Cập nhật trạng thái đơn hàng (Ví dụ: Từ PENDING sang PROCESSING, SHIPPED, DELIVERED)
+   * @param orderId ID đơn hàng
+   * @param dto Trạng thái mới và ghi chú
+   * @returns Đơn hàng đã được cập nhật
+   */
   @Patch('admin/:id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.STAFF)
@@ -263,6 +351,12 @@ export class OrdersController {
     return this.ordersService.updateOrderStatusAdmin(orderId, dto);
   }
 
+  /**
+   * [Admin/Staff] Xử lý duyệt hoặc từ chối yêu cầu trả hàng của khách
+   * @param orderId ID đơn hàng
+   * @param dto Quyết định xử lý (chấp nhận/từ chối) và phương án xử lý kho/hoàn tiền
+   * @returns Đơn hàng sau khi hoàn tất xử lý trả hàng
+   */
   @Post('admin/:id/handle-return')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.STAFF)
@@ -273,6 +367,13 @@ export class OrdersController {
     return this.ordersService.handleOrderReturnAdmin(orderId, dto);
   }
 
+  /**
+   * Tải về file hóa đơn PDF của đơn hàng
+   * @param orderId ID đơn hàng
+   * @param userId ID người dùng thực hiện tải
+   * @param role Vai trò người dùng
+   * @param res Response của Express để xuất luồng dữ liệu file PDF
+   */
   @Get(':id/invoice')
   @UseGuards(JwtAuthGuard)
   async downloadInvoice(
@@ -295,3 +396,4 @@ export class OrdersController {
     res.end(pdfBuffer);
   }
 }
+
