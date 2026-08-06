@@ -10,6 +10,7 @@ import { InventoryTransaction } from './inventory-transaction.entity';
 import { Promotion } from '../promotions/promotion.entity';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     ]),
     CloudinaryModule,
     NotificationsModule,
+    AiModule,
   ],
   providers: [ProductsService],
   controllers: [ProductsController],

@@ -289,11 +289,26 @@ export default function AdminLayout() {
     fetchProfile();
   }, [navigate]);
 
-  // Chặn nhân viên truy cập trực tiếp route quản lý tài khoản
+  // Chặn nhân viên truy cập các trang quản trị không có thẩm quyền và tự động đẩy về /admin/orders
   useEffect(() => {
-    if (profile && profile.role === 'staff' && location.pathname.startsWith('/admin/users')) {
-      toast.error('Bạn không có quyền truy cập trang quản lý tài khoản!');
-      navigate('/admin', { replace: true });
+    if (profile && profile.role === 'staff') {
+      const restrictedRoutes = [
+        '/admin/users',
+        '/admin/customers',
+        '/admin/banners',
+        '/admin/vouchers',
+        '/admin/promotions'
+      ];
+      
+      const isDashboardRoot = location.pathname === '/admin' || location.pathname === '/admin/';
+      const isRestricted = restrictedRoutes.some(route => location.pathname.startsWith(route));
+
+      if (isDashboardRoot || isRestricted) {
+        if (isRestricted) {
+          toast.error('Bạn không có quyền truy cập trang này!');
+        }
+        navigate('/admin/orders', { replace: true });
+      }
     }
   }, [profile, location.pathname, navigate]);
 
@@ -320,9 +335,10 @@ export default function AdminLayout() {
   // Generate breadcrumbs based on location
   const getBreadcrumbs = () => {
     const paths = location.pathname.split('/').filter(Boolean);
+    const defaultHome = profile?.role === 'staff' ? '/admin/orders' : '/admin';
     return (
       <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400">
-        <span className="hover:text-slate-600 cursor-pointer" onClick={() => navigate('/admin')}>Admin</span>
+        <span className="hover:text-slate-600 cursor-pointer" onClick={() => navigate(defaultHome)}>Admin</span>
         {paths.slice(1).map((path, idx) => {
           const isLast = idx === paths.length - 2;
           const labelMap: Record<string, string> = {
@@ -393,8 +409,18 @@ export default function AdminLayout() {
     if (!profile) return [];
     return navigationGroups.map(group => {
       const filteredLinks = group.links.filter(link => {
-        if (profile.role === 'staff' && link.to === '/admin/users') {
-          return false;
+        if (profile.role === 'staff') {
+          const hiddenRoutes = [
+            '/admin',
+            '/admin/users',
+            '/admin/customers',
+            '/admin/banners',
+            '/admin/vouchers',
+            '/admin/promotions'
+          ];
+          if (link.to && hiddenRoutes.includes(link.to)) {
+            return false;
+          }
         }
         return true;
       });
@@ -426,7 +452,10 @@ export default function AdminLayout() {
         <div className={`h-16 flex items-center border-b border-slate-800 px-4 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           {!isCollapsed ? (
             <>
-              <div className="flex items-center gap-2.5 animate-fadeIn">
+              <div
+                className="flex items-center gap-2.5 animate-fadeIn cursor-pointer"
+                onClick={() => navigate(profile?.role === 'staff' ? '/admin/orders' : '/admin')}
+              >
                 <img src="/logo.png" alt="Logo Nội Thất" className="w-8 h-8 object-contain rounded-md bg-white/10 p-1 shadow-sm" />
                 <div>
                   <h1 className="text-base font-extrabold tracking-wider bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">NỘI THẤT</h1>
@@ -755,13 +784,15 @@ export default function AdminLayout() {
                       <ExternalLink size={14} />
                       Xem Cửa hàng
                     </a>
-                    <button
-                      onClick={() => navigate('/admin')}
-                      className="w-full flex items-center gap-2 px-4 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-indigo-600 font-medium transition-colors text-left"
-                    >
-                      <Settings size={14} />
-                      Cài đặt hệ thống
-                    </button>
+                    {profile?.role === 'admin' && (
+                      <button
+                        onClick={() => navigate('/admin')}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-indigo-600 font-medium transition-colors text-left"
+                      >
+                        <Settings size={14} />
+                        Cài đặt hệ thống
+                      </button>
+                    )}
                   </div>
                   <div className="border-t border-slate-100 pt-1 mt-1">
                     <button

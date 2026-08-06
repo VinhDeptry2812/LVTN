@@ -52,9 +52,10 @@ export class AiService implements OnModuleInit {
   }
 
   /**
-   * Đồng bộ Vector Embedding cho tất cả sản phẩm chưa có vector trong CSDL
+   * Đồng bộ Vector Embedding cho các sản phẩm trong CSDL
+   * @param force Nếu true, ép buộc tạo lại vector kể cả sản phẩm đã có embedding
    */
-  async syncProductEmbeddings(): Promise<{ synced: number; total: number }> {
+  async syncProductEmbeddings(force: boolean = false): Promise<{ synced: number; total: number }> {
     try {
       await this.productRepository.query('CREATE EXTENSION IF NOT EXISTS vector;');
     } catch (e) {
@@ -67,13 +68,19 @@ export class AiService implements OnModuleInit {
 
     let syncedCount = 0;
     for (const p of products) {
-      if (!p.embedding) {
-        const textToEmbed = `Tên: ${p.name}. Danh mục: ${p.category?.name || 'Nội thất'}. Mô tả: ${p.description || 'Nội thất cao cấp'}`;
-        const vec = await this.generateEmbedding(textToEmbed);
-        if (vec) {
-          p.embedding = JSON.stringify(vec);
-          await this.productRepository.save(p);
-          syncedCount++;
+      if (force || !p.embedding) {
+        try {
+          const textToEmbed = `Tên: ${p.name}. Danh mục: ${p.category?.name || 'Nội thất'}. Mô tả: ${p.description || 'Nội thất cao cấp'}`;
+          const vec = await this.generateEmbedding(textToEmbed);
+          if (vec) {
+            p.embedding = JSON.stringify(vec);
+            await this.productRepository.save(p);
+            syncedCount++;
+          }
+          // Thêm delay 200ms giữa các sản phẩm để tránh rate limit của Gemini API
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        } catch (err: any) {
+          console.error(`Lỗi khi tạo embedding cho sản phẩm ID ${p.id}:`, err.message || err);
         }
       }
     }
@@ -82,6 +89,32 @@ export class AiService implements OnModuleInit {
       console.log(`Đã đồng bộ thành công Vector Embedding cho ${syncedCount}/${products.length} sản phẩm.`);
     }
     return { synced: syncedCount, total: products.length };
+  }
+
+  /**
+   * Cập nhật hoặc tạo mới Vector Embedding cho duy nhất một sản phẩm
+   */
+  async syncSingleProductEmbedding(productId: number): Promise<boolean> {
+    try {
+      const p = await this.productRepository.findOne({
+        where: { id: productId },
+        relations: { category: true },
+      });
+      if (!p) return false;
+
+      const textToEmbed = `Tên: ${p.name}. Danh mục: ${p.category?.name || 'Nội thất'}. Mô tả: ${p.description || 'Nội thất cao cấp'}`;
+      const vec = await this.generateEmbedding(textToEmbed);
+      if (vec) {
+        p.embedding = JSON.stringify(vec);
+        await this.productRepository.save(p);
+        console.log(`Đã cập nhật Vector Embedding cho sản phẩm ID ${productId} (${p.name}).`);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error(`Lỗi cập nhật embedding cho sản phẩm ID ${productId}:`, err);
+      return false;
+    }
   }
 
   async generateProductDescription(

@@ -37,8 +37,8 @@ export class AiController {
   @Post('sync-embeddings')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  async syncEmbeddings() {
-    return this.aiService.syncProductEmbeddings();
+  async syncEmbeddings(@Body() body?: { force?: boolean }) {
+    return this.aiService.syncProductEmbeddings(body?.force ?? false);
   }
 }
 

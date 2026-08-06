@@ -16,6 +16,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AiService } from '../ai/ai.service';
 import { OrderItem } from '../orders/order-item.entity';
 import { OrderStatus } from '../orders/order.entity';
 
@@ -35,6 +36,7 @@ export class ProductsService {
     private readonly promotionsRepository: Repository<Promotion>,
     private cloudinaryService: CloudinaryService,
     private readonly notificationsService: NotificationsService,
+    private readonly aiService: AiService,
   ) {}
 
   async applyActivePromotions(products: Product[]): Promise<Product[]> {
@@ -679,6 +681,11 @@ export class ProductsService {
         }
       }
 
+      // Đồng bộ Vector AI cho sản phẩm vừa tạo (chạy bất đồng bộ)
+      this.aiService.syncSingleProductEmbedding(savedProduct.id).catch((err) => {
+        console.error('Lỗi khi tự động tạo Vector AI cho sản phẩm mới:', err);
+      });
+
       return savedProduct;
     } catch (error) {
       if (error.code === '23505') {
@@ -857,6 +864,11 @@ export class ProductsService {
           await relBuilder.add(toAdd);
         }
       }
+
+      // Cập nhật lại Vector AI cho sản phẩm vừa chỉnh sửa (chạy bất đồng bộ)
+      this.aiService.syncSingleProductEmbedding(savedProduct.id).catch((err) => {
+        console.error('Lỗi khi tự động cập nhật Vector AI cho sản phẩm:', err);
+      });
 
       return savedProduct;
     } catch (error) {

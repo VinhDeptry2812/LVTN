@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+  import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '@/services/api';
 import { formatPrice } from '@/utils/format';
@@ -84,7 +84,7 @@ export default function ProductListPage() {
   const handleSyncVector = async () => {
     setIsSyncingVector(true);
     try {
-      const res = await api.post('/ai/sync-embeddings');
+      const res = await api.post('/ai/sync-embeddings', { force: true });
       toast.success(
         `Đã đồng bộ AI Vector thành công cho ${res.data.synced}/${res.data.total} sản phẩm!`,
       );
