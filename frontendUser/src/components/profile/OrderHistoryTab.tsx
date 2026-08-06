@@ -1617,12 +1617,26 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                 </button>
               )}
 
-              <button
-                onClick={() => handleDownloadInvoice(selectedOrder.id)}
-                className="px-5 py-2 border border-primary/45 text-primary hover:bg-primary hover:text-white transition-all duration-300 text-xs font-bold uppercase tracking-wider rounded-sm cursor-pointer"
-              >
-                Tải hóa đơn (PDF)
-              </button>
+              {selectedOrder.status !== 'cancelled' && (
+                (selectedOrder.payment_status === 'paid' ||
+                 selectedOrder.status === 'completed' ||
+                 selectedOrder.status === 'delivered') ? (
+                  <button
+                    onClick={() => handleDownloadInvoice(selectedOrder.id)}
+                    className="px-5 py-2 border border-primary/45 text-primary hover:bg-primary hover:text-white transition-all duration-300 text-xs font-bold uppercase tracking-wider rounded-sm cursor-pointer"
+                  >
+                    Tải hóa đơn (PDF)
+                  </button>
+                ) : (
+                  <button
+                    disabled
+                    className="px-5 py-2 border border-slate-200 bg-slate-100 text-slate-400 transition-all duration-300 text-xs font-bold uppercase tracking-wider rounded-sm cursor-not-allowed"
+                    title="Hóa đơn chỉ khả dụng sau khi đơn hàng giao thành công hoặc đã thanh toán"
+                  >
+                    Tải hóa đơn (PDF)
+                  </button>
+                )
+              )}
 
               <button
                 onClick={() => setSelectedOrder(null)}

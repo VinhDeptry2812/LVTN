@@ -5,6 +5,7 @@ import api from '@/services/api';
 import toast from 'react-hot-toast';
 import ConfirmModal from '@/components/ConfirmModal';
 import useConfirmModal from '@/hooks/useConfirmModal';
+import { formatAttributeValue } from '@/utils/format';
 import { ArrowLeft, Loader2, Calendar, User, CheckCircle2, XCircle, Clock, Save, ShieldAlert } from 'lucide-react';
 
 interface Variant {
@@ -207,7 +208,7 @@ export default function InventoryAuditDetailPage() {
                           <div className="font-semibold text-slate-800">{item.variant?.product?.name}</div>
                           <div className="text-[11px] text-slate-500 font-mono mt-0.5">
                             SKU: {item.variant?.sku}{' '}
-                            {Object.entries(item.variant?.attributes || {}).map(([k, v]) => `| ${k}: ${v}`)}
+                            {Object.entries(item.variant?.attributes || {}).map(([k, v]) => `| ${k}: ${formatAttributeValue(v)}`)}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center font-mono font-medium text-slate-600">{sysQty}</td>

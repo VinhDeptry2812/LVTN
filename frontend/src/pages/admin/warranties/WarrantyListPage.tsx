@@ -22,7 +22,7 @@ import TableLoader from '@/components/TableLoader';
 import AdminPageHeader from '@/components/AdminPageHeader';
 import StatCard from '@/components/StatCard';
 import StatusBadge from '@/components/StatusBadge';
-import { formatDate } from '@/utils/format';
+import { formatDate, formatAttributeValue } from '@/utils/format';
 
 import toast from 'react-hot-toast';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -93,11 +93,7 @@ const getVariantText = (variant: any) => {
     const entries = Object.entries(variant.attributes).filter(([_, v]) => Boolean(v));
     if (entries.length > 0) {
       return entries
-        .map(([key, val]: [string, any]) => {
-          const str = String(val);
-          const cleanVal = str.includes('|') ? str.split('|')[0].trim() : str.trim();
-          return `${key}: ${cleanVal}`;
-        })
+        .map(([key, val]: [string, any]) => `${key}: ${formatAttributeValue(val)}`)
         .join(' | ');
     }
   }

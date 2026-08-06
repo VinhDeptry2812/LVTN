@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
+import { formatAttributes } from '@/utils/format';
 import {
   Database,
   Search,
@@ -209,11 +210,8 @@ export default function InventoryPage() {
   };
 
   // Format variant attributes
-  const formatAttributes = (attributes: Record<string, string>) => {
-    if (!attributes || Object.keys(attributes).length === 0) return 'Mặc định';
-    return Object.entries(attributes)
-      .map(([key, val]) => `${key}: ${val}`)
-      .join(', ');
+  const renderAttributesText = (attributes: Record<string, string>) => {
+    return formatAttributes(attributes) || 'Mặc định';
   };
 
   // Render stock status badge
@@ -532,7 +530,7 @@ export default function InventoryPage() {
 
                           {/* Attributes */}
                           <td className="px-6 py-4 text-xs font-medium text-slate-500">
-                            {formatAttributes(v.attributes)}
+                            {renderAttributesText(v.attributes)}
                           </td>
 
                           {/* Status */}
@@ -761,7 +759,7 @@ export default function InventoryPage() {
                               {tx.variant?.product_name || 'Sản phẩm đã xóa'}
                             </span>
                             <span className="text-xs text-slate-500 mt-0.5">
-                              {tx.variant?.attributes ? formatAttributes(tx.variant.attributes) : ''}
+                              {tx.variant?.attributes ? renderAttributesText(tx.variant.attributes) : ''}
                             </span>
                             <span className="font-mono text-[10px] font-bold text-indigo-600/80 mt-1">
                               SKU: {tx.variant?.sku || 'N/A'}

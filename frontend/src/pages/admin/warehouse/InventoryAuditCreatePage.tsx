@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
+import { formatAttributeValue } from '@/utils/format';
 import { Loader2, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Variant {
@@ -205,7 +206,7 @@ export default function InventoryAuditCreatePage() {
                               <div className="font-semibold text-slate-800 truncate max-w-xs">{v.product_name}</div>
                               <div className="text-[10px] text-slate-500 font-mono mt-0.5">
                                 SKU: {v.sku}{' '}
-                                {Object.entries(v.attributes).map(([key, val]) => `| ${key}: ${val}`)}
+                                {Object.entries(v.attributes).map(([key, val]) => `| ${key}: ${formatAttributeValue(val)}`)}
                               </div>
                             </div>
                           </td>

@@ -3,7 +3,7 @@ import api from '@/services/api';
 import toast from 'react-hot-toast';
 import ConfirmModal from '@/components/ConfirmModal';
 import useConfirmModal from '@/hooks/useConfirmModal';
-import { formatPrice, formatDate } from '@/utils/format';
+import { formatPrice, formatDate, formatAttributeValue } from '@/utils/format';
 
 import AdminPagination from '@/components/AdminPagination';
 import TableLoader from '@/components/TableLoader';
@@ -646,7 +646,7 @@ export default function OrderListPage() {
                                   <div className="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-1.5">
                                     {Object.entries(item.variant.attributes).map(([k, v]) => (
                                       <span key={k} className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-none font-semibold">
-                                        {k}: {v}
+                                        {k}: {formatAttributeValue(v)}
                                       </span>
                                     ))}
                                   </div>

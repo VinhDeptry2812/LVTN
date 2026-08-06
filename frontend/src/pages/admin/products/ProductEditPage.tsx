@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
+import { formatAttributeValue } from '@/utils/format';
 import { Upload, Sparkles, ArrowLeft, Loader2, Plus, Trash2, Star, Eye, Copy, ChevronDown, Check, X, ImageIcon, RotateCcw } from 'lucide-react';
 import TiptapEditor from '@/components/TiptapEditor';
 import UploadProgressWidget from '@/components/UploadProgressWidget';
@@ -47,7 +48,7 @@ const VariantMultiSelectPopover = ({
       const vIdx = selectedIndices[0];
       const v = variants[vIdx];
       if (!v) return `-- Dùng chung --`;
-      const attrStr = Object.values(v.attributes || {}).map(val => String(val).split('|')[0]).filter(Boolean).join(', ');
+      const attrStr = Object.values(v.attributes || {}).map(val => formatAttributeValue(String(val))).filter(Boolean).join(', ');
       return attrStr ? `#${vIdx + 1}: ${attrStr}` : `#${vIdx + 1}: SKU ${v.sku || 'Chưa đặt'}`;
     }
     return `${selectedIndices.length} biến thể được chọn`;
@@ -84,7 +85,7 @@ const VariantMultiSelectPopover = ({
               <span className="font-semibold text-slate-500">-- Dùng chung (Tất cả) --</span>
             </label>
             {variants.map((v, vIdx) => {
-              const attrStr = Object.values(v.attributes || {}).map(val => String(val).split('|')[0]).filter(Boolean).join(', ');
+              const attrStr = Object.values(v.attributes || {}).map(val => formatAttributeValue(String(val))).filter(Boolean).join(', ');
               const labelText = attrStr ? `#${vIdx + 1}: ${attrStr}` : `#${vIdx + 1}: SKU ${v.sku || 'Chưa đặt'}`;
               const isChecked = selectedIndices.includes(vIdx);
               return (
@@ -425,7 +426,7 @@ export default function ProductEditPage() {
   const generateVariantSku = (mainSku: string, attributes: Record<string, string>, index: number, attrKeys: string[]) => {
     const cleanVal = (val: string) => {
       if (!val) return '';
-      const textOnly = val.includes('|') ? val.split('|')[0] : val;
+      const textOnly = formatAttributeValue(val);
       return textOnly
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
