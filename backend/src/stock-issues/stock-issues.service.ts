@@ -203,6 +203,19 @@ export class StockIssuesService {
         issue.completed_at = new Date();
         issue.reviewed_by = { id: userId } as unknown as User;
 
+        // Ràng buộc: Đơn hàng liên quan phải ở trạng thái CONFIRMED trước khi xuất kho
+        let linkedOrder: Order | null = null;
+        if (issue.order_id) {
+          linkedOrder = await queryRunner.manager.findOne(Order, {
+            where: { id: issue.order_id },
+          });
+          if (linkedOrder && linkedOrder.status === OrderStatus.PENDING) {
+            throw new BadRequestException(
+              `Đơn hàng #${linkedOrder.id} chưa được xác nhận (đang ở trạng thái Chờ xử lý). Vui lòng xác nhận đơn hàng trước khi duyệt xuất kho.`,
+            );
+          }
+        }
+
         // Deduct inventory for each variant with pessimistic lock
         for (const item of issue.items) {
           const variant = await queryRunner.manager.findOne(ProductVariant, {
@@ -256,16 +269,11 @@ export class StockIssuesService {
           }
         }
 
-        // Tự động chuyển Đơn hàng liên quan sang trạng thái Đã xác nhận (CONFIRMED)
-        if (issue.order_id) {
-          const order = await queryRunner.manager.findOne(Order, {
-            where: { id: issue.order_id },
-          });
-          if (order && order.status === OrderStatus.PENDING) {
-            order.status = OrderStatus.CONFIRMED;
-            order.confirmed_at = new Date();
-            await queryRunner.manager.save(order);
-          }
+        // Tự động chuyển Đơn hàng liên quan sang trạng thái Đang giao hàng (SHIPPING)
+        if (linkedOrder && linkedOrder.status === OrderStatus.CONFIRMED) {
+          linkedOrder.status = OrderStatus.SHIPPING;
+          linkedOrder.shipping_at = new Date();
+          await queryRunner.manager.save(linkedOrder);
         }
       }
 

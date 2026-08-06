@@ -690,6 +690,22 @@ export class OrdersService implements OnModuleInit {
       }
 
       if (dto.status) {
+        // Ràng buộc: Không cho phép Admin tự ý chuyển sang SHIPPING / DELIVERED / COMPLETED nếu Phiếu xuất kho chưa được duyệt
+        if (
+          dto.status === OrderStatus.SHIPPING ||
+          dto.status === OrderStatus.DELIVERED ||
+          dto.status === OrderStatus.COMPLETED
+        ) {
+          const stockIssue = await queryRunner.manager.findOne(StockIssue, {
+            where: { order_id: order.id },
+          });
+          if (stockIssue && stockIssue.status !== StockIssueStatus.COMPLETED) {
+            throw new BadRequestException(
+              `Không thể chuyển đơn hàng sang trạng thái '${dto.status}' vì Phiếu xuất kho chưa được duyệt xuất kho. Vui lòng duyệt phiếu xuất kho tại phần Quản lý xuất kho trước.`,
+            );
+          }
+        }
+
         order.status = dto.status;
         if (dto.status === OrderStatus.CONFIRMED) {
           order.confirmed_at = new Date();

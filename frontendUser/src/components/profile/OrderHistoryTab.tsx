@@ -17,6 +17,7 @@ import api from '@/services/api';
 import { getProductImage } from '@/utils/image';
 import { formatDate, formatPrice } from '@/utils/format';
 import { useConfirmModal } from '@/hooks/useConfirmModal';
+import { useDragScroll } from '@/hooks/useDragScroll';
 
 interface OrderHistoryTabProps {
   user: any;
@@ -46,6 +47,7 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
   const [isRepaying, setIsRepaying] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [orderSearchQuery, setOrderSearchQuery] = useState<string>('');
+  const tabDrag = useDragScroll();
 
   // States for Review Modal
   const [reviewOrder, setReviewOrder] = useState<any | null>(null);
@@ -656,7 +658,13 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
       </div>
 
       {/* Tabs Bộ Lọc Trạng Thái Đơn Hàng */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-outline-variant/20 scrollbar-thin">
+      <div
+        ref={tabDrag.ref}
+        {...tabDrag.events}
+        className={`flex items-center gap-2 overflow-x-auto pb-2 border-b border-outline-variant/20 scrollbar-thin select-none ${
+          tabDrag.isMouseDown ? 'cursor-grabbing' : 'cursor-grab'
+        }`}
+      >
         {[
           { id: 'all', label: 'Tất cả đơn', count: orders.length },
           { id: 'pending', label: 'Chờ xử lý', count: orders.filter((o) => o.status === 'pending').length },
@@ -678,7 +686,10 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
         ].map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setSelectedStatus(tab.id)}
+            onClick={() => {
+              if (tabDrag.isDragging) return;
+              setSelectedStatus(tab.id);
+            }}
             className={`px-3.5 py-2 text-xs font-semibold uppercase tracking-wider rounded-sm whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 border ${
               selectedStatus === tab.id
                 ? 'bg-primary text-white border-primary shadow-sm'

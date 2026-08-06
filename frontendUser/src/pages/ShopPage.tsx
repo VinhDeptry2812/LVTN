@@ -8,6 +8,7 @@ import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import { ProductFilterBar } from '@/components/ProductFilterBar';
+import { useDragScroll } from '@/hooks/useDragScroll';
 
 // Register GSAP plugins
 gsap.registerPlugin(useGSAP, ScrollTrigger);
@@ -18,6 +19,8 @@ import { heroBannerImage, productCardImage } from '@/utils/cloudinaryUrl';
 
 export default function ShopPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const parentDrag = useDragScroll();
+  const childDrag = useDragScroll();
 
   // Selected filters from search params / state
   const initialCategory = searchParams.get('category') || '';
@@ -278,83 +281,154 @@ export default function ShopPage() {
         </div>
 
         <div className="max-w-container-max mx-auto px-sp-md md:px-lg w-full">
-          {/* ═══ 1. Hierarchical Category Pills (2 Tầng) ═══ */}
+          {/* ═══ 1. Hierarchical Category Pills (2 Tầng - Hỗ trợ Kéo thả chuột Desktop) ═══ */}
           {categories.length > 0 && (
-            <div className="bg-surface/90 backdrop-blur-md rounded-2xl border border-outline-variant/30 shadow-[0_2px_16px_rgba(0,0,0,0.04)] p-3 mb-4 -mt-12 relative z-20 space-y-2">
+            <div className="bg-surface/90 backdrop-blur-md rounded-2xl border border-outline-variant/30 shadow-[0_2px_16px_rgba(0,0,0,0.04)] p-3 mb-4 -mt-12 relative z-20 space-y-2 select-none">
               {/* Tầng 1: Các danh mục Cha */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-                <button
-                  onClick={() => {
-                    setSelectedCategories([]);
-                    const newParams = new URLSearchParams(searchParams);
-                    newParams.delete('category');
-                    setSearchParams(newParams);
-                    setCurrentPage(1);
-                  }}
-                  className={`px-4 py-1.5 rounded-full text-[13px] font-label-md whitespace-nowrap transition-all duration-200 cursor-pointer border ${selectedCategories.length === 0
-                      ? 'bg-primary text-on-primary border-primary shadow-sm font-semibold'
-                      : 'bg-surface border-outline-variant/40 text-on-surface hover:border-primary/50 hover:bg-surface-container'
-                    }`}
-                >
-                  Tất cả sản phẩm
-                </button>
-                {categories.map((parentCat) => {
-                  const isParentSelected = selectedCategories.includes(parentCat.slug);
-                  const hasChildSelected = parentCat.children?.some((child) => selectedCategories.includes(child.slug));
-                  const isActive = isParentSelected || hasChildSelected;
+              <div className="relative group/parent">
+                {parentDrag.canScrollLeft && (
+                  <button
+                    onClick={() => parentDrag.scrollBy(-220)}
+                    className="absolute -left-2 top-1/2 -translate-y-1/2 z-30 w-7 h-7 rounded-full bg-surface-container-highest/90 border border-outline-variant/40 shadow-md flex items-center justify-center text-on-surface hover:bg-primary hover:text-on-primary transition-all cursor-pointer"
+                    aria-label="Cuộn sang trái"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+                  </button>
+                )}
 
-                  return (
-                    <button
-                      key={parentCat.id}
-                      onClick={() => toggleCategory(parentCat.slug)}
-                      className={`px-4 py-1.5 rounded-full text-[13px] font-label-md whitespace-nowrap transition-all duration-200 cursor-pointer border flex items-center gap-1 ${isActive
-                          ? 'bg-primary text-on-primary border-primary shadow-sm font-semibold'
-                          : 'bg-surface border-outline-variant/40 text-on-surface hover:border-primary/50 hover:bg-surface-container'
+                <div
+                  ref={parentDrag.ref}
+                  {...parentDrag.events}
+                  className={`flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar select-none active:cursor-grabbing ${
+                    parentDrag.isMouseDown ? 'cursor-grabbing' : 'cursor-grab'
+                  }`}
+                >
+                  <button
+                    onClick={() => {
+                      if (parentDrag.isDragging) return;
+                      setSelectedCategories([]);
+                      const newParams = new URLSearchParams(searchParams);
+                      newParams.delete('category');
+                      setSearchParams(newParams);
+                      setCurrentPage(1);
+                    }}
+                    className={`px-4 py-1.5 rounded-full text-[13px] font-label-md whitespace-nowrap transition-all duration-200 cursor-pointer border shrink-0 ${
+                      selectedCategories.length === 0
+                        ? 'bg-primary text-on-primary border-primary shadow-sm font-semibold'
+                        : 'bg-surface border-outline-variant/40 text-on-surface hover:border-primary/50 hover:bg-surface-container'
+                    }`}
+                  >
+                    Tất cả sản phẩm
+                  </button>
+
+                  {categories.map((parentCat) => {
+                    const isParentSelected = selectedCategories.includes(parentCat.slug);
+                    const hasChildSelected = parentCat.children?.some((child) => selectedCategories.includes(child.slug));
+                    const isActive = isParentSelected || hasChildSelected;
+
+                    return (
+                      <button
+                        key={parentCat.id}
+                        onClick={() => {
+                          if (parentDrag.isDragging) return;
+                          toggleCategory(parentCat.slug);
+                        }}
+                        className={`px-4 py-1.5 rounded-full text-[13px] font-label-md whitespace-nowrap transition-all duration-200 cursor-pointer border flex items-center gap-1 shrink-0 ${
+                          isActive
+                            ? 'bg-primary text-on-primary border-primary shadow-sm font-semibold'
+                            : 'bg-surface border-outline-variant/40 text-on-surface hover:border-primary/50 hover:bg-surface-container'
                         }`}
-                    >
-                      <span>{parentCat.name}</span>
-                      {parentCat.children && parentCat.children.length > 0 && (
-                        <span className={`material-symbols-outlined text-[15px] ${isActive ? 'text-on-primary/80' : 'text-on-surface-variant/50'}`}>
-                          keyboard_arrow_down
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+                      >
+                        <span>{parentCat.name}</span>
+                        {parentCat.children && parentCat.children.length > 0 && (
+                          <span className={`material-symbols-outlined text-[15px] ${isActive ? 'text-on-primary/80' : 'text-on-surface-variant/50'}`}>
+                            keyboard_arrow_down
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {parentDrag.canScrollRight && (
+                  <button
+                    onClick={() => parentDrag.scrollBy(220)}
+                    className="absolute -right-2 top-1/2 -translate-y-1/2 z-30 w-7 h-7 rounded-full bg-surface-container-highest/90 border border-outline-variant/40 shadow-md flex items-center justify-center text-on-surface hover:bg-primary hover:text-on-primary transition-all cursor-pointer"
+                    aria-label="Cuộn sang phải"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                  </button>
+                )}
               </div>
 
               {/* Tầng 2: Các danh mục Con trực thuộc danh mục Cha đang chọn */}
               {activeParentCategory && activeParentCategory.children && activeParentCategory.children.length > 0 && (
-                <div className="flex items-center gap-2 overflow-x-auto pt-2 border-t border-outline-variant/20 no-scrollbar animate-slide-down">
-                  <span className="text-[12px] font-label-md text-on-surface-variant/70 shrink-0 font-semibold pl-1">
-                    {activeParentCategory.name}:
-                  </span>
+                <div className="relative group/child pt-2 border-t border-outline-variant/20">
+                  {childDrag.canScrollLeft && (
+                    <button
+                      onClick={() => childDrag.scrollBy(-200)}
+                      className="absolute -left-2 top-1/2 -translate-y-1/2 z-30 w-6 h-6 rounded-full bg-surface-container-highest/90 border border-outline-variant/40 shadow-md flex items-center justify-center text-on-surface hover:bg-primary hover:text-on-primary transition-all cursor-pointer"
+                      aria-label="Cuộn danh mục con sang trái"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">chevron_left</span>
+                    </button>
+                  )}
 
-                  <button
-                    onClick={() => toggleCategory(activeParentCategory.slug)}
-                    className={`px-3 py-1 rounded-full text-[12px] font-label-md whitespace-nowrap transition-all cursor-pointer border ${selectedCategories.includes(activeParentCategory.slug)
-                        ? 'bg-primary-fixed text-primary border-primary/30 font-semibold'
-                        : 'bg-surface border-outline-variant/30 text-on-surface-variant hover:text-on-surface'
-                      }`}
+                  <div
+                    ref={childDrag.ref}
+                    {...childDrag.events}
+                    className={`flex items-center gap-2 overflow-x-auto no-scrollbar animate-slide-down select-none active:cursor-grabbing ${
+                      childDrag.isMouseDown ? 'cursor-grabbing' : 'cursor-grab'
+                    }`}
                   >
-                    Tất cả {activeParentCategory.name}
-                  </button>
+                    <span className="text-[12px] font-label-md text-on-surface-variant/70 shrink-0 font-semibold pl-1">
+                      {activeParentCategory.name}:
+                    </span>
 
-                  {activeParentCategory.children.map((childCat) => {
-                    const isChildSelected = selectedCategories.includes(childCat.slug);
-                    return (
-                      <button
-                        key={childCat.id}
-                        onClick={() => toggleCategory(childCat.slug)}
-                        className={`px-3 py-1 rounded-full text-[12px] font-label-md whitespace-nowrap transition-all cursor-pointer border ${isChildSelected
-                            ? 'bg-primary-fixed text-primary border-primary/30 font-semibold shadow-xs'
-                            : 'bg-surface border-outline-variant/30 text-on-surface-variant hover:text-on-surface'
+                    <button
+                      onClick={() => {
+                        if (childDrag.isDragging) return;
+                        toggleCategory(activeParentCategory.slug);
+                      }}
+                      className={`px-3 py-1 rounded-full text-[12px] font-label-md whitespace-nowrap transition-all cursor-pointer border shrink-0 ${
+                        selectedCategories.includes(activeParentCategory.slug)
+                          ? 'bg-primary-fixed text-primary border-primary/30 font-semibold'
+                          : 'bg-surface border-outline-variant/30 text-on-surface-variant hover:text-on-surface'
+                      }`}
+                    >
+                      Tất cả {activeParentCategory.name}
+                    </button>
+
+                    {activeParentCategory.children.map((childCat) => {
+                      const isChildSelected = selectedCategories.includes(childCat.slug);
+                      return (
+                        <button
+                          key={childCat.id}
+                          onClick={() => {
+                            if (childDrag.isDragging) return;
+                            toggleCategory(childCat.slug);
+                          }}
+                          className={`px-3 py-1 rounded-full text-[12px] font-label-md whitespace-nowrap transition-all cursor-pointer border shrink-0 ${
+                            isChildSelected
+                              ? 'bg-primary-fixed text-primary border-primary/30 font-semibold shadow-xs'
+                              : 'bg-surface border-outline-variant/30 text-on-surface-variant hover:text-on-surface'
                           }`}
-                      >
-                        {childCat.name}
-                      </button>
-                    );
-                  })}
+                        >
+                          {childCat.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {childDrag.canScrollRight && (
+                    <button
+                      onClick={() => childDrag.scrollBy(200)}
+                      className="absolute -right-2 top-1/2 -translate-y-1/2 z-30 w-6 h-6 rounded-full bg-surface-container-highest/90 border border-outline-variant/40 shadow-md flex items-center justify-center text-on-surface hover:bg-primary hover:text-on-primary transition-all cursor-pointer"
+                      aria-label="Cuộn danh mục con sang phải"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">chevron_right</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>

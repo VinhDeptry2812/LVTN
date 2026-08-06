@@ -359,9 +359,9 @@ export class ReviewsService {
 
   async getFeaturedReviews(limit = 10) {
     const reviews = await this.reviewsRepository.find({
-      where: { rating: MoreThanOrEqual(4) },
+      where: { rating: 5 },
       relations: { user: true, product: true },
-      order: { rating: 'DESC', created_at: 'DESC' },
+      order: { created_at: 'DESC' },
       take: limit,
     });
 

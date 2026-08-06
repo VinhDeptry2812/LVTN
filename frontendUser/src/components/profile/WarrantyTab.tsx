@@ -6,6 +6,7 @@ import api from '@/services/api';
 import { getProductImage } from '@/utils/image';
 import { formatDate } from '@/utils/format';
 import { useImageUpload } from '@/hooks/useImageUpload';
+import { useDragScroll } from '@/hooks/useDragScroll';
 
 interface WarrantyTabProps {
   user: any;
@@ -36,6 +37,7 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'claiming_processing' | 'expired'>('all');
+  const filterDrag = useDragScroll();
 
   // Claim modal state
   const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
@@ -188,13 +190,22 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
           </div>
 
           {/* Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+          <div
+            ref={filterDrag.ref}
+            {...filterDrag.events}
+            className={`flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none select-none ${
+              filterDrag.isMouseDown ? 'cursor-grabbing' : 'cursor-grab'
+            }`}
+          >
             <span className="text-xs text-stone-400 flex items-center gap-1 shrink-0 mr-1 hidden sm:flex">
               <Filter className="w-3.5 h-3.5" /> Lọc:
             </span>
             <button
               type="button"
-              onClick={() => setStatusFilter('all')}
+              onClick={() => {
+                if (filterDrag.isDragging) return;
+                setStatusFilter('all');
+              }}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
                 statusFilter === 'all'
                   ? 'bg-stone-800 text-white shadow-xs'
@@ -205,7 +216,10 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
             </button>
             <button
               type="button"
-              onClick={() => setStatusFilter('active')}
+              onClick={() => {
+                if (filterDrag.isDragging) return;
+                setStatusFilter('active');
+              }}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
                 statusFilter === 'active'
                   ? 'bg-[#536257] text-white shadow-xs'
@@ -216,7 +230,10 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
             </button>
             <button
               type="button"
-              onClick={() => setStatusFilter('claiming_processing')}
+              onClick={() => {
+                if (filterDrag.isDragging) return;
+                setStatusFilter('claiming_processing');
+              }}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
                 statusFilter === 'claiming_processing'
                   ? 'bg-[#8c7a6b] text-white shadow-xs'
@@ -227,7 +244,10 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
             </button>
             <button
               type="button"
-              onClick={() => setStatusFilter('expired')}
+              onClick={() => {
+                if (filterDrag.isDragging) return;
+                setStatusFilter('expired');
+              }}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
                 statusFilter === 'expired'
                   ? 'bg-stone-700 text-white shadow-xs'

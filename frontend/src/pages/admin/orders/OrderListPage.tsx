@@ -552,71 +552,10 @@ export default function OrderListPage() {
                         <button
                           onClick={() => openOrderDetails(order)}
                           className="w-8 h-8 rounded-none text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 bg-white flex items-center justify-center transition-all cursor-pointer shadow-sm"
-                          title="Xem chi tiết"
+                          title="Xem chi tiết đơn hàng"
                         >
-                          <Eye size={15} />
+                          <ClipboardList size={15} />
                         </button>
-
-                        {order.status === 'pending' && (
-                          <>
-                            <button
-                              disabled={updatingId !== null}
-                              onClick={() => handleUpdateStatus(order.id, 'confirmed')}
-                              className="w-8 h-8 rounded-none text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 bg-white flex items-center justify-center transition-all cursor-pointer shadow-sm disabled:opacity-50"
-                              title="Xác nhận đơn hàng"
-                            >
-                              <Check size={15} />
-                            </button>
-                            <button
-                              disabled={updatingId !== null}
-                              onClick={() => handleUpdateStatus(order.id, 'cancelled')}
-                              className="w-8 h-8 rounded-none text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-300 bg-white flex items-center justify-center transition-all cursor-pointer shadow-sm disabled:opacity-50"
-                              title="Hủy đơn hàng"
-                            >
-                              <X size={15} />
-                            </button>
-                          </>
-                        )}
-                        {order.status === 'confirmed' && (
-                          <>
-                            <button
-                              disabled={updatingId !== null}
-                              onClick={() => handleUpdateStatus(order.id, 'shipping')}
-                              className="w-8 h-8 rounded-none text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 bg-white flex items-center justify-center transition-all cursor-pointer shadow-sm disabled:opacity-50"
-                              title="Bắt đầu giao hàng"
-                            >
-                              <Truck size={14} />
-                            </button>
-                            <button
-                              disabled={updatingId !== null}
-                              onClick={() => handleUpdateStatus(order.id, 'cancelled')}
-                              className="w-8 h-8 rounded-none text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 hover:border-rose-300 bg-white flex items-center justify-center transition-all cursor-pointer shadow-sm disabled:opacity-50"
-                              title="Hủy đơn hàng"
-                            >
-                              <X size={15} />
-                            </button>
-                          </>
-                        )}
-                        {order.status === 'shipping' && (
-                          <button
-                            disabled={updatingId !== null}
-                            onClick={() => handleUpdateStatus(order.id, 'delivered')}
-                            className="w-8 h-8 rounded-none text-slate-500 hover:text-teal-600 hover:bg-teal-50 border border-slate-200 hover:border-teal-300 bg-white flex items-center justify-center transition-all cursor-pointer shadow-sm disabled:opacity-50"
-                            title="Xác nhận đã giao hàng"
-                          >
-                            <Check size={15} />
-                          </button>
-                        )}
-                        {order.status === 'delivered' && (
-                          <button
-                            disabled={updatingId !== null}
-                            onClick={() => handleUpdateStatus(order.id, 'completed', 'paid')}
-                            className="w-8 h-8 rounded-none text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 bg-white flex items-center justify-center transition-all cursor-pointer shadow-sm disabled:opacity-50"
-                            title="Cưỡng chế hoàn thành (Nhận hàng)"
-                          >
-                            <Check size={15} />
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -1020,13 +959,15 @@ export default function OrderListPage() {
 
                 {selectedOrder.status === 'confirmed' && (
                   <button
-                    disabled={updatingId !== null}
-                    onClick={() => handleUpdateStatus(selectedOrder.id, 'shipping')}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-none text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+                    disabled={true}
+                    className="px-4 py-2 bg-amber-50 text-amber-700 border border-amber-200/80 rounded-none text-xs font-bold transition-all cursor-not-allowed flex items-center gap-1.5"
+                    title="Đơn hàng đã xác nhận. Vui lòng chờ Thủ kho duyệt phiếu xuất kho để tự động chuyển sang Đang giao hàng."
                   >
-                    Giao đơn vận chuyển
+                    <Clock size={14} />
+                    Chờ xuất kho
                   </button>
                 )}
+
 
                 {selectedOrder.status === 'shipping' && (
                   <button
@@ -1111,11 +1052,10 @@ export default function OrderListPage() {
                   ].map((option) => (
                     <label
                       key={option}
-                      className={`flex items-center gap-3 p-2.5 rounded-none border text-xs cursor-pointer transition ${
-                        adminCancelReasonOption === option
+                      className={`flex items-center gap-3 p-2.5 rounded-none border text-xs cursor-pointer transition ${adminCancelReasonOption === option
                           ? 'border-rose-600 bg-rose-50/50 font-medium text-rose-900'
                           : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                      }`}
+                        }`}
                     >
                       <input
                         type="radio"

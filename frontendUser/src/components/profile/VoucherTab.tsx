@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import api from '@/services/api';
 import { formatPrice, formatDate } from '@/utils/format';
+import { useDragScroll } from '@/hooks/useDragScroll';
 
 interface Voucher {
   id: number;
@@ -47,6 +48,7 @@ const VoucherTab: React.FC<VoucherTabProps> = ({ user }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'used'>('all');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const filterDrag = useDragScroll();
 
   // Fetch active vouchers for user
   const fetchVouchers = async () => {
@@ -145,13 +147,22 @@ const VoucherTab: React.FC<VoucherTabProps> = ({ user }) => {
           </div>
 
           {/* Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+          <div
+            ref={filterDrag.ref}
+            {...filterDrag.events}
+            className={`flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none select-none ${
+              filterDrag.isMouseDown ? 'cursor-grabbing' : 'cursor-grab'
+            }`}
+          >
             <span className="text-xs text-stone-400 flex items-center gap-1 shrink-0 mr-1 hidden sm:flex">
               <Filter className="w-3.5 h-3.5" /> Lọc:
             </span>
             <button
               type="button"
-              onClick={() => setStatusFilter('all')}
+              onClick={() => {
+                if (filterDrag.isDragging) return;
+                setStatusFilter('all');
+              }}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
                 statusFilter === 'all'
                   ? 'bg-stone-800 text-white shadow-xs'
@@ -162,7 +173,10 @@ const VoucherTab: React.FC<VoucherTabProps> = ({ user }) => {
             </button>
             <button
               type="button"
-              onClick={() => setStatusFilter('available')}
+              onClick={() => {
+                if (filterDrag.isDragging) return;
+                setStatusFilter('available');
+              }}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
                 statusFilter === 'available'
                   ? 'bg-[#536257] text-white shadow-xs'
@@ -173,7 +187,10 @@ const VoucherTab: React.FC<VoucherTabProps> = ({ user }) => {
             </button>
             <button
               type="button"
-              onClick={() => setStatusFilter('used')}
+              onClick={() => {
+                if (filterDrag.isDragging) return;
+                setStatusFilter('used');
+              }}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer whitespace-nowrap ${
                 statusFilter === 'used'
                   ? 'bg-stone-700 text-white shadow-xs'

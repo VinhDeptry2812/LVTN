@@ -16,6 +16,7 @@ import { fetchProductById, fetchProducts, formatPrice, type ProductFrontend, fet
 import { productDetailImage, productCardImage } from '@/utils/cloudinaryUrl';
 import { fetchProductReviews, type Review, type ProductReviewsResponse } from '@/services/review.service';
 import ProductSectionCarousel from '@/components/ProductSectionCarousel';
+import { useDragScroll } from '@/hooks/useDragScroll';
 
 const COLOR_MAP: Record<string, string> = {
   'trắng': '#ffffff',
@@ -105,47 +106,7 @@ export default function ProductDetailPage() {
   const [reviewPage, setReviewPage] = useState<number>(1);
   const [reviewsLoading, setReviewsLoading] = useState<boolean>(false);
   const reviewsSectionRef = useRef<HTMLDivElement>(null);
-  const reviewsScrollRef = useRef<HTMLDivElement>(null);
-
-  const scrollReviews = (direction: 'left' | 'right') => {
-    if (reviewsScrollRef.current) {
-      const scrollAmount = direction === 'left' ? -380 : 380;
-      reviewsScrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }
-  };
-
-  // Drag-to-scroll cho Review Carousel
-  const [isDraggingReviews, setIsDraggingReviews] = useState(false);
-  const [dragStartX, setDragStartX] = useState(0);
-  const [dragScrollLeft, setDragScrollLeft] = useState(0);
-  const [hasDragged, setHasDragged] = useState(false);
-
-  const handleReviewsMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!reviewsScrollRef.current) return;
-    setIsDraggingReviews(true);
-    setHasDragged(false);
-    setDragStartX(e.pageX - reviewsScrollRef.current.offsetLeft);
-    setDragScrollLeft(reviewsScrollRef.current.scrollLeft);
-  };
-
-  const handleReviewsMouseLeave = () => {
-    setIsDraggingReviews(false);
-  };
-
-  const handleReviewsMouseUp = () => {
-    setIsDraggingReviews(false);
-  };
-
-  const handleReviewsMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDraggingReviews || !reviewsScrollRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - reviewsScrollRef.current.offsetLeft;
-    const walk = (x - dragStartX) * 1.5;
-    if (Math.abs(walk) > 5) {
-      setHasDragged(true);
-    }
-    reviewsScrollRef.current.scrollLeft = dragScrollLeft - walk;
-  };
+  const reviewsDrag = useDragScroll();
 
   const [recommendedProducts, setRecommendedProducts] = useState<ProductFrontend[]>([]);
   const [frequentlyBoughtProducts, setFrequentlyBoughtProducts] = useState<ProductFrontend[]>([]);
@@ -507,44 +468,7 @@ export default function ProductDetailPage() {
     });
   }, { scope: detailContainerRef });
 
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const isDraggingRef = useRef(false);
-  const startXRef = useRef(0);
-  const startYRef = useRef(0);
-  const scrollLeftRef = useRef(0);
-  const scrollTopRef = useRef(0);
-  const hasDraggedRef = useRef(false);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!scrollContainerRef.current) return;
-    isDraggingRef.current = true;
-    hasDraggedRef.current = false;
-    startXRef.current = e.pageX - scrollContainerRef.current.offsetLeft;
-    startYRef.current = e.pageY - scrollContainerRef.current.offsetTop;
-    scrollLeftRef.current = scrollContainerRef.current.scrollLeft;
-    scrollTopRef.current = scrollContainerRef.current.scrollTop;
-  };
-
-  const handleMouseLeave = () => {
-    isDraggingRef.current = false;
-  };
-
-  const handleMouseUp = () => {
-    isDraggingRef.current = false;
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDraggingRef.current || !scrollContainerRef.current) return;
-    const x = e.pageX - scrollContainerRef.current.offsetLeft;
-    const y = e.pageY - scrollContainerRef.current.offsetTop;
-    const walkX = (x - startXRef.current) * 1.5;
-    const walkY = (y - startYRef.current) * 1.5;
-    if (Math.abs(walkX) > 12 || Math.abs(walkY) > 12) {
-      hasDraggedRef.current = true;
-    }
-    scrollContainerRef.current.scrollLeft = scrollLeftRef.current - walkX;
-    scrollContainerRef.current.scrollTop = scrollTopRef.current - walkY;
-  };
+  const thumbnailDrag = useDragScroll();
 
   const handleQuantityChange = (amount: number) => {
     const maxStock = currentVariant ? (currentVariant.stock || 0) : 0;
@@ -676,12 +600,11 @@ export default function ProductDetailPage() {
               </div>
               {filteredGallery && filteredGallery.length > 1 && (
                 <div
-                  className="flex md:flex-col space-x-sp-md md:space-x-0 md:space-y-sp-md overflow-x-auto md:overflow-y-auto scroll-hide py-2 md:py-0 px-1 w-full md:w-20 order-2 md:order-1 cursor-grab active:cursor-grabbing select-none"
-                  ref={scrollContainerRef}
-                  onMouseDown={handleMouseDown}
-                  onMouseLeave={handleMouseLeave}
-                  onMouseUp={handleMouseUp}
-                  onMouseMove={handleMouseMove}
+                  ref={thumbnailDrag.ref}
+                  {...thumbnailDrag.events}
+                  className={`flex md:flex-col space-x-sp-md md:space-x-0 md:space-y-sp-md overflow-x-auto md:overflow-y-auto scroll-hide py-2 md:py-0 px-1 w-full md:w-20 order-2 md:order-1 select-none ${
+                    thumbnailDrag.isMouseDown ? 'cursor-grabbing' : 'cursor-grab'
+                  }`}
                 >
                   {filteredGallery.map((imgObj, idx) => (
                     <button
@@ -693,11 +616,8 @@ export default function ProductDetailPage() {
                           img.src = productDetailImage(imgObj.url);
                         }
                       }}
-                      onClick={(e) => {
-                        if (hasDraggedRef.current) {
-                          e.preventDefault();
-                          return;
-                        }
+                      onClick={() => {
+                        if (thumbnailDrag.isDragging) return;
                         setActiveImage(imgObj.url);
                       }}
                       className={`flex-shrink-0 w-20 h-20 md:w-full md:h-20 rounded-none overflow-hidden shadow-sm transition-all duration-200 border-2 cursor-pointer ${activeImage === imgObj.url ? 'border-primary scale-[0.98]' : 'border-transparent hover:border-primary/50 hover:opacity-90'
@@ -1188,14 +1108,14 @@ export default function ProductDetailPage() {
                 {reviewsData.reviews.length > 0 && (
                   <div className="flex items-center gap-1.5 ml-auto sm:ml-2">
                     <button
-                      onClick={() => scrollReviews('left')}
+                      onClick={() => reviewsDrag.scrollBy(-380)}
                       className="w-8 h-8 rounded-full border border-[#EBE5DB] flex items-center justify-center text-on-surface-variant hover:border-[#5A6B53] hover:text-[#5A6B53] hover:bg-[#5A6B53]/5 transition-all cursor-pointer"
                       title="Cuộn sang trái"
                     >
                       <span className="material-symbols-outlined text-base">chevron_left</span>
                     </button>
                     <button
-                      onClick={() => scrollReviews('right')}
+                      onClick={() => reviewsDrag.scrollBy(380)}
                       className="w-8 h-8 rounded-full border border-[#EBE5DB] flex items-center justify-center text-on-surface-variant hover:border-[#5A6B53] hover:text-[#5A6B53] hover:bg-[#5A6B53]/5 transition-all cursor-pointer"
                       title="Cuộn sang phải"
                     >
@@ -1219,13 +1139,10 @@ export default function ProductDetailPage() {
 
               {reviewsData.reviews.length > 0 ? (
                 <div
-                  ref={reviewsScrollRef}
-                  onMouseDown={handleReviewsMouseDown}
-                  onMouseLeave={handleReviewsMouseLeave}
-                  onMouseUp={handleReviewsMouseUp}
-                  onMouseMove={handleReviewsMouseMove}
+                  ref={reviewsDrag.ref}
+                  {...reviewsDrag.events}
                   className={`flex overflow-x-auto gap-4 sm:gap-6 py-2 no-scrollbar snap-x snap-mandatory scroll-smooth select-none ${
-                    isDraggingReviews ? 'cursor-grabbing' : 'cursor-grab'
+                    reviewsDrag.isMouseDown ? 'cursor-grabbing' : 'cursor-grab'
                   }`}
                 >
                   {reviewsData.reviews.map((rev: Review) => {
@@ -1296,7 +1213,7 @@ export default function ProductDetailPage() {
                                   key={idx}
                                   className="w-16 h-16 sm:w-20 sm:h-20 overflow-hidden border border-[#EBE5DB] rounded-xl cursor-zoom-in hover:opacity-90 hover:shadow-md transition-all duration-200 shrink-0 bg-white relative group shadow-xs"
                                   onClick={() => {
-                                    if (hasDragged) return;
+                                    if (reviewsDrag.isDragging) return;
                                     setZoomImage(imgUrl);
                                     setZoomType('review');
                                     setIsZoomOpen(true);
@@ -1323,7 +1240,7 @@ export default function ProductDetailPage() {
                   {(reviewsData.currentPage ?? 1) < (reviewsData.totalPages ?? 1) && (
                     <div
                       onClick={() => {
-                        if (hasDragged) return;
+                        if (reviewsDrag.isDragging) return;
                         handleLoadMoreReviews();
                       }}
                       className="w-[140px] sm:w-[170px] shrink-0 snap-start min-h-[220px] p-4 rounded-2xl border-2 border-dashed border-[#5A6B53]/40 bg-[#5A6B53]/5 hover:bg-[#5A6B53] hover:border-[#5A6B53] text-[#5A6B53] hover:text-white transition-all duration-300 flex flex-col items-center justify-center text-center cursor-pointer group shadow-2xs hover:shadow-md"

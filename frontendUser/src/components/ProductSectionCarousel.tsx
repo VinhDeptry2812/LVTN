@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import ProductCard from '@/components/ProductCard';
 import type { ProductFrontend } from '@/services/product.service';
+import { useDragScroll } from '@/hooks/useDragScroll';
 
 export interface ProductSectionCarouselProps {
   title: string;
@@ -27,6 +28,7 @@ const ProductSectionCarousel: React.FC<ProductSectionCarouselProps> = ({
   contentPaddingClass = 'px-sp-md md:px-lg',
 }) => {
   const [responsiveItemsToShow, setResponsiveItemsToShow] = useState(4);
+  const carouselDrag = useDragScroll();
 
   useEffect(() => {
     if (itemsToShowProp) return;
@@ -46,64 +48,16 @@ const ProductSectionCarousel: React.FC<ProductSectionCarouselProps> = ({
 
   const itemsToShow = itemsToShowProp || responsiveItemsToShow;
 
-  const [carouselIndex, setCarouselIndex] = useState(0);
-  const maxIdx = Math.max(0, products.length - itemsToShow);
-
-  // Auto adjust carouselIndex if maxIdx decreases
-  useEffect(() => {
-    if (carouselIndex > maxIdx) {
-      setCarouselIndex(maxIdx);
-    }
-  }, [maxIdx, carouselIndex]);
-
-  const handlePrev = () => {
-    setCarouselIndex((prev) => Math.max(0, prev - 1));
+  const handleScrollLeft = () => {
+    if (!carouselDrag.ref.current) return;
+    const scrollAmount = carouselDrag.ref.current.clientWidth * 0.75;
+    carouselDrag.scrollBy(-scrollAmount);
   };
 
-  const handleNext = () => {
-    setCarouselIndex((prev) => Math.min(maxIdx, prev + 1));
-  };
-
-  // Logic Nắm kéo Chuột & Vuốt Cảm ứng
-  const [isDragging, setIsDragging] = useState(false);
-  const startXRef = useRef<number>(0);
-  const currentXRef = useRef<number>(0);
-  const startYRef = useRef<number>(0);
-  const currentYRef = useRef<number>(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const handleDragStart = (clientX: number, clientY: number = 0) => {
-    setIsDragging(true);
-    startXRef.current = clientX;
-    currentXRef.current = clientX;
-    startYRef.current = clientY;
-    currentYRef.current = clientY;
-  };
-
-  const handleDragMove = (clientX: number, clientY: number = 0) => {
-    if (!isDragging) return;
-    currentXRef.current = clientX;
-    currentYRef.current = clientY;
-  };
-
-  const handleDragEnd = () => {
-    if (!isDragging) return;
-    const diffX = currentXRef.current - startXRef.current;
-    const diffY = currentYRef.current - startYRef.current;
-
-    // Chỉ thực hiện trượt nếu vuốt thiên về chiều ngang hơn chiều dọc
-    if (Math.abs(diffX) > Math.abs(diffY) || startYRef.current === 0) {
-      const containerWidth = containerRef.current?.clientWidth || 300;
-      const approxItemWidth = containerWidth / itemsToShow;
-      const steps = Math.max(1, Math.round(Math.abs(diffX) / (approxItemWidth * 0.65)));
-
-      if (diffX < -40 && carouselIndex < maxIdx) {
-        setCarouselIndex((prev) => Math.min(maxIdx, prev + steps));
-      } else if (diffX > 40 && carouselIndex > 0) {
-        setCarouselIndex((prev) => Math.max(0, prev - steps));
-      }
-    }
-    setIsDragging(false);
+  const handleScrollRight = () => {
+    if (!carouselDrag.ref.current) return;
+    const scrollAmount = carouselDrag.ref.current.clientWidth * 0.75;
+    carouselDrag.scrollBy(scrollAmount);
   };
 
   if (products.length === 0) return null;
@@ -128,54 +82,43 @@ const ProductSectionCarousel: React.FC<ProductSectionCarouselProps> = ({
           )}
         </div>
 
-        <div className="relative -mx-1.5 sm:-mx-3 px-1.5 sm:px-3">
+        <div className="relative -mx-1.5 sm:-mx-3 px-1.5 sm:px-3 group/carousel">
           <div
-            ref={containerRef}
-            className="overflow-hidden cursor-grab active:cursor-grabbing select-none touch-pan-y"
-            onTouchStart={(e) => handleDragStart(e.touches[0].clientX, e.touches[0].clientY)}
-            onTouchMove={(e) => handleDragMove(e.touches[0].clientX, e.touches[0].clientY)}
-            onTouchEnd={handleDragEnd}
-            onMouseDown={(e) => handleDragStart(e.clientX)}
-            onMouseMove={(e) => handleDragMove(e.clientX)}
-            onMouseUp={handleDragEnd}
-            onMouseLeave={handleDragEnd}
+            ref={carouselDrag.ref}
+            {...carouselDrag.events}
+            className={`flex items-stretch overflow-x-auto no-scrollbar snap-x snap-mandatory scroll-smooth py-2 px-1 select-none ${
+              carouselDrag.isMouseDown ? 'cursor-grabbing' : 'cursor-grab'
+            }`}
           >
-            <div
-              className="flex items-stretch -mx-1.5 sm:-mx-2 transition-transform duration-500 ease-out"
-              style={{
-                transform: `translateX(-${(carouselIndex * 100) / itemsToShow}%)`,
-              }}
-            >
-              {products.map((prod, idx) => (
-                <div
-                  key={`${idx}-${prod.id}`}
-                  className="shrink-0 px-1.5 sm:px-2 animate-slide-item flex flex-col"
-                  style={{ width: `${100 / itemsToShow}%` }}
-                >
-                  <ProductCard product={prod} />
-                </div>
-              ))}
-            </div>
+            {products.map((prod, idx) => (
+              <div
+                key={`${idx}-${prod.id}`}
+                className="shrink-0 px-1.5 sm:px-2 snap-start flex flex-col transition-all"
+                style={{ width: `${100 / itemsToShow}%` }}
+              >
+                <ProductCard product={prod} />
+              </div>
+            ))}
           </div>
 
-          {carouselIndex > 0 && (
-            <button
-              onClick={handlePrev}
-              aria-label="Slide trước"
-              className="absolute left-1 sm:left-0 top-1/2 -translate-y-1/2 sm:-translate-x-1/2 z-30 w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-white/95 border border-outline-variant/30 text-on-surface hover:bg-primary hover:text-on-primary shadow-lg flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 group/btn"
-            >
-              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 group-hover/btn:-translate-x-0.5 transition-transform" />
-            </button>
-          )}
-          {carouselIndex < maxIdx && (
-            <button
-              onClick={handleNext}
-              aria-label="Slide tiếp theo"
-              className="absolute right-1 sm:right-0 top-1/2 -translate-y-1/2 sm:translate-x-1/2 z-30 w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-white/95 border border-outline-variant/30 text-on-surface hover:bg-primary hover:text-on-primary shadow-lg flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 group/btn"
-            >
-              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 group-hover/btn:translate-x-0.5 transition-transform" />
-            </button>
-          )}
+          {/* Navigation Buttons */}
+          <button
+            type="button"
+            onClick={handleScrollLeft}
+            aria-label="Slide trước"
+            className="absolute left-1 sm:left-0 top-1/2 -translate-y-1/2 sm:-translate-x-1/2 z-30 w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-white/95 border border-outline-variant/30 text-on-surface hover:bg-primary hover:text-on-primary shadow-lg flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 group/btn"
+          >
+            <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 group-hover/btn:-translate-x-0.5 transition-transform" />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleScrollRight}
+            aria-label="Slide tiếp theo"
+            className="absolute right-1 sm:right-0 top-1/2 -translate-y-1/2 sm:translate-x-1/2 z-30 w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-white/95 border border-outline-variant/30 text-on-surface hover:bg-primary hover:text-on-primary shadow-lg flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 group/btn"
+          >
+            <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 group-hover/btn:translate-x-0.5 transition-transform" />
+          </button>
         </div>
       </div>
     </section>
