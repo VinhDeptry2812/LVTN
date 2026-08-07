@@ -200,7 +200,7 @@ export default function PurchaseOrderListPage() {
                       <td className="px-6 py-4 text-slate-700 space-y-1">
                         <div className="flex items-center gap-1.5 text-xs">
                           <User size={12} className="text-slate-400" />
-                          <span>{po.created_by?.name || po.created_by?.email || '-'}</span>
+                          <span>{po.created_by?.name || po.created_by?.email || 'Hệ thống'}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-slate-600">

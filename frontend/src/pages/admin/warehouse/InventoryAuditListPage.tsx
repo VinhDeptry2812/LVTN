@@ -151,7 +151,7 @@ export default function InventoryAuditListPage() {
                       <td className="px-6 py-4 text-slate-700">
                         <div className="flex items-center gap-1.5 text-xs">
                           <User size={12} className="text-slate-400" />
-                          <span>{ad.created_by?.name || ad.created_by?.email || '-'}</span>
+                          <span>{ad.created_by?.name || ad.created_by?.email || 'Hệ thống'}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-slate-600">

@@ -241,7 +241,7 @@ export default function PurchaseOrderDetailPage() {
               </div>
               <div className="flex items-center gap-1.5">
                 <User size={12} />
-                <span>Người tạo: {po.created_by?.name || po.created_by?.email || 'N/A'}</span>
+                <span>Người tạo: {po.created_by?.name || po.created_by?.email || 'Hệ thống'}</span>
               </div>
               {po.completed_at && (
                 <div className="flex items-center gap-1.5 text-green-700 font-medium">

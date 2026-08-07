@@ -300,7 +300,7 @@ export default function InventoryAuditDetailPage() {
               </div>
               <div className="flex items-center gap-1.5">
                 <User size={12} />
-                <span>Người tạo: {audit.created_by?.name || audit.created_by?.email || 'N/A'}</span>
+                <span>Người tạo: {audit.created_by?.name || audit.created_by?.email || 'Hệ thống'}</span>
               </div>
               {audit.completed_at && (
                 <div className="flex items-center gap-1.5 text-green-700 font-medium">

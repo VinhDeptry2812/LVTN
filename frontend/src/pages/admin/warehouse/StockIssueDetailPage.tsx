@@ -297,7 +297,7 @@ export default function StockIssueDetailPage() {
               </div>
               <div className="flex items-center gap-1.5">
                 <User size={13} className="text-slate-400" />
-                <span>Người tạo: {issue.created_by?.name || issue.created_by?.email || 'N/A'}</span>
+                <span>Người tạo: {issue.created_by?.name || issue.created_by?.email || 'Hệ thống'}</span>
               </div>
               {issue.reviewed_by && (
                 <div className="flex items-center gap-1.5 text-slate-700 font-medium">
