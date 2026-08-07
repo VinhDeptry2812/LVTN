@@ -60,7 +60,7 @@ export class ReviewsService {
   }
 
   async create(userId: number, dto: CreateReviewDto): Promise<Review> {
-    const { productId, rating, comment, images, isAnonymous } = dto;
+    const { productId, rating, comment, images, isAnonymous, orderId } = dto;
 
     // 1. Kiểm tra sản phẩm tồn tại
     const product = await this.productsRepository.findOne({
@@ -72,27 +72,41 @@ export class ReviewsService {
       );
     }
 
-    // 2. Kiểm tra xem người dùng đã đánh giá sản phẩm này chưa
+    // 2. Kiểm tra xem người dùng đã đánh giá sản phẩm này trong đơn hàng này chưa
+    const whereCondition: any = {
+      user: { id: userId },
+      product: { id: productId },
+    };
+    if (orderId) {
+      whereCondition.order = { id: orderId };
+    }
+
     const existingReview = await this.reviewsRepository.findOne({
-      where: {
-        user: { id: userId },
-        product: { id: productId },
-      },
+      where: whereCondition,
     });
     if (existingReview) {
-      throw new BadRequestException('Bạn đã đánh giá sản phẩm này rồi');
+      throw new BadRequestException(
+        orderId
+          ? 'Bạn đã đánh giá sản phẩm này trong đơn hàng này rồi'
+          : 'Bạn đã đánh giá sản phẩm này rồi',
+      );
     }
 
     // 3. Kiểm tra điều kiện mua hàng (Đơn hàng thành công và chứa sản phẩm) bằng câu truy vấn EXISTS tối ưu
-    const hasPurchased = await this.ordersRepository
+    const orderQuery = this.ordersRepository
       .createQueryBuilder('order')
       .innerJoin('order.items', 'item')
       .where('order.user_id = :userId', { userId })
       .andWhere('order.status IN (:...statuses)', {
         statuses: [OrderStatus.DELIVERED, OrderStatus.COMPLETED],
       })
-      .andWhere('item.product_id = :productId', { productId })
-      .getExists();
+      .andWhere('item.product_id = :productId', { productId });
+
+    if (orderId) {
+      orderQuery.andWhere('order.id = :orderId', { orderId });
+    }
+
+    const hasPurchased = await orderQuery.getExists();
 
     if (!hasPurchased) {
       throw new BadRequestException(
@@ -104,6 +118,7 @@ export class ReviewsService {
     const review = this.reviewsRepository.create({
       user: { id: userId } as User,
       product: { id: productId } as Product,
+      order: orderId ? ({ id: orderId } as Order) : undefined,
       rating,
       comment,
       images,
@@ -231,32 +246,44 @@ export class ReviewsService {
     };
   }
 
-  async canReview(userId: number, productId: number) {
+  async canReview(userId: number, productId: number, orderId?: number) {
     // 1. Kiểm tra xem đã đánh giá chưa
+    const whereCondition: any = {
+      user: { id: userId },
+      product: { id: productId },
+    };
+    if (orderId) {
+      whereCondition.order = { id: orderId };
+    }
+
     const existingReview = await this.reviewsRepository.findOne({
-      where: {
-        user: { id: userId },
-        product: { id: productId },
-      },
+      where: whereCondition,
     });
     if (existingReview) {
       return {
         canReview: false,
-        reason: 'Bạn đã đánh giá sản phẩm này rồi',
+        reason: orderId
+          ? 'Bạn đã đánh giá sản phẩm này trong đơn hàng này rồi'
+          : 'Bạn đã đánh giá sản phẩm này rồi',
         review: existingReview,
       };
     }
 
     // 2. Kiểm tra xem đã mua hàng thành công chưa bằng EXISTS query
-    const hasPurchased = await this.ordersRepository
+    const orderQuery = this.ordersRepository
       .createQueryBuilder('order')
       .innerJoin('order.items', 'item')
       .where('order.user_id = :userId', { userId })
       .andWhere('order.status IN (:...statuses)', {
         statuses: [OrderStatus.DELIVERED, OrderStatus.COMPLETED],
       })
-      .andWhere('item.product_id = :productId', { productId })
-      .getExists();
+      .andWhere('item.product_id = :productId', { productId });
+
+    if (orderId) {
+      orderQuery.andWhere('order.id = :orderId', { orderId });
+    }
+
+    const hasPurchased = await orderQuery.getExists();
 
     if (!hasPurchased) {
       return {
@@ -322,6 +349,7 @@ export class ReviewsService {
           product: {
             images: true,
           },
+          order: true,
         },
         order: { created_at: 'DESC' },
         skip: (page - 1) * limit,
@@ -340,6 +368,7 @@ export class ReviewsService {
         product: {
           images: true,
         },
+        order: true,
       },
       order: { created_at: 'DESC' },
     });
@@ -352,6 +381,7 @@ export class ReviewsService {
         product: {
           images: true,
         },
+        order: true,
       },
       order: { created_at: 'DESC' },
     });

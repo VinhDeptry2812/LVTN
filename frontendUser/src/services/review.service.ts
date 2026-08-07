@@ -15,6 +15,9 @@ export interface Review {
     id: number;
     name: string;
   };
+  order?: {
+    id: number;
+  };
 }
 
 export interface ProductReviewsResponse {
@@ -62,9 +65,13 @@ export const fetchProductReviews = async (
   return response.data;
 };
 
-export const checkCanReview = async (productId: string | number): Promise<CanReviewResponse> => {
+export const checkCanReview = async (
+  productId: string | number,
+  orderId?: number
+): Promise<CanReviewResponse> => {
   try {
-    const response = await api.get(`/reviews/can-review/${productId}`);
+    const url = orderId ? `/reviews/can-review/${productId}?orderId=${orderId}` : `/reviews/can-review/${productId}`;
+    const response = await api.get(url);
     return response.data;
   } catch (error) {
     return { canReview: false, reason: 'Chưa đăng nhập hoặc không đủ điều kiện' };
@@ -76,7 +83,8 @@ export const createReview = async (
   rating: number,
   comment: string,
   images?: string[],
-  isAnonymous?: boolean
+  isAnonymous?: boolean,
+  orderId?: number
 ): Promise<any> => {
   const response = await api.post('/reviews', {
     productId: Number(productId),
@@ -84,6 +92,7 @@ export const createReview = async (
     comment,
     images,
     isAnonymous,
+    orderId: orderId ? Number(orderId) : undefined,
   });
   return response.data;
 };

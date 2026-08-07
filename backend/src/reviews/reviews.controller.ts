@@ -90,8 +90,13 @@ export class ReviewsController {
   canReview(
     @Request() req: any,
     @Param('productId', ParseIntPipe) productId: number,
+    @Query('orderId') orderId?: string,
   ) {
-    return this.reviewsService.canReview(req.user.id, productId);
+    return this.reviewsService.canReview(
+      req.user.id,
+      productId,
+      orderId ? +orderId : undefined,
+    );
   }
 
   @ApiBearerAuth()

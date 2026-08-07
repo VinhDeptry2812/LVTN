@@ -30,4 +30,8 @@ export class CreateReviewDto {
   @IsOptional()
   @IsBoolean()
   isAnonymous?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  orderId?: number;
 }

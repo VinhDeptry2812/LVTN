@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { User } from '../users/user.entity';
 import { Product } from '../products/product.entity';
+import { Order } from '../orders/order.entity';
 
 @Entity('reviews')
 export class Review {
@@ -23,6 +24,10 @@ export class Review {
   @ManyToOne(() => Product, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'product_id' })
   product: Product;
+
+  @ManyToOne(() => Order, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'order_id' })
+  order: Order;
 
   @Column({ type: 'int' })
   rating: number; // Điểm đánh giá (1-5)

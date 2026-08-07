@@ -84,10 +84,23 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
   const [showReturnSuccess, setShowReturnSuccess] = useState(false);
   const [submittedReturnInfo, setSubmittedReturnInfo] = useState<any>(null);
 
-  // IDs của các sản phẩm đã được người dùng đánh giá
   const [reviewedProductIds, setReviewedProductIds] = useState<number[]>([]);
-  const [userReviewsMap, setUserReviewsMap] = useState<Record<number, Review>>({});
+  const [userReviewsMap, setUserReviewsMap] = useState<Record<string, Review>>({});
   const [editingReviewId, setEditingReviewId] = useState<number | null>(null);
+
+  const getExistingReview = (orderId: number | undefined, productId: number) => {
+    if (orderId) {
+      if (userReviewsMap[`${orderId}-${productId}`]) {
+        return userReviewsMap[`${orderId}-${productId}`];
+      }
+      const legacyReview = userReviewsMap[`product-${productId}`];
+      if (legacyReview && (!legacyReview.order || !legacyReview.order.id)) {
+        return legacyReview;
+      }
+      return null;
+    }
+    return userReviewsMap[`product-${productId}`] || null;
+  };
 
   // States for Cancel Order Modal
   const [cancelModalOrderId, setCancelModalOrderId] = useState<number | null>(null);
@@ -119,11 +132,17 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
         return_handled_at: order.return_request?.handled_at,
       }));
       setOrders(mappedOrders);
-      const reviewsMap: Record<number, Review> = {};
+      const reviewsMap: Record<string, Review> = {};
       const productIds: number[] = [];
-      (reviewsData || []).forEach((rev: Review) => {
+      (reviewsData || []).forEach((rev: any) => {
         if (rev.product?.id) {
-          reviewsMap[rev.product.id] = rev;
+          if (rev.order?.id) {
+            reviewsMap[`${rev.order.id}-${rev.product.id}`] = rev;
+          } else {
+            if (!reviewsMap[`product-${rev.product.id}`]) {
+              reviewsMap[`product-${rev.product.id}`] = rev;
+            }
+          }
           productIds.push(rev.product.id);
         }
       });
@@ -295,7 +314,7 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
       return;
     }
     setSelectedProductToReview(targetProduct);
-    const existingReview = userReviewsMap[targetProduct.id];
+    const existingReview = getExistingReview(order.id, targetProduct.id);
     if (existingReview) {
       if ((existingReview.edit_count ?? 0) >= 1) {
         toast.error('Đánh giá này đã được chỉnh sửa 1 lần và không thể chỉnh sửa thêm.');
@@ -341,7 +360,7 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
         [prodId]: { loading: true, canReview: false },
       }));
 
-      checkCanReview(prodId)
+      checkCanReview(prodId, order.id)
         .then((res) => {
           setReviewableStatus((prev) => ({
             ...prev,
@@ -421,7 +440,8 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
           modalRating,
           modalComment,
           finalImageUrls,
-          modalIsAnonymous
+          modalIsAnonymous,
+          reviewOrder?.id
         );
         toast.success('Gửi đánh giá thành công! Cảm ơn bạn.');
       }
@@ -819,17 +839,32 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                     </div>
 
                     {(order.status === 'completed' || order.status === 'delivered') &&
-                      (item.product?.id && reviewedProductIds.includes(item.product.id) ? (
-                        (userReviewsMap[item.product.id]?.edit_count ?? 0) < 1 ? (
-                          <button
-                            onClick={() => item.product && handleOpenReview(order, item.product, item.variant)}
-                            className="px-2.5 py-1 bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200 transition-colors text-[10px] font-bold uppercase tracking-wider rounded-sm cursor-pointer flex items-center gap-1 shrink-0"
-                            title="Bạn được phép chỉnh sửa đánh giá 1 lần"
-                          >
-                            <span className="material-symbols-outlined text-[12px]">edit</span>
-                            Sửa đánh giá
-                          </button>
-                        ) : (
+                      (() => {
+                        const existingRev = item.product?.id ? getExistingReview(order.id, item.product.id) : null;
+                        if (!existingRev) {
+                          return (
+                            <button
+                              onClick={() => item.product && handleOpenReview(order, item.product, item.variant)}
+                              className="px-2.5 py-1 bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 transition-colors text-[10px] font-bold uppercase tracking-wider rounded-sm cursor-pointer flex items-center gap-1 shrink-0"
+                            >
+                              <span className="material-symbols-outlined text-[12px]">rate_review</span>
+                              Đánh giá
+                            </button>
+                          );
+                        }
+                        if ((existingRev.edit_count ?? 0) < 1) {
+                          return (
+                            <button
+                              onClick={() => item.product && handleOpenReview(order, item.product, item.variant)}
+                              className="px-2.5 py-1 bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200 transition-colors text-[10px] font-bold uppercase tracking-wider rounded-sm cursor-pointer flex items-center gap-1 shrink-0"
+                              title="Bạn được phép chỉnh sửa đánh giá 1 lần"
+                            >
+                              <span className="material-symbols-outlined text-[12px]">edit</span>
+                              Sửa đánh giá
+                            </button>
+                          );
+                        }
+                        return (
                           <button
                             disabled
                             className="px-2.5 py-1 bg-slate-100 text-slate-400 border border-slate-200 text-[10px] font-bold uppercase tracking-wider rounded-sm flex items-center gap-1 shrink-0 cursor-not-allowed"
@@ -838,16 +873,8 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                             <span className="material-symbols-outlined text-[12px]">done_all</span>
                             Đã đánh giá
                           </button>
-                        )
-                      ) : (
-                        <button
-                          onClick={() => item.product && handleOpenReview(order, item.product, item.variant)}
-                          className="px-2.5 py-1 bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 transition-colors text-[10px] font-bold uppercase tracking-wider rounded-sm cursor-pointer flex items-center gap-1 shrink-0"
-                        >
-                          <span className="material-symbols-outlined text-[12px]">rate_review</span>
-                          Đánh giá
-                        </button>
-                      ))}
+                        );
+                      })()}
                   </div>
                 ))}
               </div>
@@ -1282,17 +1309,32 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                             <span className="font-semibold text-on-surface">{item.quantity}</span>
                           </p>
                           {(selectedOrder.status === 'completed' || selectedOrder.status === 'delivered') &&
-                            (item.product?.id && reviewedProductIds.includes(item.product.id) ? (
-                              (userReviewsMap[item.product.id]?.edit_count ?? 0) < 1 ? (
-                                <button
-                                  onClick={() => item.product && handleOpenReview(selectedOrder, item.product, item.variant)}
-                                  className="mt-1.5 px-3 py-1 bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200 transition-colors text-[10px] font-bold uppercase tracking-wider rounded-sm cursor-pointer flex items-center gap-1 w-fit"
-                                  title="Bạn được phép chỉnh sửa đánh giá 1 lần"
-                                >
-                                  <span className="material-symbols-outlined text-[12px]">edit</span>
-                                  Sửa đánh giá
-                                </button>
-                              ) : (
+                            (() => {
+                              const existingRev = item.product?.id ? getExistingReview(selectedOrder.id, item.product.id) : null;
+                              if (!existingRev) {
+                                return (
+                                  <button
+                                    onClick={() => item.product && handleOpenReview(selectedOrder, item.product, item.variant)}
+                                    className="mt-1.5 px-3 py-1 bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 transition-colors text-[10px] font-bold uppercase tracking-wider rounded-sm cursor-pointer flex items-center gap-1 w-fit"
+                                  >
+                                    <span className="material-symbols-outlined text-[12px]">rate_review</span>
+                                    Đánh giá
+                                  </button>
+                                );
+                              }
+                              if ((existingRev.edit_count ?? 0) < 1) {
+                                return (
+                                  <button
+                                    onClick={() => item.product && handleOpenReview(selectedOrder, item.product, item.variant)}
+                                    className="mt-1.5 px-3 py-1 bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200 transition-colors text-[10px] font-bold uppercase tracking-wider rounded-sm cursor-pointer flex items-center gap-1 w-fit"
+                                    title="Bạn được phép chỉnh sửa đánh giá 1 lần"
+                                  >
+                                    <span className="material-symbols-outlined text-[12px]">edit</span>
+                                    Sửa đánh giá
+                                  </button>
+                                );
+                              }
+                              return (
                                 <button
                                   disabled
                                   className="mt-1.5 px-3 py-1 bg-slate-100 text-slate-400 border border-slate-200 text-[10px] font-bold uppercase tracking-wider rounded-sm flex items-center gap-1 w-fit cursor-not-allowed"
@@ -1301,16 +1343,8 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                                   <span className="material-symbols-outlined text-[12px]">done_all</span>
                                   Đã đánh giá
                                 </button>
-                              )
-                            ) : (
-                              <button
-                                onClick={() => item.product && handleOpenReview(selectedOrder, item.product, item.variant)}
-                                className="mt-1.5 px-3 py-1 bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200 transition-colors text-[10px] font-bold uppercase tracking-wider rounded-sm cursor-pointer flex items-center gap-1 w-fit"
-                              >
-                                <span className="material-symbols-outlined text-[12px]">rate_review</span>
-                                Đánh giá
-                              </button>
-                            ))}
+                              );
+                            })()}
                         </div>
                         <div className="text-right shrink-0">
                           <p className="font-bold text-sm text-on-surface">
