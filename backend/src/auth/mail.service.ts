@@ -106,8 +106,7 @@ export class MailService {
       <p style="color:#8c938d;font-size:13px;margin:0;">${footerNote}</p>`;
 
     try {
-      await this.transporter.sendMail({
-        from: `"Nội Thất" <${this.configService.get<string>('SMTP_USER')}>`,
+      await this.sendEmail({
         to,
         subject,
         html: this.wrapEmail(body),
@@ -116,6 +115,64 @@ export class MailService {
       console.error('Lỗi gửi email OTP:', error);
       throw new InternalServerErrorException('Không thể gửi email OTP, vui lòng kiểm tra cấu hình SMTP.');
     }
+  }
+
+  private async sendEmail(options: {
+    to: string;
+    subject: string;
+    html: string;
+    attachments?: Array<{ filename: string; content: Buffer }>;
+  }) {
+    const brevoApiKey = this.configService.get<string>('BREVO_API_KEY') || this.configService.get<string>('SMTP_PASS');
+    const senderEmail = this.configService.get<string>('SMTP_USER') || 'vinhimpact2812@gmail.com';
+
+    // Ưu tiên gửi mail bằng Brevo HTTP REST API (Cổng 443 HTTPS — 100% không bao giờ bị Render chặn)
+    if (brevoApiKey && (brevoApiKey.startsWith('xkeysib-') || brevoApiKey.startsWith('xsmtpsib-') || brevoApiKey.length > 30)) {
+      try {
+        const payload: any = {
+          sender: { name: 'Nội Thất', email: senderEmail },
+          to: [{ email: options.to }],
+          subject: options.subject,
+          htmlContent: options.html,
+        };
+
+        if (options.attachments && options.attachments.length > 0) {
+          payload.attachment = options.attachments.map((att) => ({
+            name: att.filename,
+            content: att.content.toString('base64'),
+          }));
+        }
+
+        const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+          method: 'POST',
+          headers: {
+            'accept': 'application/json',
+            'api-key': brevoApiKey,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+          console.log(`[MailService] Gửi email qua Brevo HTTP API thành công đến ${options.to}`);
+          return;
+        }
+
+        const errText = await res.text();
+        console.error('Lỗi Brevo REST API:', errText);
+      } catch (err) {
+        console.error('Gửi mail qua Brevo REST API thất bại, chuyển sang Nodemailer fallback:', err);
+      }
+    }
+
+    // Fallback qua Nodemailer SMTP nếu không dùng Brevo API
+    await this.transporter.sendMail({
+      from: `"Nội Thất" <${senderEmail}>`,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      attachments: options.attachments,
+    });
   }
 
   async sendOrderStatusEmail(
@@ -254,19 +311,12 @@ export class MailService {
         subjectText = `[Nội Thất] Hóa đơn thanh toán đơn hàng #${order.id}`;
       }
 
-      const mailOptions: any = {
-        from: `"Nội Thất" <${this.configService.get<string>('SMTP_USER')}>`,
+      await this.sendEmail({
         to,
         subject: subjectText,
         html: this.wrapEmail(body),
-      };
-
-      // Đính kèm hóa đơn PDF nếu có (trạng thái thanh toán thành công / hoàn thành)
-      if (pdfBuffer) {
-        mailOptions.attachments = [{ filename: `Hoa_Don_HD${order.id}.pdf`, content: pdfBuffer }];
-      }
-
-      await this.transporter.sendMail(mailOptions);
+        attachments: pdfBuffer ? [{ filename: `Hoa_Don_HD${order.id}.pdf`, content: pdfBuffer }] : undefined,
+      });
     } catch (error) {
       console.error('Lỗi gửi email thông báo đơn hàng:', error);
     }
