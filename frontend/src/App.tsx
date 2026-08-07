@@ -41,6 +41,7 @@ import UserListPage from '@/pages/admin/users/UserListPage';
 import CustomerListPage from '@/pages/admin/users/CustomerListPage';
 
 import PaymentResultPage from '@/pages/PaymentResultPage';
+import SettingsPage from '@/pages/admin/settings/SettingsPage';
 
 function App() {
   return (
@@ -78,6 +79,7 @@ function App() {
         <Route path="users" element={<UserListPage />} />
         <Route path="customers" element={<CustomerListPage />} />
         <Route path="reviews" element={<ReviewListPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
 
       {/* Redirect mặc định */}

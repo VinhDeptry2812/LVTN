@@ -42,8 +42,18 @@ const authService = {
     return response.data;
   },
 
-  register: async (data: RegisterData): Promise<AuthResponse> => {
+  register: async (data: RegisterData): Promise<any> => {
     const response = await api.post('/auth/register', data);
+    return response.data;
+  },
+
+  verifyRegisterOtp: async (email: string, otp: string): Promise<AuthResponse> => {
+    const response = await api.post('/auth/verify-register-otp', { email, otp });
+    return response.data;
+  },
+
+  resendRegisterOtp: async (email: string) => {
+    const response = await api.post('/auth/resend-register-otp', { email });
     return response.data;
   },
 

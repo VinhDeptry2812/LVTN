@@ -23,6 +23,7 @@ import {
   LoginDto,
   ForgotPasswordDto,
   VerifyOtpDto,
+  ResendOtpDto,
   ResetPasswordDto,
   RefreshTokenDto,
 } from './dto/auth.dto';
@@ -43,7 +44,7 @@ export class AuthController {
   @ApiResponse({
     status: 201,
     description:
-      'Đăng ký thành công và trả về cặp Access Token và Refresh Token.',
+      'Đăng ký tạo tài khoản (yêu cầu xác thực mã OTP gửi về Email).',
   })
   @ApiResponse({
     status: 400,
@@ -52,6 +53,28 @@ export class AuthController {
   @Post('register')
   register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Xác thực OTP khi đăng ký tài khoản' })
+  @ApiResponse({
+    status: 200,
+    description: 'Xác thực tài khoản thành công và trả về JWT Tokens.',
+  })
+  @ApiResponse({ status: 400, description: 'Sai OTP hoặc hết hạn.' })
+  @HttpCode(HttpStatus.OK)
+  @Post('verify-register-otp')
+  verifyRegisterOtp(@Body() body: VerifyOtpDto) {
+    return this.authService.verifyRegisterOtp(body.email, body.otp);
+  }
+
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @ApiOperation({ summary: 'Gửi lại mã OTP xác thực đăng ký' })
+  @ApiResponse({ status: 200, description: 'Đã gửi lại mã OTP.' })
+  @HttpCode(HttpStatus.OK)
+  @Post('resend-register-otp')
+  resendRegisterOtp(@Body() body: ResendOtpDto) {
+    return this.authService.resendRegisterOtp(body.email);
   }
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })

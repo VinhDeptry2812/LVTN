@@ -297,7 +297,8 @@ export default function AdminLayout() {
         '/admin/customers',
         '/admin/banners',
         '/admin/vouchers',
-        '/admin/promotions'
+        '/admin/promotions',
+        '/admin/settings'
       ];
       
       const isDashboardRoot = location.pathname === '/admin' || location.pathname === '/admin/';
@@ -357,6 +358,7 @@ export default function AdminLayout() {
             vouchers: 'Mã giảm giá',
             users: 'Tài khoản',
             reviews: 'Đánh giá',
+            settings: 'Cài đặt hệ thống',
             create: 'Thêm mới',
             edit: 'Chỉnh sửa'
           };
@@ -786,8 +788,11 @@ export default function AdminLayout() {
                     </a>
                     {profile?.role === 'admin' && (
                       <button
-                        onClick={() => navigate('/admin')}
-                        className="w-full flex items-center gap-2 px-4 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-indigo-600 font-medium transition-colors text-left"
+                        onClick={() => {
+                          setIsProfileOpen(false);
+                          navigate('/admin/settings');
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-indigo-600 font-medium transition-colors text-left cursor-pointer"
                       >
                         <Settings size={14} />
                         Cài đặt hệ thống

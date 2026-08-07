@@ -224,6 +224,7 @@ export default function CheckoutPage() {
   const [shippingFee, setShippingFee] = useState<number>(0);
   const [isBulky, setIsBulky] = useState<boolean>(false);
   const [isLoadingShipping, setIsLoadingShipping] = useState<boolean>(false);
+  const [unsupportedError, setUnsupportedError] = useState<string | null>(null);
 
   const discountAmount = appliedVoucher ? appliedVoucher.discountAmount : 0;
   const total = Math.max(0, subtotal - discountAmount + shippingFee);
@@ -295,30 +296,36 @@ export default function CheckoutPage() {
       if (items.length === 0) {
         setShippingFee(0);
         setIsBulky(false);
+        setUnsupportedError(null);
         return;
       }
       try {
         setIsLoadingShipping(true);
+        setUnsupportedError(null);
         const itemsPayload = items.map(item => ({
           product_id: parseInt(item.id.toString(), 10),
           quantity: item.quantity
         }));
         
+        const fullAddr = [address, ward, city].filter(Boolean).join(', ');
         const res = await api.post('/orders/calculate-shipping', {
           items: itemsPayload,
-          province: city || ''
+          province: fullAddr || city || ''
         });
         setShippingFee(res.data.shipping_fee);
         setIsBulky(res.data.is_bulky);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to calculate shipping fee', error);
+        if (error.response?.data?.message) {
+          setUnsupportedError(error.response.data.message);
+        }
       } finally {
         setIsLoadingShipping(false);
       }
     };
 
     fetchShippingFee();
-  }, [items, city]);
+  }, [items, city, ward, address]);
 
 
 
@@ -361,6 +368,11 @@ export default function CheckoutPage() {
     e.preventDefault();
     if (!fullName || !phone || !address || !email || !city || !ward) {
       toast.error('Vui lòng điền đầy đủ thông tin giao hàng.');
+      return;
+    }
+
+    if (unsupportedError) {
+      toast.error(unsupportedError);
       return;
     }
 
@@ -742,26 +754,36 @@ export default function CheckoutPage() {
             {selectedProvince && selectedWard && (
               <div className="mb-8">
                 <h2 className="text-lg font-medium mb-4 text-left">Phương thức giao hàng</h2>
-                <div className="bg-white border border-[#333333] rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-1 flex-shrink-0 w-4 h-4 rounded-full border-2 border-[#333333] flex items-center justify-center">
-                      <div className="w-2 h-2 rounded-full bg-[#333333]" />
-                    </div>
-                    <div className="text-sm text-[#333333] text-left leading-relaxed">
-                      <p className="font-medium">
-                        {isBulky ? 'Vận chuyển hàng cồng kềnh' : 'Tiêu chuẩn'}
-                      </p>
-                      <p className="text-xs text-[#737373] mt-1">
-                        {isBulky
-                          ? 'Đơn hàng chứa sản phẩm cồng kềnh (giường, tủ lớn...). Miễn phí vận chuyển từ 20.000.000đ.'
-                          : 'Miễn phí vận chuyển cho đơn hàng từ 5.000.000đ.'}
-                      </p>
+                {unsupportedError ? (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3 text-red-700">
+                    <span className="material-symbols-outlined text-red-500 mt-0.5 shrink-0">block</span>
+                    <div className="text-sm">
+                      <p className="font-bold">Địa chỉ chưa hỗ trợ giao hàng</p>
+                      <p className="text-xs mt-1 leading-relaxed text-red-600">{unsupportedError}</p>
                     </div>
                   </div>
-                  <span className="font-bold text-sm whitespace-nowrap text-[#333333] md:self-center self-start pl-7 md:pl-0">
-                    {shippingFee === 0 ? 'Miễn phí' : formatPrice(shippingFee)}
-                  </span>
-                </div>
+                ) : (
+                  <div className="bg-white border border-[#333333] rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-1 flex-shrink-0 w-4 h-4 rounded-full border-2 border-[#333333] flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-[#333333]" />
+                      </div>
+                      <div className="text-sm text-[#333333] text-left leading-relaxed">
+                        <p className="font-medium">
+                          {isBulky ? 'Vận chuyển hàng cồng kềnh' : 'Tiêu chuẩn'}
+                        </p>
+                        <p className="text-xs text-[#737373] mt-1">
+                          {isBulky
+                            ? 'Đơn hàng chứa sản phẩm cồng kềnh (giường, tủ lớn...). Miễn phí vận chuyển từ 20.000.000đ.'
+                            : 'Miễn phí vận chuyển cho đơn hàng từ 5.000.000đ.'}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="font-bold text-sm whitespace-nowrap text-[#333333] md:self-center self-start pl-7 md:pl-0">
+                      {shippingFee === 0 ? 'Miễn phí' : formatPrice(shippingFee)}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 

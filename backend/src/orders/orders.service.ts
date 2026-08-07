@@ -6,7 +6,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, LessThan, In, Raw, MoreThanOrEqual } from 'typeorm';
+import { Repository, DataSource, LessThan, In, Raw, MoreThanOrEqual, Between } from 'typeorm';
 import { Order, OrderStatus, PaymentStatus, PaymentMethod } from './order.entity';
 import { OrderItem } from './order-item.entity';
 import { OrderReturn } from './order-return.entity';
@@ -28,6 +28,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { MailService } from '../auth/mail.service';
 import { VnpayService } from '../vnpay/vnpay.service';
 import { WarrantiesService } from '../warranties/warranties.service';
+import { ShippingSettingsService } from '../shipping-settings/shipping-settings.service';
 import * as path from 'path';
 import PDFDocument from 'pdfkit';
 
@@ -51,6 +52,7 @@ export class OrdersService implements OnModuleInit {
     private readonly mailService: MailService,
     private readonly vnpayService: VnpayService,
     private readonly warrantiesService: WarrantiesService,
+    private readonly shippingSettingsService: ShippingSettingsService,
   ) { }
 
   onModuleInit() {
@@ -155,28 +157,51 @@ export class OrdersService implements OnModuleInit {
       }
     }
 
+    const settings = await this.shippingSettingsService.getSettings();
     const addressLower = shippingAddress ? shippingAddress.toLowerCase() : '';
-    const isInnerCity = [
-      'hồ chí minh',
-      'ho chi minh',
-      'hcm',
-      'hà nội',
-      'ha noi',
-      'hn',
-    ].some((city) => addressLower.includes(city));
 
+    // 1. Kiểm tra từ khóa địa chỉ bị từ chối / không hỗ trợ giao hàng
+    if (addressLower && settings.unsupported_keywords && settings.unsupported_keywords.length > 0) {
+      const isUnsupported = settings.unsupported_keywords.some((keyword) => {
+        const trimmed = keyword.trim().toLowerCase();
+        return trimmed && addressLower.includes(trimmed);
+      });
+
+      if (isUnsupported) {
+        throw new BadRequestException(
+          'Rất tiếc, khu vực giao hàng này hiện chưa hỗ trợ vận chuyển tự động đồ nội thất cồng kềnh. Vui lòng liên hệ Hotline/CSKH để thỏa thuận vận chuyển riêng.',
+        );
+      }
+    }
+
+    // 2. Kiểm tra danh sách từ khóa khu vực Nội thành
+    const innerKeywords =
+      settings.inner_city_keywords && settings.inner_city_keywords.length > 0
+        ? settings.inner_city_keywords
+        : ['hồ chí minh', 'ho chi minh', 'hcm'];
+
+    const isInnerCity = innerKeywords.some((city) => {
+      const trimmed = city.trim().toLowerCase();
+      return trimmed && addressLower.includes(trimmed);
+    });
+
+    // 3. Tính phí giao hàng động theo cấu hình hệ thống
     let shippingFee = 0;
     if (isBulky) {
-      if (totalItemsPrice >= 20000000) {
+      if (Number(totalItemsPrice) >= Number(settings.bulky_freeship_threshold)) {
         shippingFee = 0;
       } else {
-        shippingFee = isInnerCity ? 150000 : 350000;
+        shippingFee = isInnerCity
+          ? Number(settings.bulky_inner_fee)
+          : Number(settings.bulky_outer_fee);
       }
     } else {
-      if (totalItemsPrice >= 5000000) {
+      if (Number(totalItemsPrice) >= Number(settings.standard_freeship_threshold)) {
         shippingFee = 0;
       } else {
-        shippingFee = isInnerCity ? 30000 : 60000;
+        shippingFee = isInnerCity
+          ? Number(settings.standard_inner_fee)
+          : Number(settings.standard_outer_fee);
       }
     }
 
@@ -787,14 +812,34 @@ export class OrdersService implements OnModuleInit {
     startDate?: string,
     endDate?: string,
   ): Promise<any> {
-    // 1. Thống kê tổng quan bằng SQL Aggregation
-    const rawStats = await this.orderRepository
+    // 1. Xác định mốc thời gian lọc (minDate -> maxDate)
+    const now = new Date();
+    let minDate: Date;
+    let maxDate: Date | undefined;
+
+    if (startDate && endDate) {
+      minDate = new Date(startDate);
+      minDate.setHours(0, 0, 0, 0);
+      maxDate = new Date(endDate);
+      maxDate.setHours(23, 59, 59, 999);
+    } else if (timeframe === '7days') {
+      minDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+      minDate.setHours(0, 0, 0, 0);
+    } else if (timeframe === '30days') {
+      minDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
+      minDate.setHours(0, 0, 0, 0);
+    } else if (timeframe === 'year') {
+      minDate = new Date(now.getFullYear(), 0, 1);
+      minDate.setHours(0, 0, 0, 0);
+    } else {
+      minDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+      minDate.setHours(0, 0, 0, 0);
+    }
+
+    // 2. Thống kê tổng quan dựa trên khoảng thời gian lọc
+    const statsQuery = this.orderRepository
       .createQueryBuilder('o')
       .select('COUNT(o.id)', 'totalOrders')
-      .addSelect(
-        'SUM(CASE WHEN o.status = :pending THEN 1 ELSE 0 END)',
-        'pendingOrders',
-      )
       .addSelect(
         'SUM(CASE WHEN o.status = :completed THEN 1 ELSE 0 END)',
         'completedOrdersCount',
@@ -804,14 +849,30 @@ export class OrdersService implements OnModuleInit {
         'revenue',
       )
       .addSelect('COUNT(DISTINCT o.user_id)', 'customerCount')
+      .where('o.created_at >= :minDate', { minDate });
+
+    if (maxDate) {
+      statsQuery.andWhere('o.created_at <= :maxDate', { maxDate });
+    }
+
+    const rawStats = await statsQuery
       .setParameters({
-        pending: OrderStatus.PENDING,
         completed: OrderStatus.COMPLETED,
+        minDate,
+        ...(maxDate ? { maxDate } : {}),
       })
       .getRawOne();
 
+    // Số đơn chờ xử lý toàn hệ thống (không lọc theo ngày để Admin luôn thấy đơn cần xử lý ngay)
+    const pendingOrdersRaw = await this.orderRepository
+      .createQueryBuilder('o')
+      .select('COUNT(o.id)', 'pendingOrders')
+      .where('o.status = :pending', { pending: OrderStatus.PENDING })
+      .setParameters({ pending: OrderStatus.PENDING })
+      .getRawOne();
+
     const totalOrders = Number(rawStats?.totalOrders || 0);
-    const pendingOrders = Number(rawStats?.pendingOrders || 0);
+    const pendingOrders = Number(pendingOrdersRaw?.pendingOrders || 0);
     const completedOrdersCount = Number(rawStats?.completedOrdersCount || 0);
     const revenue = Number(rawStats?.revenue || 0);
     const customerCount = Number(rawStats?.customerCount || 0);
@@ -820,10 +881,10 @@ export class OrdersService implements OnModuleInit {
       .getRepository(User)
       .count({ where: { role: UserRole.CUSTOMER } });
 
-    // 2. Tính danh mục bán chạy nhất bằng SQL Aggregation
+    // 3. Tính danh mục bán chạy nhất theo khoảng thời gian lọc
     let topCategory = { name: 'Chưa có', percent: 0 };
     if (revenue > 0) {
-      const topCatRaw = await this.dataSource
+      const topCatQuery = this.dataSource
         .createQueryBuilder()
         .select('c.name', 'categoryName')
         .addSelect('SUM(oi.price * oi.quantity)', 'categoryRevenue')
@@ -832,6 +893,13 @@ export class OrdersService implements OnModuleInit {
         .innerJoin('products', 'p', 'oi.product_id = p.id')
         .leftJoin('categories', 'c', 'p.category_id = c.id')
         .where('o.status = :completed', { completed: OrderStatus.COMPLETED })
+        .andWhere('o.created_at >= :minDate', { minDate });
+
+      if (maxDate) {
+        topCatQuery.andWhere('o.created_at <= :maxDate', { maxDate });
+      }
+
+      const topCatRaw = await topCatQuery
         .groupBy('c.name')
         .orderBy('SUM(oi.price * oi.quantity)', 'DESC')
         .limit(1)
@@ -844,28 +912,12 @@ export class OrdersService implements OnModuleInit {
       }
     }
 
-    // 3. Tải danh sách đơn hoàn thành được giới hạn thời gian theo bộ lọc biểu đồ
-    const now = new Date();
-    let minDate: Date;
-
-    if (startDate && endDate) {
-      minDate = new Date(startDate);
-      minDate.setHours(0, 0, 0, 0);
-    } else if (timeframe === '7days') {
-      minDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
-    } else if (timeframe === '30days') {
-      minDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
-    } else if (timeframe === 'year') {
-      minDate = new Date(now.getFullYear(), 0, 1);
-    } else {
-      minDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-    }
-
+    // 4. Tải danh sách đơn hoàn thành trong khoảng thời gian lọc để vẽ biểu đồ
     const completedOrders = await this.orderRepository.find({
       select: { id: true, total_amount: true, completed_at: true, created_at: true },
       where: {
         status: OrderStatus.COMPLETED,
-        created_at: MoreThanOrEqual(minDate),
+        created_at: maxDate ? Between(minDate, maxDate) : MoreThanOrEqual(minDate),
       },
     });
 

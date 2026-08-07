@@ -63,6 +63,15 @@ export class VerifyOtpDto {
   otp: string;
 }
 
+export class ResendOtpDto {
+  @ApiProperty({
+    example: 'nguyenvana@gmail.com',
+    description: 'Email cần nhận lại mã OTP xác thực',
+  })
+  @IsEmail({}, { message: 'Email không hợp lệ' })
+  email: string;
+}
+
 export class ResetPasswordDto {
   @ApiProperty({
     example: 'nguyenvana@gmail.com',

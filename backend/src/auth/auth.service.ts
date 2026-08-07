@@ -62,44 +62,147 @@ export class AuthService {
     const { email, password, name } = registerDto;
     const normalizedEmail = email.toLowerCase();
 
-    // Check if user exists
+    // Kiểm tra tài khoản đã tồn tại chưa
     const existingUser = await this.usersService.findByEmail(normalizedEmail);
     if (existingUser) {
-      throw new BadRequestException('Email đã được sử dụng!');
+      if (existingUser.status === UserStatus.ACTIVE) {
+        throw new BadRequestException('Email đã được sử dụng!');
+      }
+
+      // Nếu tài khoản ở trạng thái INACTIVE (chưa xác thực OTP)
+      const salt = await bcrypt.genSalt(10);
+      const password_hash = await bcrypt.hash(password, salt);
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + 5);
+
+      await this.usersService.updateProfile(existingUser.id, {
+        name,
+        password_hash,
+        otp_code: otp,
+        otp_expires_at: expiresAt,
+      });
+
+      await this.mailService.sendOtpEmail(existingUser.email, otp, name, 'register');
+
+      return {
+        requireOtp: true,
+        email: normalizedEmail,
+        message: 'Mã xác thực OTP đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.',
+      };
     }
 
-    // Hash password
+    // Hash mật khẩu
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
 
-    // Save user
+    // Tạo mã OTP 6 chữ số (có giá trị trong 5 phút)
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 5);
+
+    // Tạo tài khoản mới ở trạng thái INACTIVE
     const newUser = await this.usersService.create({
       email: normalizedEmail,
       password_hash,
       name,
+      status: UserStatus.INACTIVE,
+      otp_code: otp,
+      otp_expires_at: expiresAt,
     });
 
-    const tokens = await this.getTokens(
-      newUser.id,
-      newUser.email,
-      newUser.name,
-      newUser.role,
-    );
-    await this.updateRefreshToken(newUser.id, tokens.refreshToken);
+    await this.mailService.sendOtpEmail(newUser.email, otp, name, 'register');
 
     return {
-      message: 'Đăng ký thành công',
+      requireOtp: true,
+      email: normalizedEmail,
+      message: 'Mã xác thực OTP đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.',
+    };
+  }
+
+  async verifyRegisterOtp(email: string, otp: string) {
+    const normalizedEmail = email.toLowerCase();
+    const user = await this.usersService.findByEmail(normalizedEmail);
+
+    if (!user) {
+      throw new BadRequestException('Email không tồn tại!');
+    }
+
+    if (!user.otp_code || user.otp_code !== otp) {
+      throw new BadRequestException('Mã OTP không chính xác!');
+    }
+
+    if (!user.otp_expires_at) {
+      throw new BadRequestException('Mã OTP không hợp lệ!');
+    }
+
+    const now = new Date();
+    if (new Date(user.otp_expires_at) < now) {
+      throw new BadRequestException('Mã OTP đã hết hạn. Vui lòng yêu cầu gửi lại mã mới!');
+    }
+
+    // Kích hoạt tài khoản và xóa mã OTP đã dùng
+    await this.usersService.updateProfile(user.id, {
+      status: UserStatus.ACTIVE,
+      otp_code: null,
+      otp_expires_at: null,
+    });
+
+    const activatedUser = await this.usersService.findById(user.id);
+    if (!activatedUser) {
+      throw new BadRequestException('Không tìm thấy thông tin tài khoản!');
+    }
+
+    const tokens = await this.getTokens(
+      activatedUser.id,
+      activatedUser.email,
+      activatedUser.name,
+      activatedUser.role,
+    );
+    await this.updateRefreshToken(activatedUser.id, tokens.refreshToken);
+
+    return {
+      message: 'Xác thực tài khoản và đăng ký thành công!',
       access_token: tokens.accessToken,
       refresh_token: tokens.refreshToken,
       user: {
-        id: newUser.id,
-        email: newUser.email,
-        name: newUser.name,
-        phone: newUser.phone,
-        role: newUser.role,
-        gender: newUser.gender,
-        birthday: newUser.birthday,
+        id: activatedUser.id,
+        email: activatedUser.email,
+        name: activatedUser.name,
+        phone: activatedUser.phone,
+        role: activatedUser.role,
+        gender: activatedUser.gender,
+        birthday: activatedUser.birthday,
+        status: activatedUser.status,
       },
+    };
+  }
+
+  async resendRegisterOtp(email: string) {
+    const normalizedEmail = email.toLowerCase();
+    const user = await this.usersService.findByEmail(normalizedEmail);
+
+    if (!user) {
+      throw new BadRequestException('Email không tồn tại!');
+    }
+
+    if (user.status === UserStatus.ACTIVE) {
+      throw new BadRequestException('Tài khoản này đã được xác thực thành công!');
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 5);
+
+    await this.usersService.updateProfile(user.id, {
+      otp_code: otp,
+      otp_expires_at: expiresAt,
+    });
+
+    await this.mailService.sendOtpEmail(user.email, otp, user.name || 'Khách hàng', 'register');
+
+    return {
+      message: 'Mã OTP xác thực mới đã được gửi đến email của bạn.',
     };
   }
 
@@ -113,6 +216,11 @@ export class AuthService {
     }
 
     if (user.status === UserStatus.INACTIVE) {
+      if (user.otp_code) {
+        throw new UnauthorizedException(
+          'Tài khoản chưa được xác thực OTP. Vui lòng kiểm tra email để hoàn tất xác thực đăng ký.',
+        );
+      }
       throw new UnauthorizedException(
         'Tài khoản của bạn đã bị khóa hoặc tạm ngưng hoạt động',
       );
@@ -275,7 +383,7 @@ export class AuthService {
     });
 
     // Gửi email chứa mã OTP
-    await this.mailService.sendOtpEmail(user.email, otp, user.name);
+    await this.mailService.sendOtpEmail(user.email, otp, user.name, 'forgot_password');
 
     return {
       message:

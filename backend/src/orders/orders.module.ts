@@ -15,6 +15,7 @@ import { VouchersModule } from '../vouchers/vouchers.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthModule } from '../auth/auth.module';
 import { WarrantiesModule } from '../warranties/warranties.module';
+import { ShippingSettingsModule } from '../shipping-settings/shipping-settings.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { WarrantiesModule } from '../warranties/warranties.module';
     VouchersModule,
     NotificationsModule,
     WarrantiesModule,
+    ShippingSettingsModule,
   ],
   providers: [OrdersService],
   controllers: [OrdersController],

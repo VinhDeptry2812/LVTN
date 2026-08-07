@@ -721,6 +721,27 @@ export default function Header() {
                     Tài khoản của bạn
                   </Link>
                   <Link
+                    to="/profile?tab=orders"
+                    onClick={() => setIsUserDropdownOpen(false)}
+                    className="py-1 text-on-surface-variant/70 hover:text-black transition-colors"
+                  >
+                    Lịch sử đơn hàng
+                  </Link>
+                  <Link
+                    to="/profile?tab=warranty"
+                    onClick={() => setIsUserDropdownOpen(false)}
+                    className="py-1 text-on-surface-variant/70 hover:text-black transition-colors"
+                  >
+                    Sổ bảo hành
+                  </Link>
+                  <Link
+                    to="/profile?tab=vouchers"
+                    onClick={() => setIsUserDropdownOpen(false)}
+                    className="py-1 text-on-surface-variant/70 hover:text-black transition-colors"
+                  >
+                    Kho mã giảm giá
+                  </Link>
+                  <Link
                     to="/profile?tab=address"
                     onClick={() => setIsUserDropdownOpen(false)}
                     className="py-1 text-on-surface-variant/70 hover:text-black transition-colors"

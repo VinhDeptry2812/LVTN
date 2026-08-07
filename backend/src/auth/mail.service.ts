@@ -71,24 +71,43 @@ export class MailService {
     return `<div style="font-family:'Be Vietnam Pro',Arial,sans-serif;max-width:600px;margin:0 auto;background-color:#ffffff;border:1px solid #e4e2dd;">${this.brandHeader}<div style="padding:28px 32px;">${body}${this.brandFooter}</div></div>`;
   }
 
-  async sendOtpEmail(to: string, otp: string, userName: string) {
+  async sendOtpEmail(
+    to: string,
+    otp: string,
+    userName: string,
+    type: 'register' | 'forgot_password' = 'register',
+  ) {
+    const isRegister = type === 'register';
+    const title = isRegister
+      ? 'Mã Xác Thực Kích Hoạt Tài Khoản'
+      : 'Mã Xác Thực Khôi Phục Mật Khẩu';
+    const description = isRegister
+      ? 'Cảm ơn bạn đã đăng ký tài khoản tại <strong>Nội Thất</strong>. Vui lòng sử dụng mã OTP dưới đây để hoàn tất kích hoạt tài khoản của bạn:'
+      : 'Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Vui lòng sử dụng mã OTP dưới đây:';
+    const footerNote = isRegister
+      ? 'Nếu bạn không thực hiện đăng ký tài khoản này, vui lòng bỏ qua email này.'
+      : 'Nếu bạn không yêu cầu thay đổi mật khẩu, vui lòng bỏ qua email này.';
+    const subject = isRegister
+      ? '[Nội Thất] Mã OTP kích hoạt tài khoản'
+      : '[Nội Thất] Mã OTP khôi phục mật khẩu';
+
     const body = `
-      <h2 style="color:#1b1c19;font-size:18px;font-weight:600;margin:0 0 18px;text-align:center;">Mã Xác Thực Khôi Phục Mật Khẩu</h2>
+      <h2 style="color:#1b1c19;font-size:18px;font-weight:600;margin:0 0 18px;text-align:center;">${title}</h2>
       <p style="color:#434844;font-size:14px;line-height:1.6;margin:0 0 6px;">Xin chào <strong>${userName || 'Khách hàng'}</strong>,</p>
-      <p style="color:#434844;font-size:14px;line-height:1.6;margin:0 0 20px;">Chúng tôi nhận được yêu cầu đặt lại mật khẩu. Vui lòng sử dụng mã OTP dưới đây:</p>
+      <p style="color:#434844;font-size:14px;line-height:1.6;margin:0 0 20px;">${description}</p>
       <div style="background-color:#fbf9f4;padding:18px;text-align:center;font-size:30px;font-weight:700;letter-spacing:8px;color:#536257;margin:0 0 20px;border:2px dashed #bacbbe;">
         ${otp}
       </div>
       <div style="background-color:#ffdad6;border-left:4px solid #ba1a1a;padding:10px 14px;margin:0 0 14px;">
         <p style="margin:0;color:#93000a;font-size:13px;font-weight:500;">⚠ Mã OTP có hiệu lực trong 5 phút. Không chia sẻ mã này cho bất kỳ ai.</p>
       </div>
-      <p style="color:#c3c8c2;font-size:13px;margin:0;">Nếu bạn không yêu cầu thay đổi mật khẩu, vui lòng bỏ qua email này.</p>`;
+      <p style="color:#8c938d;font-size:13px;margin:0;">${footerNote}</p>`;
 
     try {
       await this.transporter.sendMail({
         from: `"Nội Thất" <${this.configService.get<string>('SMTP_USER')}>`,
         to,
-        subject: '[Nội Thất] Mã OTP khôi phục mật khẩu',
+        subject,
         html: this.wrapEmail(body),
       });
     } catch (error) {
