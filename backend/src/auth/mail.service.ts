@@ -18,7 +18,8 @@ export class MailService {
       this.transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: { user, pass },
-      });
+        family: 4,
+      } as any);
     } else {
       this.transporter = nodemailer.createTransport({
         host: host || 'smtp.gmail.com',
@@ -26,7 +27,8 @@ export class MailService {
         secure,
         auth: { user, pass },
         tls: { rejectUnauthorized: false },
-      });
+        family: 4,
+      } as any);
     }
   }
 
