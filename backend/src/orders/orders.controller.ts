@@ -284,6 +284,16 @@ export class OrdersController {
   // 2. APIs cho Admin
 
   /**
+   * [Admin/Staff] Lấy chỉ số số lượng đơn hàng phân theo từng trạng thái (dùng cho Quick Filter Tabs)
+   */
+  @Get('admin/status-counts')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  async getOrderStatusCountsAdmin() {
+    return this.ordersService.getOrderStatusCountsAdmin();
+  }
+
+  /**
    * [Admin/Staff] Lấy danh sách toàn bộ đơn hàng trong hệ thống với bộ lọc đa năng
    * @param page Trang cần truy vấn
    * @param limit Số lượng bản ghi mỗi trang
@@ -347,8 +357,9 @@ export class OrdersController {
   async updateOrderStatusAdmin(
     @Param('id', ParseIntPipe) orderId: number,
     @Body() dto: UpdateOrderStatusDto,
+    @GetUser('id') adminId: number,
   ) {
-    return this.ordersService.updateOrderStatusAdmin(orderId, dto);
+    return this.ordersService.updateOrderStatusAdmin(orderId, dto, adminId);
   }
 
   /**

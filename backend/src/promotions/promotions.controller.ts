@@ -24,8 +24,8 @@ export class PromotionsController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.STAFF)
-  @ApiOperation({ summary: 'Tạo chương trình khuyến mãi' })
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Tạo chương trình khuyến mãi (Admin)' })
   @Post()
   create(@Body() createPromotionDto: CreatePromotionDto) {
     return this.promotionsService.create(createPromotionDto);
@@ -45,8 +45,8 @@ export class PromotionsController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.STAFF)
-  @ApiOperation({ summary: 'Cập nhật chương trình khuyến mãi' })
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Cập nhật chương trình khuyến mãi (Admin)' })
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -57,8 +57,8 @@ export class PromotionsController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.STAFF)
-  @ApiOperation({ summary: 'Xóa chương trình khuyến mãi' })
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Xóa chương trình khuyến mãi (Admin)' })
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.promotionsService.remove(+id);

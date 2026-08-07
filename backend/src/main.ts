@@ -3,6 +3,12 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { types } from 'pg';
+
+// Ép thư viện pg hiểu tất cả các cột TIMESTAMP without time zone (OID 1114) trong Postgres là giờ UTC chuẩn
+types.setTypeParser(1114, (val: string) => {
+  return val ? new Date(val.replace(' ', 'T') + 'Z') : null;
+});
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

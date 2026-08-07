@@ -31,8 +31,8 @@ export class BannersController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.STAFF)
-  @ApiOperation({ summary: 'Lấy tất cả danh sách banner bao gồm ẩn (Admin & Staff)' })
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Lấy tất cả danh sách banner bao gồm ẩn (Admin)' })
   @Get('admin')
   findAllAdmin() {
     return this.bannersService.findAllAdmin();
@@ -46,8 +46,8 @@ export class BannersController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.STAFF)
-  @ApiOperation({ summary: 'Thêm mới banner (Admin & Staff)' })
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Thêm mới banner (Admin)' })
   @Post()
   create(@Body() createBannerDto: CreateBannerDto) {
     return this.bannersService.create(createBannerDto);
@@ -55,8 +55,8 @@ export class BannersController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.STAFF)
-  @ApiOperation({ summary: 'Cập nhật banner (Admin & Staff)' })
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Cập nhật banner (Admin)' })
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -67,8 +67,8 @@ export class BannersController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.STAFF)
-  @ApiOperation({ summary: 'Đổi trạng thái hiển thị của banner (Admin & Staff)' })
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Đổi trạng thái hiển thị của banner (Admin)' })
   @Patch(':id/toggle-active')
   toggleActive(@Param('id', ParseIntPipe) id: number) {
     return this.bannersService.toggleActive(id);
@@ -76,8 +76,8 @@ export class BannersController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.STAFF)
-  @ApiOperation({ summary: 'Xóa banner (Admin & Staff)' })
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Xóa banner (Admin)' })
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.bannersService.remove(id);

@@ -3,7 +3,7 @@ import api from '@/services/api';
 import toast from 'react-hot-toast';
 import ConfirmModal from '@/components/ConfirmModal';
 import useConfirmModal from '@/hooks/useConfirmModal';
-import { formatPrice, formatDate, formatAttributeValue } from '@/utils/format';
+import { formatPrice, formatDate, formatDateTime, formatAttributeValue } from '@/utils/format';
 
 import AdminPagination from '@/components/AdminPagination';
 import TableLoader from '@/components/TableLoader';
@@ -112,10 +112,16 @@ export default function OrderListPage() {
     revenue: number;
   } | null>(null);
 
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
+
   const fetchStats = async () => {
     try {
-      const res = await api.get('/orders/admin/stats');
-      setStats(res.data);
+      const [statsRes, countsRes] = await Promise.all([
+        api.get('/orders/admin/stats'),
+        api.get('/orders/admin/status-counts'),
+      ]);
+      setStats(statsRes.data);
+      setStatusCounts(countsRes.data);
     } catch {
       // silent handle
     }
@@ -448,27 +454,39 @@ export default function OrderListPage() {
         {/* Tab Status Filters */}
         <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
           {[
-            { id: '', label: 'Tất cả đơn', icon: <ShoppingBag size={14} /> },
-            { id: 'pending', label: 'Chờ xử lý', icon: <Clock size={14} /> },
-            { id: 'confirmed', label: 'Đã xác nhận', icon: <ClipboardCheck size={14} /> },
-            { id: 'shipping', label: 'Đang giao', icon: <Truck size={14} /> },
-            { id: 'delivered', label: 'Đã giao', icon: <CheckCircle size={14} /> },
-            { id: 'completed', label: 'Hoàn thành', icon: <CheckCheck size={14} /> },
-            { id: 'cancelled', label: 'Đã hủy', icon: <Ban size={14} /> },
-
+            { id: '', key: 'all', label: 'Tất cả đơn', icon: <ShoppingBag size={14} /> },
+            { id: 'pending', key: 'pending', label: 'Chờ xử lý', icon: <Clock size={14} /> },
+            { id: 'confirmed', key: 'confirmed', label: 'Đã xác nhận', icon: <ClipboardCheck size={14} /> },
+            { id: 'shipping', key: 'shipping', label: 'Đang giao', icon: <Truck size={14} /> },
+            { id: 'delivered', key: 'delivered', label: 'Đã giao', icon: <CheckCircle size={14} /> },
+            { id: 'completed', key: 'completed', label: 'Hoàn thành', icon: <CheckCheck size={14} /> },
+            { id: 'cancelled', key: 'cancelled', label: 'Đã hủy', icon: <Ban size={14} /> },
+            { id: 'return_pending', key: 'return_requested', label: 'Đổi trả', icon: <AlertCircle size={14} /> },
           ].map((tab) => {
             const isActive = statusFilter === tab.id;
+            const count = statusCounts[tab.key] || 0;
+
             return (
               <button
                 key={tab.id}
                 onClick={() => { setStatusFilter(tab.id); setPage(1); }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-none text-xs font-bold border transition-all cursor-pointer ${isActive
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-sm shadow-slate-900/10'
-                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                  }`}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-none text-xs font-bold border transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm shadow-slate-900/10'
+                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                }`}
               >
                 {tab.icon}
                 <span>{tab.label}</span>
+                {count > 0 && (
+                  <span
+                    className={`px-1.5 py-0.2 text-[10px] font-mono font-bold rounded-full ${
+                      isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700 border border-slate-200'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -587,7 +605,7 @@ export default function OrderListPage() {
                   <Package size={20} className="text-blue-600" />
                   Đơn hàng #{selectedOrder.id}
                 </h3>
-                <p className="text-xs text-slate-400 font-medium mt-1">Đặt lúc: {formatDate(selectedOrder.created_at)}</p>
+                <p className="text-xs text-slate-400 font-medium mt-1">Đặt lúc: {formatDateTime(selectedOrder.created_at)}</p>
               </div>
               <button
                 onClick={() => setShowModal(false)}
@@ -800,7 +818,7 @@ export default function OrderListPage() {
                       <div className="relative">
                         <div className="absolute -left-[23px] top-0.5 w-3.5 h-3.5 rounded-none bg-blue-600 border-2 border-white ring-4 ring-blue-50" />
                         <div className="font-bold text-slate-800">Đơn hàng được tạo thành công</div>
-                        <div className="text-slate-400 text-[10px] mt-0.5">{formatDate(selectedOrder.created_at)}</div>
+                        <div className="text-slate-400 text-[10px] mt-0.5">{formatDateTime(selectedOrder.created_at)}</div>
                       </div>
 
                       {/* Step 2: Confirmed */}
@@ -809,7 +827,7 @@ export default function OrderListPage() {
                           <div className="absolute -left-[23px] top-0.5 w-3.5 h-3.5 rounded-none bg-blue-600 border-2 border-white ring-4 ring-blue-50" />
                           <div className="font-bold text-slate-800">Đã xác nhận đơn hàng</div>
                           <div className="text-slate-400 text-[10px] mt-0.5">
-                            {selectedOrder.confirmed_at ? formatDate(selectedOrder.confirmed_at) : 'Admin đã xác thực thông tin đơn'}
+                            {selectedOrder.confirmed_at ? formatDateTime(selectedOrder.confirmed_at) : 'Admin đã xác thực thông tin đơn'}
                           </div>
                         </div>
                       ) : selectedOrder.status === 'cancelled' ? (
@@ -817,7 +835,7 @@ export default function OrderListPage() {
                           <div className="absolute -left-[23px] top-0.5 w-3.5 h-3.5 rounded-none bg-rose-600 border-2 border-white ring-4 ring-rose-50" />
                           <div className="font-bold text-rose-700">Đơn hàng đã hủy</div>
                           <div className="text-slate-400 text-[10px] mt-0.5">
-                            {selectedOrder.cancelled_at ? formatDate(selectedOrder.cancelled_at) : 'Không còn hiệu lực xử lý'}
+                            {selectedOrder.cancelled_at ? formatDateTime(selectedOrder.cancelled_at) : 'Không còn hiệu lực xử lý'}
                           </div>
                           {selectedOrder.cancel_reason && (
                             <div className="mt-2 bg-rose-50 border border-rose-200 text-rose-800 p-2.5 rounded-none text-xs">
@@ -839,7 +857,7 @@ export default function OrderListPage() {
                           <div className="absolute -left-[23px] top-0.5 w-3.5 h-3.5 rounded-none bg-blue-600 border-2 border-white ring-4 ring-blue-50" />
                           <div className="font-bold text-slate-800">Đang vận chuyển</div>
                           <div className="text-slate-400 text-[10px] mt-0.5">
-                            {selectedOrder.shipping_at ? formatDate(selectedOrder.shipping_at) : 'Hàng hóa đang trên đường giao hàng'}
+                            {selectedOrder.shipping_at ? formatDateTime(selectedOrder.shipping_at) : 'Hàng hóa đang trên đường giao hàng'}
                           </div>
                         </div>
                       ) : selectedOrder.status !== 'cancelled' ? (
@@ -855,7 +873,7 @@ export default function OrderListPage() {
                           <div className="absolute -left-[23px] top-0.5 w-3.5 h-3.5 rounded-none bg-blue-600 border-2 border-white ring-4 ring-blue-50" />
                           <div className="font-bold text-slate-800">Đã giao thành công</div>
                           <div className="text-slate-400 text-[10px] mt-0.5">
-                            {selectedOrder.delivered_at ? formatDate(selectedOrder.delivered_at) : 'Chờ khách xác nhận đã nhận sản phẩm'}
+                            {selectedOrder.delivered_at ? formatDateTime(selectedOrder.delivered_at) : 'Chờ khách xác nhận đã nhận sản phẩm'}
                           </div>
                         </div>
                       ) : selectedOrder.status !== 'cancelled' ? (
@@ -871,7 +889,7 @@ export default function OrderListPage() {
                           <div className="absolute -left-[23px] top-0.5 w-3.5 h-3.5 rounded-none bg-emerald-600 border-2 border-white ring-4 ring-emerald-50" />
                           <div className="font-bold text-emerald-700">Đơn hàng hoàn tất</div>
                           <div className="text-slate-400 text-[10px] mt-0.5">
-                            {selectedOrder.completed_at ? formatDate(selectedOrder.completed_at) : 'Đơn hàng đã được hoàn tất trước khi yêu cầu đổi trả'}
+                            {selectedOrder.completed_at ? formatDateTime(selectedOrder.completed_at) : 'Đơn hàng đã được hoàn tất trước khi yêu cầu đổi trả'}
                           </div>
                         </div>
                       ) : selectedOrder.status !== 'cancelled' ? (
@@ -890,7 +908,7 @@ export default function OrderListPage() {
                             <div className="font-bold text-amber-700">Yêu cầu đổi trả hàng</div>
 
                             <div className="text-slate-400 text-[10px] mt-0.5">
-                              {selectedOrder.return_requested_at ? formatDate(selectedOrder.return_requested_at) : 'Khách hàng đã gửi yêu cầu đổi trả'}
+                              {selectedOrder.return_requested_at ? formatDateTime(selectedOrder.return_requested_at) : 'Khách hàng đã gửi yêu cầu đổi trả'}
                             </div>
                           </div>
 
@@ -900,7 +918,7 @@ export default function OrderListPage() {
                               <div className="absolute -left-[23px] top-0.5 w-3.5 h-3.5 rounded-none bg-emerald-600 border-2 border-white ring-4 ring-emerald-50" />
                               <div className="font-bold text-emerald-700">Chấp nhận đổi trả hàng</div>
                               <div className="text-slate-400 text-[10px] mt-0.5">
-                                {selectedOrder.return_handled_at ? formatDate(selectedOrder.return_handled_at) : 'Yêu cầu đổi trả đã được duyệt'}
+                                {selectedOrder.return_handled_at ? formatDateTime(selectedOrder.return_handled_at) : 'Yêu cầu đổi trả đã được duyệt'}
                               </div>
                             </div>
                           ) : selectedOrder.status === 'return_rejected' ? (
@@ -909,7 +927,7 @@ export default function OrderListPage() {
                               <div className="font-bold text-rose-700">Từ chối đổi trả hàng</div>
 
                               <div className="text-slate-400 text-[10px] mt-0.5">
-                                {selectedOrder.return_handled_at ? formatDate(selectedOrder.return_handled_at) : 'Yêu cầu đổi trả bị từ chối'}
+                                {selectedOrder.return_handled_at ? formatDateTime(selectedOrder.return_handled_at) : 'Yêu cầu đổi trả bị từ chối'}
                               </div>
                             </div>
                           ) : (

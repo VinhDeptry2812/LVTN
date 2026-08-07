@@ -15,9 +15,10 @@ import {
 import { checkCanReview, createReview, updateReview, getMyReviews, type Review } from '@/services/review.service';
 import api from '@/services/api';
 import { getProductImage } from '@/utils/image';
-import { formatDate, formatPrice } from '@/utils/format';
+import { formatDate, formatDateTime, formatPrice } from '@/utils/format';
 import { useConfirmModal } from '@/hooks/useConfirmModal';
 import { useDragScroll } from '@/hooks/useDragScroll';
+import OrderTrackingTimeline from '@/components/OrderTrackingTimeline';
 
 interface OrderHistoryTabProps {
   user: any;
@@ -742,7 +743,7 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                   </span>
                   <span className="text-on-surface-variant/60">•</span>
                   <span className="text-on-surface-variant/80">
-                    {formatDate(order.created_at)}
+                    {formatDateTime(order.created_at)}
                   </span>
                 </div>
 
@@ -1131,6 +1132,11 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
             </div>
 
             <div className="p-6 space-y-6 flex-1">
+              {/* Order Tracking Timeline Widget */}
+              <div className="bg-slate-50/80 p-4 rounded border border-slate-200/80 shadow-sm">
+                <OrderTrackingTimeline status={selectedOrder.status} />
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-surface-container-low/20 p-4 border border-outline-variant/30 rounded-sm text-sm">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
@@ -1138,7 +1144,7 @@ const OrderHistoryTab: React.FC<OrderHistoryTabProps> = ({ user }) => {
                       Ngày đặt:
                     </span>
                     <span className="text-on-surface font-medium">
-                      {new Date(selectedOrder.created_at).toLocaleString('vi-VN')}
+                      {formatDateTime(selectedOrder.created_at)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">

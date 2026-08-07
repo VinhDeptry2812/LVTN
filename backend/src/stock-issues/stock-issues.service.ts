@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { StockIssue, StockIssueStatus } from './stock-issue.entity';
+import { StockIssue, StockIssueStatus, StockIssueReason } from './stock-issue.entity';
 import { StockIssueItem } from './stock-issue-item.entity';
 import { ProductVariant } from '../products/product-variant.entity';
 import { InventoryTransaction } from '../products/inventory-transaction.entity';
@@ -229,29 +229,33 @@ export class StockIssuesService {
             );
           }
 
-          if (variant.stock < item.quantity) {
-            const productName = item.variant?.product?.name || 'Sản phẩm';
-            throw new BadRequestException(
-              `Số lượng tồn kho của "${productName} (${variant.sku})" không đủ để xuất (Tồn: ${variant.stock}, Yêu cầu xuất: ${item.quantity})`,
+          // Đối với phiếu xuất bán đơn hàng (ORDER_SALE), tồn kho đã được trừ ngay lúc tạo đơn hàng (Reserve Stock).
+          // Do đó chỉ trừ tồn kho đối với các phiếu xuất kho thủ công khác (Hàng hỏng, hết hạn, xuất nội bộ...)
+          if (issue.reason !== StockIssueReason.ORDER_SALE && !issue.order_id) {
+            if (variant.stock < item.quantity) {
+              const productName = item.variant?.product?.name || 'Sản phẩm';
+              throw new BadRequestException(
+                `Số lượng tồn kho của "${productName} (${variant.sku})" không đủ để xuất (Tồn: ${variant.stock}, Yêu cầu xuất: ${item.quantity})`,
+              );
+            }
+
+            const prevStock = variant.stock;
+            variant.stock -= item.quantity;
+            await queryRunner.manager.save(variant);
+
+            // Log inventory transaction
+            await this.logTransaction(
+              queryRunner.manager,
+              variant.id,
+              -item.quantity,
+              prevStock,
+              variant.stock,
+              'stock_out',
+              `Xuất kho theo phiếu ${issue.code || '#' + issue.id} (${issue.reason})`,
+              issue.id.toString(),
+              userId,
             );
           }
-
-          const prevStock = variant.stock;
-          variant.stock -= item.quantity;
-          await queryRunner.manager.save(variant);
-
-          // Log inventory transaction
-          await this.logTransaction(
-            queryRunner.manager,
-            variant.id,
-            -item.quantity,
-            prevStock,
-            variant.stock,
-            'stock_out',
-            `Xuất kho theo phiếu ${issue.code || '#' + issue.id} (${issue.reason})`,
-            issue.id.toString(),
-            userId,
-          );
 
           // Check low stock and notify
           if (variant.stock <= 5 && this.notificationsService) {

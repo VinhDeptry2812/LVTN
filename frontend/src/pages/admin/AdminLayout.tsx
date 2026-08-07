@@ -23,7 +23,8 @@ import {
   Database,
   ShieldCheck,
   Users,
-  Image as ImageIcon
+  Image as ImageIcon,
+  FileText
 } from 'lucide-react';
 import api from '@/services/api';
 import { toast } from 'react-hot-toast';
@@ -75,6 +76,7 @@ const navigationGroups: NavGroup[] = [
       { to: '/admin/categories', icon: FolderTree, label: 'Danh mục' },
       { to: '/admin/collections', icon: Layers, label: 'Bộ sưu tập' },
       { to: '/admin/banners', icon: ImageIcon, label: 'Quản lý Banner' },
+      { to: '/admin/posts', icon: FileText, label: 'Quản lý Bài viết' },
       {
         icon: ShoppingBag,
         label: 'Quản lý đơn hàng',

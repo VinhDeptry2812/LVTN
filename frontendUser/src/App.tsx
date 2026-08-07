@@ -15,6 +15,8 @@ import AboutFurniturePage from '@/pages/AboutFurniturePage';
 import AboutStorePage from '@/pages/AboutStorePage';
 import WarrantyPolicyPage from '@/pages/WarrantyPolicyPage';
 import WarrantyLookupPage from '@/pages/WarrantyLookupPage';
+import BlogListPage from '@/pages/BlogListPage';
+import BlogDetailPage from '@/pages/BlogDetailPage';
 import toast from 'react-hot-toast';
 import FloatingContact from '@/components/FloatingContact';
 import { useEffect } from 'react';
@@ -94,6 +96,8 @@ function App() {
         <Route path="/about-store" element={<AboutStorePage />} />
         <Route path="/warranty-policy" element={<WarrantyPolicyPage />} />
         <Route path="/warranty-lookup" element={<WarrantyLookupPage />} />
+        <Route path="/blog" element={<BlogListPage />} />
+        <Route path="/blog/:slug" element={<BlogDetailPage />} />
         <Route path="/login" element={<LoginCallback />} />
         {/* Redirect default to homepage */}
         <Route path="*" element={<Navigate to="/" replace />} />

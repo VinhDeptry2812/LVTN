@@ -6,7 +6,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, LessThan, In, Raw, MoreThanOrEqual, Between } from 'typeorm';
+import { Repository, DataSource, LessThan, LessThanOrEqual, In, Raw, MoreThanOrEqual, Between } from 'typeorm';
 import { Order, OrderStatus, PaymentStatus, PaymentMethod } from './order.entity';
 import { OrderItem } from './order-item.entity';
 import { OrderReturn } from './order-return.entity';
@@ -329,6 +329,32 @@ export class OrdersService implements OnModuleInit {
 
       const savedOrder = await queryRunner.manager.save(order);
 
+      // Trừ tồn kho ngay lập tức khi đặt hàng thành công (Giữ kho tránh over-selling)
+      for (const item of dto.items) {
+        if (item.variant_id) {
+          const variant = await queryRunner.manager.findOne(ProductVariant, {
+            where: { id: item.variant_id },
+            lock: { mode: 'pessimistic_write' },
+          });
+          if (variant) {
+            const prevStock = variant.stock;
+            variant.stock = Math.max(0, variant.stock - item.quantity);
+            await queryRunner.manager.save(variant);
+
+            await this.logTransaction(
+              queryRunner.manager,
+              variant.id,
+              -item.quantity,
+              prevStock,
+              variant.stock,
+              'sale',
+              `Trừ kho giữ hàng cho đơn hàng #${savedOrder.id}`,
+              savedOrder.id.toString(),
+            );
+          }
+        }
+      }
+
       if (userId) {
         try {
           await this.cartService.clearCart(userId);
@@ -336,41 +362,6 @@ export class OrdersService implements OnModuleInit {
           // Ignore if cart doesn't exist
         }
       }
-
-      // Tự động tạo Phiếu xuất kho ở trạng thái PENDING (Chờ duyệt xuất kho)
-      const stockIssue = new StockIssue();
-      stockIssue.reason = StockIssueReason.ORDER_SALE;
-      stockIssue.status = StockIssueStatus.PENDING;
-      stockIssue.order_id = savedOrder.id;
-      stockIssue.notes = `Tự động tạo từ đơn hàng #${savedOrder.id}`;
-      if (userId) {
-        stockIssue.created_by = { id: userId } as unknown as User;
-      }
-
-      let issueTotalAmount = 0;
-      const issueItems: StockIssueItem[] = [];
-      for (const item of dto.items) {
-        if (item.variant_id) {
-          const variant = await queryRunner.manager.findOne(ProductVariant, {
-            where: { id: item.variant_id },
-          });
-          if (variant) {
-            const issueItem = new StockIssueItem();
-            issueItem.variant = variant;
-            issueItem.quantity = item.quantity;
-            issueItem.unit_price = item.price;
-            issueItem.stock_issue = stockIssue;
-            issueItems.push(issueItem);
-            issueTotalAmount += item.quantity * item.price;
-          }
-        }
-      }
-      stockIssue.items = issueItems;
-      stockIssue.total_amount = issueTotalAmount;
-
-      const savedIssue = await queryRunner.manager.save(StockIssue, stockIssue);
-      savedIssue.code = `PXK${savedIssue.id.toString().padStart(5, '0')}`;
-      await queryRunner.manager.save(StockIssue, savedIssue);
 
       await queryRunner.commitTransaction();
       this.triggerOrderStatusEmailNotification(savedOrder.id, savedOrder.status);
@@ -381,14 +372,8 @@ export class OrdersService implements OnModuleInit {
           type: 'info',
           reference_link: '/admin/orders',
         });
-        await this.notificationsService.create({
-          title: 'Phiếu xuất kho mới (Từ đơn hàng)',
-          message: `Phiếu xuất kho ${savedIssue.code} (cho Đơn hàng #${savedOrder.id}) đã được khởi tạo và đang chờ duyệt xuất kho.`,
-          type: 'info',
-          reference_link: `/admin/stock-issues/${savedIssue.id}`,
-        });
       } catch (e) {
-        console.error('Lỗi khi tạo thông báo đơn hàng / phiếu xuất kho mới:', e);
+        console.error('Lỗi khi tạo thông báo đơn hàng mới:', e);
       }
       return savedOrder;
     } catch (error) {
@@ -668,9 +653,53 @@ export class OrdersService implements OnModuleInit {
     return { data, total, page, limit };
   }
 
+  /**
+   * Đếm số lượng đơn hàng theo từng trạng thái (dùng cho Quick Filter Tabs phía Admin/Staff)
+   */
+  async getOrderStatusCountsAdmin(): Promise<Record<string, number>> {
+    const counts = await this.orderRepository
+      .createQueryBuilder('order')
+      .select('order.status', 'status')
+      .addSelect('COUNT(order.id)', 'count')
+      .groupBy('order.status')
+      .getRawMany();
+
+    const result: Record<string, number> = {
+      ALL: 0,
+      PENDING: 0,
+      CONFIRMED: 0,
+      PROCESSING: 0,
+      SHIPPING: 0,
+      DELIVERED: 0,
+      COMPLETED: 0,
+      CANCELLED: 0,
+      RETURN_REQUEST: 0,
+    };
+
+    let total = 0;
+    counts.forEach((item) => {
+      const cnt = Number(item.count || 0);
+      total += cnt;
+      if (item.status) {
+        result[item.status] = cnt;
+      }
+      if (
+        item.status === OrderStatus.RETURN_PENDING ||
+        item.status === OrderStatus.RETURN_APPROVED ||
+        item.status === OrderStatus.RETURN_REJECTED
+      ) {
+        result.RETURN_REQUEST = (result.RETURN_REQUEST || 0) + cnt;
+      }
+    });
+
+    result.ALL = total;
+    return result;
+  }
+
   async updateOrderStatusAdmin(
     orderId: number,
     dto: UpdateOrderStatusDto,
+    adminId?: number,
   ): Promise<Order> {
     const order = await this.orderRepository.findOne({
       where: { id: orderId },
@@ -734,6 +763,7 @@ export class OrdersService implements OnModuleInit {
         order.status = dto.status;
         if (dto.status === OrderStatus.CONFIRMED) {
           order.confirmed_at = new Date();
+          await this.createStockIssueForOrder(queryRunner.manager, order, adminId);
         } else if (dto.status === OrderStatus.SHIPPING) {
           order.shipping_at = new Date();
         } else if (dto.status === OrderStatus.DELIVERED) {
@@ -1068,6 +1098,26 @@ export class OrdersService implements OnModuleInit {
       },
     });
 
+    // 5. Lấy danh sách sản phẩm/biến thể tồn kho thấp (<= 5) cho Low Stock Alert Widget
+    const lowStockVariantsRaw = await this.dataSource
+      .getRepository(ProductVariant)
+      .find({
+        where: { stock: LessThanOrEqual(5) },
+        relations: { product: { images: true } },
+        order: { stock: 'ASC' },
+        take: 5,
+      });
+
+    const lowStockVariants = lowStockVariantsRaw.map((v) => ({
+      id: v.id,
+      sku: v.sku,
+      stock: v.stock,
+      attributes: v.attributes,
+      product_id: v.product?.id,
+      product_name: v.product?.name,
+      image_url: v.image_url || v.product?.images?.[0]?.image_url || '',
+    }));
+
     return {
       totalOrders,
       pendingOrders,
@@ -1079,6 +1129,7 @@ export class OrdersService implements OnModuleInit {
       chartData,
       monthlyRevenue: chartData,
       recentOrders,
+      lowStockVariants,
     };
   }
 
@@ -1151,10 +1202,11 @@ export class OrdersService implements OnModuleInit {
       }
 
       if (isSuccess) {
-        // Thanh toán thành công → tự động xác nhận đơn hàng
+        // Thanh toán thành công → tự động xác nhận đơn hàng và tạo phiếu xuất kho PENDING
         order.status = OrderStatus.CONFIRMED;
         order.confirmed_at = new Date();
         order.cancelled_at = null;
+        await this.createStockIssueForOrder(queryRunner.manager, order);
 
         if (wasPreviouslyCancelled) {
           console.log(
@@ -1764,6 +1816,59 @@ export class OrdersService implements OnModuleInit {
     });
   }
 
+  private async createStockIssueForOrder(
+    manager: any,
+    order: Order,
+    userId?: number,
+  ): Promise<StockIssue | null> {
+    const existingIssue = await manager.findOne(StockIssue, {
+      where: { order_id: order.id },
+    });
+    if (existingIssue) {
+      return existingIssue;
+    }
+
+    const fullOrder = await manager.findOne(Order, {
+      where: { id: order.id },
+      relations: { user: true, items: { variant: { product: true } } },
+    });
+
+    if (!fullOrder || !fullOrder.items || fullOrder.items.length === 0) {
+      return null;
+    }
+
+    const stockIssue = new StockIssue();
+    stockIssue.reason = StockIssueReason.ORDER_SALE;
+    stockIssue.status = StockIssueStatus.PENDING;
+    stockIssue.order_id = fullOrder.id;
+    stockIssue.notes = `Tự động tạo khi đơn hàng #${fullOrder.id} được xác nhận`;
+    if (userId) {
+      stockIssue.created_by = { id: userId } as unknown as User;
+    } else {
+      stockIssue.created_by = null;
+    }
+
+    let issueTotalAmount = 0;
+    const issueItems: StockIssueItem[] = [];
+    for (const item of fullOrder.items) {
+      if (item.variant) {
+        const issueItem = new StockIssueItem();
+        issueItem.variant = item.variant;
+        issueItem.quantity = item.quantity;
+        issueItem.unit_price = item.price;
+        issueItem.stock_issue = stockIssue;
+        issueItems.push(issueItem);
+        issueTotalAmount += item.quantity * Number(item.price);
+      }
+    }
+    stockIssue.items = issueItems;
+    stockIssue.total_amount = issueTotalAmount;
+
+    const savedIssue = await manager.save(StockIssue, stockIssue);
+    savedIssue.code = `PXK${savedIssue.id.toString().padStart(5, '0')}`;
+    return await manager.save(StockIssue, savedIssue);
+  }
+
   private async cancelStockIssueForOrder(
     manager: any,
     orderId: number,
@@ -1775,10 +1880,10 @@ export class OrdersService implements OnModuleInit {
     });
 
     if (stockIssue) {
-      if (stockIssue.status === StockIssueStatus.PENDING) {
-        stockIssue.status = StockIssueStatus.CANCELLED;
-        await manager.save(StockIssue, stockIssue);
-      } else if (stockIssue.status === StockIssueStatus.COMPLETED) {
+      if (
+        stockIssue.status === StockIssueStatus.PENDING ||
+        stockIssue.status === StockIssueStatus.COMPLETED
+      ) {
         stockIssue.status = StockIssueStatus.CANCELLED;
         await manager.save(StockIssue, stockIssue);
         for (const item of stockIssue.items) {
@@ -1799,6 +1904,37 @@ export class OrdersService implements OnModuleInit {
                 variant.stock,
                 'return',
                 `${reasonNote} (Hoàn kho từ phiếu xuất ${stockIssue.code || '#' + stockIssue.id})`,
+                orderId.toString(),
+              );
+            }
+          }
+        }
+      }
+    } else {
+      // Đơn hàng bị hủy ở trạng thái PENDING (chưa tạo Phiếu xuất kho)
+      const order = await manager.findOne(Order, {
+        where: { id: orderId },
+        relations: { items: { variant: true } },
+      });
+      if (order && order.items) {
+        for (const item of order.items) {
+          if (item.variant) {
+            const variant = await manager.findOne(ProductVariant, {
+              where: { id: item.variant.id },
+              lock: { mode: 'pessimistic_write' },
+            });
+            if (variant) {
+              const prevStock = variant.stock;
+              variant.stock += item.quantity;
+              await manager.save(variant);
+              await this.logTransaction(
+                manager,
+                variant.id,
+                item.quantity,
+                prevStock,
+                variant.stock,
+                'return',
+                `${reasonNote} (Hoàn kho giữ hàng cho đơn hàng #${orderId})`,
                 orderId.toString(),
               );
             }

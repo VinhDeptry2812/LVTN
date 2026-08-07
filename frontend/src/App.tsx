@@ -32,6 +32,7 @@ import BannerListPage from '@/pages/admin/marketing/BannerListPage';
 import VoucherListPage from '@/pages/admin/marketing/VoucherListPage';
 import PromotionListPage from '@/pages/admin/marketing/PromotionListPage';
 import ReviewListPage from '@/pages/admin/marketing/ReviewListPage';
+import PostListPage from '@/pages/admin/marketing/PostListPage';
 
 // Warranties
 import WarrantyListPage from '@/pages/admin/warranties/WarrantyListPage';
@@ -79,6 +80,7 @@ function App() {
         <Route path="users" element={<UserListPage />} />
         <Route path="customers" element={<CustomerListPage />} />
         <Route path="reviews" element={<ReviewListPage />} />
+        <Route path="posts" element={<PostListPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
 

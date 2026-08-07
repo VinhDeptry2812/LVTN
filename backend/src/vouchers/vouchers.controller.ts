@@ -53,8 +53,8 @@ export class VouchersController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.STAFF)
-  @ApiOperation({ summary: 'Thêm mới mã voucher (Admin & Staff)' })
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Thêm mới mã voucher (Admin)' })
   @Post()
   create(@Body() createVoucherDto: CreateVoucherDto) {
     return this.vouchersService.create(createVoucherDto);
@@ -70,8 +70,8 @@ export class VouchersController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.STAFF)
-  @ApiOperation({ summary: 'Lấy tất cả các mã voucher (Admin & Staff)' })
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Lấy tất cả các mã voucher (Admin)' })
   @Get()
   findAll(@Query('page') page?: string, @Query('limit') limit?: string) {
     return this.vouchersService.findAll(
@@ -82,8 +82,8 @@ export class VouchersController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.STAFF)
-  @ApiOperation({ summary: 'Lấy chi tiết mã voucher (Admin & Staff)' })
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Lấy chi tiết mã voucher (Admin)' })
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.vouchersService.findOne(+id);
@@ -91,8 +91,8 @@ export class VouchersController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.STAFF)
-  @ApiOperation({ summary: 'Cập nhật mã voucher (Admin & Staff)' })
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Cập nhật mã voucher (Admin)' })
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateVoucherDto: UpdateVoucherDto) {
     return this.vouchersService.update(+id, updateVoucherDto);
@@ -100,8 +100,8 @@ export class VouchersController {
 
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.STAFF)
-  @ApiOperation({ summary: 'Xóa mã voucher (Admin & Staff)' })
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Xóa mã voucher (Admin)' })
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.vouchersService.remove(+id);

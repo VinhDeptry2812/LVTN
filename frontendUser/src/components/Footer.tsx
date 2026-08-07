@@ -90,6 +90,9 @@ export default function Footer() {
                 <Link to="/about-furniture" className="hover:text-primary transition-colors">Về thương hiệu Nội thất</Link>
               </li>
               <li>
+                <Link to="/blog" className="hover:text-primary transition-colors font-medium text-primary">Tin tức & Mẹo nội thất</Link>
+              </li>
+              <li>
                 <Link to="/about-store" className="hover:text-primary transition-colors">Hệ thống Showroom</Link>
               </li>
               <li>

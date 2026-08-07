@@ -35,10 +35,10 @@ export class OrderReturn {
   @Column({ type: 'text', nullable: true })
   rejected_reason: string | null;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   requested_at: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   handled_at: Date | null;
 
   @Column({ type: 'varchar', length: 50, default: 'refund' })

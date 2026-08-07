@@ -440,6 +440,22 @@ export default function Header() {
                 </Link>
               </div>
             </div>
+
+            {/* Mục: Tin tức & Mẹo */}
+            <div className="relative group py-6">
+              <Link
+                to="/blog"
+                className={`font-label-md text-label-md relative flex items-center transition-colors ${isActive('/blog')
+                  ? 'text-primary font-bold'
+                  : 'text-on-surface-variant group-hover:text-primary'
+                  }`}
+              >
+                <span>Tin tức & Mẹo</span>
+                {isActive('/blog') && (
+                  <span className="absolute -bottom-1 left-0 w-full h-[2.5px] bg-primary rounded-full"></span>
+                )}
+              </Link>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-sp-md">

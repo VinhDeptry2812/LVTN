@@ -71,7 +71,7 @@ export class StockIssue {
   @JoinColumn({ name: 'reviewed_by_id' })
   reviewed_by: User | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   completed_at: Date;
 
   @Column({ type: 'text', nullable: true })

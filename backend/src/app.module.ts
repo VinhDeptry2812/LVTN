@@ -30,6 +30,7 @@ import { BannersModule } from './banners/banners.module';
 import { PromotionsModule } from './promotions/promotions.module';
 import { ShippingSettingsModule } from './shipping-settings/shipping-settings.module';
 import { TasksModule } from './tasks/tasks.module';
+import { PostsModule } from './posts/posts.module';
 
 @Module({
   imports: [
@@ -50,6 +51,9 @@ import { TasksModule } from './tasks/tasks.module';
         username: configService.get<string>('DB_USERNAME', 'postgres'),
         password: configService.get<string>('DB_PASSWORD', 'password123'),
         database: configService.get<string>('DB_DATABASE', 'furnishop'),
+        extra: {
+          options: '-c timezone=UTC',
+        },
         ssl:
           configService.get<string>('DB_SSL') === 'true'
             ? { rejectUnauthorized: false }
@@ -84,6 +88,7 @@ import { TasksModule } from './tasks/tasks.module';
     BannersModule,
     TasksModule,
     ShippingSettingsModule,
+    PostsModule,
   ],
   controllers: [AppController],
   providers: [
