@@ -26,17 +26,6 @@ import { useCartStore } from '@/store/useCartStore';
 // Register GSAP plugins
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
-const DEFAULT_HERO_SLIDES: SlideItem[] = [
-  {
-    image: 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=1200&auto=format&fit=crop',
-    badge: 'Nội Thất Cao Cấp 2026',
-    title: 'Không Gian Sống Hiện Đại & Tinh Tế',
-    description: 'Khám phá các bộ sưu tập nội thất độc bản, nâng tầm đẳng cấp ngôi nhà Việt.',
-    btnText: 'Khám phá ngay',
-    btnUrl: '/shop'
-  }
-];
-
 export default function HomePage() {
   const heroRef = useRef<HTMLDivElement>(null);
   const servicesRef = useRef<HTMLDivElement>(null);
@@ -55,13 +44,13 @@ export default function HomePage() {
   const [featuredReviews, setFeaturedReviews] = useState<any[]>([]);
   const addItem = useCartStore((state) => state.addItem);
 
-  // Hero Banner Slider States (Khởi tạo slide mặc định để LCP vẽ ngay trong 0.2s)
+  // Hero Banner Slider States
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const [slides, setSlides] = useState<SlideItem[]>(DEFAULT_HERO_SLIDES);
-  const [isBannersLoading, setIsBannersLoading] = useState(false);
+  const [slides, setSlides] = useState<SlideItem[]>([]);
+  const [isBannersLoading, setIsBannersLoading] = useState(true);
 
   // Autoplay & Progress timer for Hero Banner Carousel
   useEffect(() => {
@@ -155,8 +144,12 @@ export default function HomePage() {
           }));
           setSlides(mappedSlides);
         }
+        setIsBannersLoading(false);
       })
-      .catch((err) => console.error('Failed to load active banners:', err));
+      .catch((err) => {
+        console.error('Failed to load active banners:', err);
+        setIsBannersLoading(false);
+      });
 
     Promise.all([
       getCategories(),
