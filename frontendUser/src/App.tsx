@@ -1,28 +1,40 @@
+import React, { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import HomePage from '@/pages/HomePage';
-import ShopPage from '@/pages/ShopPage';
-import ProductDetailPage from '@/pages/ProductDetailPage';
-import CartPage from '@/pages/CartPage';
-import CheckoutPage from '@/pages/CheckoutPage';
-import PaymentResultPage from '@/pages/PaymentResultPage';
-import RegisterPage from '@/pages/RegisterPage';
-import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
-import CollectionListPage from '@/pages/CollectionListPage';
-import CollectionPage from '@/pages/CollectionPage';
-import SearchPage from '@/pages/SearchPage';
-import ProfilePage from '@/pages/ProfilePage';
-import AboutFurniturePage from '@/pages/AboutFurniturePage';
-import AboutStorePage from '@/pages/AboutStorePage';
-import WarrantyPolicyPage from '@/pages/WarrantyPolicyPage';
-import WarrantyLookupPage from '@/pages/WarrantyLookupPage';
-import BlogListPage from '@/pages/BlogListPage';
-import BlogDetailPage from '@/pages/BlogDetailPage';
 import toast from 'react-hot-toast';
 import FloatingContact from '@/components/FloatingContact';
-import { useEffect } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useCartStore } from '@/store/useCartStore';
 import authService from '@/services/auth.service';
+
+// Eager load HomePage for fast initial paint
+import HomePage from '@/pages/HomePage';
+
+// Lazy load secondary routes for optimal code splitting & lower initial bundle size
+const ShopPage = lazy(() => import('@/pages/ShopPage'));
+const ProductDetailPage = lazy(() => import('@/pages/ProductDetailPage'));
+const CartPage = lazy(() => import('@/pages/CartPage'));
+const CheckoutPage = lazy(() => import('@/pages/CheckoutPage'));
+const PaymentResultPage = lazy(() => import('@/pages/PaymentResultPage'));
+const RegisterPage = lazy(() => import('@/pages/RegisterPage'));
+const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
+const CollectionListPage = lazy(() => import('@/pages/CollectionListPage'));
+const CollectionPage = lazy(() => import('@/pages/CollectionPage'));
+const SearchPage = lazy(() => import('@/pages/SearchPage'));
+const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
+const AboutFurniturePage = lazy(() => import('@/pages/AboutFurniturePage'));
+const AboutStorePage = lazy(() => import('@/pages/AboutStorePage'));
+const WarrantyPolicyPage = lazy(() => import('@/pages/WarrantyPolicyPage'));
+const WarrantyLookupPage = lazy(() => import('@/pages/WarrantyLookupPage'));
+const BlogListPage = lazy(() => import('@/pages/BlogListPage'));
+const BlogDetailPage = lazy(() => import('@/pages/BlogDetailPage'));
+
+function PageLoader() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center bg-white">
+      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+    </div>
+  );
+}
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -79,29 +91,31 @@ function App() {
   return (
     <>
       <ScrollToTop />
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/shop" element={<ShopPage />} />
-        <Route path="/search" element={<SearchPage />} />
-        <Route path="/product/:id" element={<ProductDetailPage />} />
-        <Route path="/collections" element={<CollectionListPage />} />
-        <Route path="/collection/:slug" element={<CollectionPage />} />
-        <Route path="/cart" element={<CartPage />} />
-        <Route path="/checkout" element={<CheckoutPage />} />
-        <Route path="/payment/result" element={<PaymentResultPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/about-furniture" element={<AboutFurniturePage />} />
-        <Route path="/about-store" element={<AboutStorePage />} />
-        <Route path="/warranty-policy" element={<WarrantyPolicyPage />} />
-        <Route path="/warranty-lookup" element={<WarrantyLookupPage />} />
-        <Route path="/blog" element={<BlogListPage />} />
-        <Route path="/blog/:slug" element={<BlogDetailPage />} />
-        <Route path="/login" element={<LoginCallback />} />
-        {/* Redirect default to homepage */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/shop" element={<ShopPage />} />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/product/:id" element={<ProductDetailPage />} />
+          <Route path="/collections" element={<CollectionListPage />} />
+          <Route path="/collection/:slug" element={<CollectionPage />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/payment/result" element={<PaymentResultPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/about-furniture" element={<AboutFurniturePage />} />
+          <Route path="/about-store" element={<AboutStorePage />} />
+          <Route path="/warranty-policy" element={<WarrantyPolicyPage />} />
+          <Route path="/warranty-lookup" element={<WarrantyLookupPage />} />
+          <Route path="/blog" element={<BlogListPage />} />
+          <Route path="/blog/:slug" element={<BlogDetailPage />} />
+          <Route path="/login" element={<LoginCallback />} />
+          {/* Redirect default to homepage */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
       <FloatingContact />
     </>
   );

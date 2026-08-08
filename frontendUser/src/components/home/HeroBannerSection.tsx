@@ -97,6 +97,9 @@ export const HeroBannerSection = forwardRef<HTMLElement, HeroBannerSectionProps>
                   isActive ? 'scale-105' : 'scale-100'
                 }`}
                 src={heroBannerImage(slide.image)}
+                fetchPriority={isActive ? 'high' : 'low'}
+                loading={isActive ? 'eager' : 'lazy'}
+                decoding="async"
               />
               {/* Responsive Dark Overlay tailored for Mobile, Tablet & Desktop */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent md:bg-gradient-to-r md:from-black/70 md:via-black/40 md:to-transparent z-10"></div>
