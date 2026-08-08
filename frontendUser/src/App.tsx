@@ -80,6 +80,43 @@ function LoginCallback() {
   );
 }
 
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error('App Error Boundary caught an error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-white p-4 text-center">
+          <h2 className="text-xl font-bold text-slate-800 mb-2">Đã xảy ra sự cố nạp giao diện</h2>
+          <p className="text-sm text-slate-600 mb-4">Có phiên bản mới vừa cập nhật hoặc kết nối mạng bị gián đoạn.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-5 py-2.5 bg-primary text-white font-medium rounded-xl hover:bg-primary/90 transition-colors cursor-pointer"
+          >
+            Tải lại trang
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 function App() {
   useEffect(() => {
     const token = useAuthStore.getState().token;
@@ -89,7 +126,7 @@ function App() {
   }, []);
 
   return (
-    <>
+    <ErrorBoundary>
       <ScrollToTop />
       <Suspense fallback={<PageLoader />}>
         <Routes>
@@ -117,7 +154,7 @@ function App() {
         </Routes>
       </Suspense>
       <FloatingContact />
-    </>
+    </ErrorBoundary>
   );
 }
 
