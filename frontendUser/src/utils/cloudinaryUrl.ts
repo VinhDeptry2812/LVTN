@@ -87,11 +87,18 @@ export function productDetailImage(url: string | undefined | null): string {
 }
 
 /**
- * Shortcut cho ảnh hero/banner (full-width)
- * Tối ưu cho hiển thị toàn màn hình
+ * Shortcut cho ảnh hero/banner (full-width desktop)
  */
 export function heroBannerImage(url: string | undefined | null): string {
-  return optimizeCloudinaryUrl(url, { width: 1920, quality: 'auto:best' });
+  return optimizeCloudinaryUrl(url, { width: 1440, quality: 'auto:good' });
+}
+
+/**
+ * Shortcut cho ảnh hero/banner trên thiết bị di động (mobile LCP)
+ * Tối ưu kích thước w_800 giúp giảm dung lượng xuống ~60KB
+ */
+export function heroBannerMobileImage(url: string | undefined | null): string {
+  return optimizeCloudinaryUrl(url, { width: 800, quality: 'auto:good' });
 }
 
 /**

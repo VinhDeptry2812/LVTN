@@ -1,7 +1,7 @@
 import React, { forwardRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { heroBannerImage } from '@/utils/cloudinaryUrl';
+import { heroBannerImage, heroBannerMobileImage } from '@/utils/cloudinaryUrl';
 
 export interface SlideItem {
   image: string;
@@ -97,6 +97,8 @@ export const HeroBannerSection = forwardRef<HTMLElement, HeroBannerSectionProps>
                   isActive ? 'scale-105' : 'scale-100'
                 }`}
                 src={heroBannerImage(slide.image)}
+                srcSet={`${heroBannerMobileImage(slide.image)} 800w, ${heroBannerImage(slide.image)} 1440w`}
+                sizes="(max-width: 768px) 800px, 1440px"
                 fetchPriority={isActive ? 'high' : 'low'}
                 loading={isActive ? 'eager' : 'lazy'}
                 decoding="async"
