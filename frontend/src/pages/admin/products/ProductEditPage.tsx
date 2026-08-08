@@ -1,1640 +1,219 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import api from '@/services/api';
-import toast from 'react-hot-toast';
-import { formatAttributeValue } from '@/utils/format';
-import { Upload, Sparkles, ArrowLeft, Loader2, Plus, Trash2, Star, Eye, Copy, ChevronDown, Check, X, ImageIcon, RotateCcw } from 'lucide-react';
-import TiptapEditor from '@/components/TiptapEditor';
+import React from 'react';
+import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import UploadProgressWidget from '@/components/UploadProgressWidget';
-import type { UploadProgress } from '@/components/UploadProgressWidget';
-
-const VariantMultiSelectPopover = ({
-  variants,
-  selectedIndices,
-  onChange,
-}: {
-  variants: VariantInput[];
-  selectedIndices: number[];
-  onChange: (newIndices: number[]) => void;
-}) => {
-  const [open, setOpen] = useState(false);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const toggleIndex = (vIdx: number) => {
-    if (selectedIndices.includes(vIdx)) {
-      onChange(selectedIndices.filter((i) => i !== vIdx));
-    } else {
-      onChange([...selectedIndices, vIdx]);
-    }
-  };
-
-  const handleClear = () => {
-    onChange([]);
-  };
-
-  const getLabel = () => {
-    if (selectedIndices.length === 0) return '-- Dùng chung --';
-    if (selectedIndices.length === 1) {
-      const vIdx = selectedIndices[0];
-      const v = variants[vIdx];
-      if (!v) return `-- Dùng chung --`;
-      const attrStr = Object.values(v.attributes || {}).map(val => formatAttributeValue(String(val))).filter(Boolean).join(', ');
-      return attrStr ? `#${vIdx + 1}: ${attrStr}` : `#${vIdx + 1}: SKU ${v.sku || 'Chưa đặt'}`;
-    }
-    return `${selectedIndices.length} biến thể được chọn`;
-  };
-
-  return (
-    <div className="relative w-full" ref={popoverRef}>
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="w-full text-[9px] font-medium bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-none px-1.5 py-1 text-slate-700 flex items-center justify-between gap-1 transition-colors cursor-pointer"
-        title="Chọn biến thể liên kết với hình ảnh này"
-      >
-        <span className="truncate">{getLabel()}</span>
-        <ChevronDown size={10} className={`text-slate-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      {open && (
-        <div className="absolute left-0 bottom-full mb-1 min-w-[220px] w-max max-w-[260px] bg-white border border-slate-200 shadow-2xl z-[60] p-2 text-[10px] space-y-1 rounded-none">
-          <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider px-1 pb-1 border-b border-slate-100 flex justify-between items-center">
-            <span>Chọn biến thể liên kết</span>
-            {selectedIndices.length > 0 && (
-              <button type="button" onClick={handleClear} className="text-blue-600 hover:underline cursor-pointer text-[9px]">Bỏ chọn tất cả</button>
-            )}
-          </div>
-          <div className="max-h-44 overflow-y-auto space-y-0.5 pt-0.5">
-            <label className="flex items-center gap-1.5 px-1.5 py-1 hover:bg-slate-50 cursor-pointer rounded-none text-slate-700">
-              <input
-                type="checkbox"
-                checked={selectedIndices.length === 0}
-                onChange={handleClear}
-                className="h-3 w-3 rounded-none text-blue-600 focus:ring-blue-500 border-slate-300"
-              />
-              <span className="font-semibold text-slate-500">-- Dùng chung (Tất cả) --</span>
-            </label>
-            {variants.map((v, vIdx) => {
-              const attrStr = Object.values(v.attributes || {}).map(val => formatAttributeValue(String(val))).filter(Boolean).join(', ');
-              const labelText = attrStr ? `#${vIdx + 1}: ${attrStr}` : `#${vIdx + 1}: SKU ${v.sku || 'Chưa đặt'}`;
-              const isChecked = selectedIndices.includes(vIdx);
-              return (
-                <label key={vIdx} className="flex items-center gap-1.5 px-1.5 py-1 hover:bg-slate-50 cursor-pointer rounded-none text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={() => toggleIndex(vIdx)}
-                    className="h-3 w-3 rounded-none text-blue-600 focus:ring-blue-500 border-slate-300"
-                  />
-                  <span className={`truncate ${isChecked ? 'font-bold text-blue-600' : ''}`}>{labelText}</span>
-                </label>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const SelectImageFromLibraryPopover = ({
-  productImages,
-  onSelectImage,
-}: {
-  productImages: { image_url: string; preview_url?: string; file?: File; local_file?: File }[];
-  onSelectImage: (imgUrl: string, file?: File) => void;
-}) => {
-  const [open, setOpen] = useState(false);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  return (
-    <div className="relative mt-1" ref={popoverRef}>
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-center gap-1 px-1.5 py-0.5 text-[9px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-none transition-colors cursor-pointer"
-        title="Chọn từ thư viện ảnh sản phẩm đã tải lên"
-      >
-        <ImageIcon size={10} />
-        <span>Thư viện</span>
-      </button>
-
-      {open && (
-        <div className="absolute left-0 top-full mt-1 w-60 bg-white border border-slate-200 shadow-xl z-50 p-2 space-y-1.5 rounded-none">
-          <div className="flex items-center justify-between pb-1 border-b border-slate-100">
-            <span className="text-[10px] font-bold text-slate-700">Chọn ảnh từ thư viện</span>
-            <button type="button" onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600">
-              <X size={12} />
-            </button>
-          </div>
-          {productImages.length === 0 ? (
-            <p className="text-[9px] text-slate-400 italic py-2 text-center">Chưa có ảnh nào trong thư viện.</p>
-          ) : (
-            <div className="grid grid-cols-4 gap-1 max-h-40 overflow-y-auto p-0.5">
-              {productImages.map((img, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => {
-                    onSelectImage(img.image_url, img.file || img.local_file);
-                    setOpen(false);
-                  }}
-                  className="group relative aspect-square border border-slate-200 hover:border-blue-500 overflow-hidden bg-slate-50 cursor-pointer transition-all hover:scale-105"
-                >
-                  <img src={img.preview_url || img.image_url} alt={`Gallery ${i}`} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-blue-600/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                    <Check size={12} className="text-white drop-shadow" />
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
-interface SpecRow { key: string; value: string; }
-
-const compressImage = (file: File): Promise<File> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 1800;
-        const MAX_HEIGHT = 1800;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return reject(new Error('Canvas context not available'));
-        ctx.drawImage(img, 0, 0, width, height);
-
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const compressedFile = new File([blob], file.name, {
-                type: 'image/jpeg',
-                lastModified: Date.now(),
-              });
-              resolve(compressedFile);
-            } else {
-              reject(new Error('Canvas toBlob failed'));
-            }
-          },
-          'image/jpeg',
-          0.85
-        );
-      };
-      img.onerror = (err) => reject(err);
-    };
-    reader.onerror = (err) => reject(err);
-  });
-};
-
-interface SpecRow { key: string; value: string; }
-
-interface VariantInput {
-  id?: number;
-  sku: string;
-  attributes: Record<string, string>;
-  stock: number | string;
-  import_price?: number | string;
-  price_adjustment: number | string;
-  image_url?: string;
-  preview_url?: string;
-  local_file?: File;
-}
-
-interface Category {
-  id: number;
-  name: string;
-  children?: Category[];
-  level?: number;
-}
-
-const flattenCategories = (nodes: Category[], level = 0): Category[] => {
-  const result: Category[] = [];
-  for (const node of nodes) {
-    result.push({ ...node, level });
-    if (node.children && node.children.length > 0) {
-      result.push(...flattenCategories(node.children, level + 1));
-    }
-  }
-  return result;
-};
-
-const DEFAULT_SPECS: SpecRow[] = [
-  { key: 'Kích thước', value: '' },
-  { key: 'Chất liệu', value: '' },
-  { key: 'Cân nặng', value: '' },
-  { key: 'Bảo hành', value: '' },
-];
-
-const PRESET_COLORS = [
-  { name: 'Trắng', hex: '#ffffff' },
-  { name: 'Đen', hex: '#000000' },
-  { name: 'Nâu Gỗ', hex: '#8b4513' },
-  { name: 'Nâu Nhạt', hex: '#d2b48c' },
-  { name: 'Xám', hex: '#808080' },
-  { name: 'Xám Nhạt', hex: '#d3d3d3' },
-  { name: 'Be', hex: '#f5f5dc' },
-  { name: 'Kem', hex: '#fffdd0' },
-  { name: 'Xanh Navy', hex: '#000080' },
-  { name: 'Xanh Lá', hex: '#2e8b57' },
-  { name: 'Đỏ Đô', hex: '#800000' },
-];
+import { useProductEditForm } from './hooks/useProductEditForm';
+import { ProductBasicInfoForm } from './components/ProductBasicInfoForm';
+import { ProductImageUploader } from './components/ProductImageUploader';
+import { ProductAttributeSelector } from './components/ProductAttributeSelector';
+import { ProductVariantMatrixTable } from './components/ProductVariantMatrixTable';
 
 export default function ProductEditPage() {
-  interface ProductImageInput {
-    image_url: string;
-    is_primary: boolean;
-    is_hover: boolean;
-    file?: File;
-    is_local?: boolean;
-    variant_id?: number;
-    variant_index?: number;
-    variant_indices?: number[];
-    preview_url?: string;
-  }
-
-  const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [collections, setCollections] = useState<{ id: number; name: string }[]>([]);
-  const [selectedCollectionIds, setSelectedCollectionIds] = useState<number[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const [form, setForm] = useState({
-    sku: '', name: '', slug: '', description: '',
-    base_price: '', discount_price: '', category_id: '', is_active: true, is_bulky: false,
-  });
-
-  const [specs, setSpecs] = useState<SpecRow[]>([]);
-  const [productImages, setProductImages] = useState<ProductImageInput[]>([]);
-  const [variants, setVariants] = useState<VariantInput[]>([]);
-  const [variantUploadingIndexes, setVariantUploadingIndexes] = useState<number[]>([]);
-  const [variantAttrKeys, setVariantAttrKeys] = useState<string[]>([]);
-  const [simpleStock, setSimpleStock] = useState<string>('0');
-  const [simpleImportPrice, setSimpleImportPrice] = useState<string>('0');
-  const [defaultVariantId, setDefaultVariantId] = useState<number | null>(null);
-
-  const [descTab, setDescTab] = useState<'edit' | 'preview'>('edit');
-
-
-
-  const [draggedImageIndex, setDraggedImageIndex] = useState<number | null>(null);
-
-  const originalDataRef = useRef<string | null>(null);
-
-  // Set original data once loading completes
-  useEffect(() => {
-    if (!loading && !originalDataRef.current) {
-      originalDataRef.current = JSON.stringify({
-        form,
-        specs,
-        variants: variants.map(v => ({
-          sku: v.sku,
-          attributes: v.attributes,
-          stock: v.stock,
-          import_price: v.import_price,
-          price_adjustment: v.price_adjustment
-        })),
-        selectedCollectionIds,
-        simpleStock,
-        simpleImportPrice
-      });
-    }
-  }, [loading, form, specs, variants, selectedCollectionIds, simpleStock, simpleImportPrice]);
-
-  // Warn before reload/unload if dirty
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!originalDataRef.current) return;
-      const currentData = JSON.stringify({
-        form,
-        specs,
-        variants: variants.map(v => ({
-          sku: v.sku,
-          attributes: v.attributes,
-          stock: v.stock,
-          price_adjustment: v.price_adjustment
-        })),
-        selectedCollectionIds,
-        simpleStock
-      });
-
-      if (originalDataRef.current !== currentData) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [form, specs, variants, selectedCollectionIds, simpleStock]);
-
-  const handleDragStart = (idx: number) => {
-    setDraggedImageIndex(idx);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (targetIdx: number) => {
-    if (draggedImageIndex === null || draggedImageIndex === targetIdx) return;
-
-    setProductImages(prev => {
-      const newArr = [...prev];
-      const [draggedItem] = newArr.splice(draggedImageIndex, 1);
-      newArr.splice(targetIdx, 0, draggedItem);
-      return newArr;
-    });
-    setDraggedImageIndex(null);
-  };
-
-  // === THÔNG SỐ KỸ THUẬT ===
-  const addSpec = () => setSpecs(prev => [...prev, { key: '', value: '' }]);
-  const removeSpec = (i: number) => setSpecs(prev => prev.filter((_, idx) => idx !== i));
-  const handleSpecChange = (i: number, field: 'key' | 'value', val: string) => {
-    setSpecs(prev => { const u = [...prev]; u[i] = { ...u[i], [field]: val }; return u; });
-  };
-
-  // === BIẾN THỂ ===
-  const addVariantAttrKey = () => {
-    const name = prompt('Nhập tên thuộc tính mới (VD: Chất liệu đệm):');
-    if (name && name.trim() && !variantAttrKeys.includes(name.trim())) {
-      setVariantAttrKeys(prev => [...prev, name.trim()]);
-      setVariants(prev => prev.map(v => ({
-        ...v, attributes: { ...v.attributes, [name.trim()]: '' }
-      })));
-    }
-  };
-
-  const removeVariantAttrKey = (key: string) => {
-    setVariantAttrKeys(prev => prev.filter(k => k !== key));
-    setVariants(prev => prev.map(v => {
-      const attrs = { ...v.attributes };
-      delete attrs[key];
-      return { ...v, attributes: attrs };
-    }));
-  };
-
-  const generateVariantSku = (mainSku: string, attributes: Record<string, string>, index: number, attrKeys: string[]) => {
-    const cleanVal = (val: string) => {
-      if (!val) return '';
-      const textOnly = formatAttributeValue(val);
-      return textOnly
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/đ/g, 'd')
-        .replace(/Đ/g, 'D')
-        .replace(/[^a-zA-Z0-9]/g, '')
-        .toUpperCase();
-    };
-
-    let basePrefix = mainSku ? mainSku.toUpperCase() : '';
-    if (!basePrefix && form.category_id && form.name) {
-      const selectedCategory = categories.find(c => c.id === Number(form.category_id));
-      if (selectedCategory) {
-        const getPrefix = (str: string) => str
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/đ/g, 'd')
-          .replace(/Đ/g, 'D')
-          .replace(/[^a-zA-Z0-9\s]/g, '')
-          .split(/\s+/)
-          .map(w => w.charAt(0))
-          .join('')
-          .toUpperCase();
-        const catPrefix = getPrefix(selectedCategory.name);
-        const prodPrefix = getPrefix(form.name);
-        if (catPrefix && prodPrefix) {
-          basePrefix = `${catPrefix}-${prodPrefix}`;
-        }
-      }
-    }
-    if (!basePrefix) basePrefix = 'SKU';
-
-    const suffix = attrKeys.map(k => cleanVal(attributes[k] || '')).filter(Boolean).join('-');
-    return suffix ? `${basePrefix}-${suffix}` : `${basePrefix}-V${index + 1}`;
-  };
-
-  const addVariant = () => {
-    const attrs: Record<string, string> = {};
-    variantAttrKeys.forEach(k => attrs[k] = '');
-    const newIndex = variants.length;
-    const autoSku = generateVariantSku(form.sku, attrs, newIndex, variantAttrKeys);
-    setVariants(prev => [...prev, { sku: autoSku, attributes: attrs, stock: '0', import_price: '0', price_adjustment: '', image_url: '', preview_url: '' }]);
-  };
-
-  const handleAutoSyncAllVariantSkus = () => {
-    if (variants.length === 0) return;
-    setVariants(prev => prev.map((v, idx) => ({
-      ...v,
-      sku: generateVariantSku(form.sku, v.attributes, idx, variantAttrKeys)
-    })));
-    toast.success('Đã tự động tạo lại mã SKU cho tất cả biến thể');
-  };
-
-  const handleAutoSyncVariantSku = (index: number) => {
-    setVariants(prev => {
-      const updated = [...prev];
-      updated[index] = {
-        ...updated[index],
-        sku: generateVariantSku(form.sku, updated[index].attributes, index, variantAttrKeys)
-      };
-      return updated;
-    });
-    toast.success(`Đã cập nhật SKU biến thể #${index + 1}`);
-  };
-
-  const removeVariant = (index: number) => setVariants(prev => prev.filter((_, i) => i !== index));
-
-  const duplicateVariant = (index: number) => {
-    setVariants(prev => {
-      const source = prev[index];
-      const duplicated: VariantInput = {
-        sku: source.sku ? `${source.sku}-copy` : generateVariantSku(form.sku, source.attributes, prev.length, variantAttrKeys),
-        attributes: { ...source.attributes },
-        stock: source.stock,
-        import_price: source.import_price,
-        price_adjustment: source.price_adjustment,
-        image_url: source.image_url,
-        local_file: source.local_file,
-        preview_url: source.preview_url,
-      };
-      const newVariants = [...prev];
-      newVariants.splice(index + 1, 0, duplicated);
-      return newVariants;
-    });
-    toast.success(`Đã nhân bản biến thể #${index + 1}`);
-  };
-
-  const handleVariantFieldChange = (index: number, field: 'sku' | 'stock' | 'import_price' | 'price_adjustment', value: string) => {
-    setVariants(prev => { const u = [...prev]; u[index] = { ...u[index], [field]: value }; return u; });
-  };
-
-  const handleVariantImageUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const compressed = await compressImage(file);
-      const previewUrl = URL.createObjectURL(compressed);
-      setVariants(prev => {
-        const updated = [...prev];
-        if (updated[index].preview_url && updated[index].preview_url?.startsWith('blob:')) {
-          URL.revokeObjectURL(updated[index].preview_url!);
-        }
-        updated[index] = {
-          ...updated[index],
-          local_file: compressed,
-          preview_url: previewUrl,
-          image_url: '',
-        };
-        return updated;
-      });
-      toast.success('Đã tải ảnh biến thể (bản xem trước)!');
-    } catch {
-      toast.error('Xử lý ảnh biến thể thất bại');
-    }
-  };
-
-  const removeVariantImage = (index: number) => {
-    setVariants(prev => {
-      const updated = [...prev];
-      if (updated[index].preview_url && updated[index].preview_url?.startsWith('blob:')) {
-        URL.revokeObjectURL(updated[index].preview_url!);
-      }
-      updated[index] = {
-        ...updated[index],
-        image_url: '',
-        local_file: undefined,
-        preview_url: '',
-      };
-      return updated;
-    });
-  };
-
-  const handleVariantAttrChange = (index: number, attrKey: string, value: string) => {
-    setVariants(prev => {
-      const u = [...prev];
-      const updatedAttrs = { ...u[index].attributes, [attrKey]: value };
-      u[index] = {
-        ...u[index],
-        attributes: updatedAttrs,
-        sku: generateVariantSku(form.sku, updatedAttrs, index, variantAttrKeys)
-      };
-      return u;
-    });
-  };
-
-  const handleCollectionToggle = (id: number) => {
-    setSelectedCollectionIds(prev =>
-      prev.includes(id) ? prev.filter(colId => colId !== id) : [...prev, id]
-    );
-  };
-
-  // Load product data + categories
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [prodRes, catRes, colRes] = await Promise.all([
-          api.get(`/products/${id}`),
-          api.get('/categories'),
-          api.get('/collections'),
-        ]);
-        setCategories(flattenCategories(catRes.data));
-        setCollections(colRes.data);
-
-        const p = prodRes.data;
-        setForm({
-          sku: p.sku || '', name: p.name || '', slug: p.slug || '',
-          description: p.description || '', base_price: p.base_price?.toString() || '',
-          discount_price: p.discount_price?.toString() || '',
-          category_id: p.category?.id?.toString() || '', is_active: p.is_active ?? true,
-          is_bulky: p.is_bulky ?? false,
-        });
-
-        if (p.collections && Array.isArray(p.collections)) {
-          setSelectedCollectionIds(p.collections.map((col: any) => col.id));
-        }
-
-        // Load specifications động
-        const specData = p.detail?.specifications;
-        if (specData) {
-          if (Array.isArray(specData)) {
-            setSpecs(specData.map((item: any) => ({ key: item.key || '', value: String(item.value || '') })));
-          } else if (typeof specData === 'object') {
-            setSpecs(Object.entries(specData).map(([key, value]) => ({ key, value: String(value) })));
-          }
-        }
-
-
-        // Load biến thể + xây dựng lại danh sách thuộc tính keys
-        let loadedVariants: VariantInput[] = [];
-        if (p.variants && p.variants.length > 0) {
-          const isSimple = p.variants.length === 1 &&
-            (!p.variants[0].attributes || Object.keys(p.variants[0].attributes).length === 0);
-
-          if (isSimple) {
-            setDefaultVariantId(p.variants[0].id);
-            setSimpleStock(String(p.variants[0].stock || 0));
-            setSimpleImportPrice(String(p.variants[0].import_price || 0));
-            setVariantAttrKeys([]);
-            setVariants([]);
-          } else {
-            const allAttrKeys = new Set<string>();
-            loadedVariants = p.variants.map((v: any) => {
-              const attrs = v.attributes || {};
-              Object.keys(attrs).forEach(k => allAttrKeys.add(k));
-              return {
-                id: v.id,
-                sku: v.sku || '',
-                attributes: attrs,
-                stock: v.stock !== null && v.stock !== undefined ? v.stock : '',
-                import_price: v.import_price !== null && v.import_price !== undefined ? v.import_price : '',
-                price_adjustment: v.price_adjustment !== null && v.price_adjustment !== undefined ? v.price_adjustment : '',
-                image_url: v.image_url || '',
-              };
-            });
-            setVariantAttrKeys([...allAttrKeys]);
-            setVariants(loadedVariants);
-          }
-        }
-
-        // Load danh sách ảnh (gộp theo image_url để hiển thị 1:N / N:N)
-        if (p.images && p.images.length > 0) {
-          const imageMap = new Map<string, any>();
-          p.images.forEach((img: any) => {
-            const vIdx = loadedVariants.length > 0 ? loadedVariants.findIndex(v => v.id === img.variant_id) : -1;
-            if (imageMap.has(img.image_url)) {
-              const existing = imageMap.get(img.image_url);
-              if (vIdx !== -1 && !existing.variant_indices.includes(vIdx)) {
-                existing.variant_indices.push(vIdx);
-              }
-            } else {
-              imageMap.set(img.image_url, {
-                image_url: img.image_url,
-                is_primary: img.is_primary ?? false,
-                is_hover: img.is_hover ?? false,
-                variant_id: img.variant_id,
-                variant_index: vIdx !== -1 ? vIdx : undefined,
-                variant_indices: vIdx !== -1 ? [vIdx] : [],
-              });
-            }
-          });
-          setProductImages(Array.from(imageMap.values()));
-        }
-      } catch {
-        toast.error('Không thể tải thông tin sản phẩm');
-        navigate('/admin/products');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [id, navigate]);
-
-  const generateSlug = (name: string) =>
-    name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/đ/g, 'd').replace(/Đ/g, 'D')
-      .replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').trim();
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    const checked = (e.target as HTMLInputElement).checked;
-    setForm(prev => ({
-      ...prev, [name]: type === 'checkbox' ? checked : value,
-      ...(name === 'name' ? { slug: generateSlug(value) } : {}),
-    }));
-  };
-
-  const handleImagesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    setUploadingImage(true);
-    const newImages: ProductImageInput[] = [];
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      try {
-        const compressed = await compressImage(file);
-        const previewUrl = URL.createObjectURL(compressed);
-        const isPrimary = productImages.length === 0 && newImages.length === 0;
-        newImages.push({
-          image_url: previewUrl,
-          is_primary: isPrimary,
-          is_hover: false,
-          file: compressed,
-          is_local: true,
-        });
-      } catch {
-        toast.error(`Xử lý ảnh ${file.name} thất bại`);
-      }
-    }
-
-    if (newImages.length > 0) {
-      setProductImages(prev => {
-        const updated = [...prev, ...newImages];
-        const hasPrimary = updated.some(img => img.is_primary);
-        if (!hasPrimary && updated.length > 0) {
-          updated[0].is_primary = true;
-        }
-        return updated;
-      });
-      toast.success(`Đã chọn và nén thành công ${newImages.length} ảnh!`);
-    }
-    setUploadingImage(false);
-  };
-
-  const setPrimaryImage = (index: number) => {
-    setProductImages(prev =>
-      prev.map((img, idx) => ({ ...img, is_primary: idx === index }))
-    );
-  };
-
-  const setHoverImage = (index: number) => {
-    setProductImages(prev =>
-      prev.map((img, idx) => ({ ...img, is_hover: idx === index }))
-    );
-  };
-
-  const removeImage = (index: number) => {
-    setProductImages(prev => {
-      const target = prev[index];
-      if (target.is_local && target.image_url.startsWith('blob:')) {
-        URL.revokeObjectURL(target.image_url);
-      }
-      const updated = prev.filter((_, idx) => idx !== index);
-      const wasPrimary = prev[index]?.is_primary;
-      if (wasPrimary && updated.length > 0) {
-        updated[0].is_primary = true;
-      }
-      return updated;
-    });
-  };
-
-  const handleImageVariantSelect = (idx: number, vIndexStr: string) => {
-    const vIndex = vIndexStr === '' ? undefined : parseInt(vIndexStr, 10);
-    setProductImages(prev => {
-      const u = [...prev];
-      if (vIndex === undefined) {
-        u[idx].variant_index = undefined;
-        u[idx].variant_indices = [];
-        u[idx].variant_id = undefined;
-      } else {
-        u[idx].variant_index = vIndex;
-        u[idx].variant_indices = [vIndex];
-        u[idx].variant_id = variants[vIndex]?.id;
-      }
-      return u;
-    });
-  };
-
-  const handleImageVariantMultiSelect = (imgIndex: number, newIndices: number[]) => {
-    setProductImages(prev => {
-      const updated = [...prev];
-      const selectedVId = newIndices.length > 0 && variants[newIndices[0]]?.id ? variants[newIndices[0]].id : undefined;
-      updated[imgIndex] = {
-        ...updated[imgIndex],
-        variant_indices: newIndices,
-        variant_index: newIndices.length > 0 ? newIndices[0] : undefined,
-        variant_id: selectedVId,
-      };
-      return updated;
-    });
-  };
-
-  const handleSelectImageFromLibraryForVariant = (vIdx: number, url: string, file?: File) => {
-    setVariants(prev => {
-      const u = [...prev];
-      u[vIdx] = { ...u[vIdx], image_url: url, preview_url: url, local_file: file };
-      return u;
-    });
-    setProductImages(prev =>
-      prev.map(img => {
-        if (img.image_url === url || (img.file && URL.createObjectURL(img.file) === url)) {
-          const currentIndices = img.variant_indices || (img.variant_index !== undefined ? [img.variant_index] : []);
-          if (!currentIndices.includes(vIdx)) {
-            const nextIndices = [...currentIndices, vIdx];
-            return {
-              ...img,
-              variant_indices: nextIndices,
-              variant_index: nextIndices[0],
-              variant_id: variants[nextIndices[0]]?.id || img.variant_id,
-            };
-          }
-        }
-        return img;
-      })
-    );
-    toast.success(`Đã liên kết ảnh thư viện với biến thể #${vIdx + 1}`);
-  };
-
-  const handleAiGenerate = async () => {
-    if (!form.name) { toast.error('Vui lòng nhập tên sản phẩm trước!'); return; }
-    setAiLoading(true);
-    try {
-      const categoryName = categories.find(c => c.id === Number(form.category_id))?.name || 'Nội thất';
-      const attributes = specs.filter(s => s.key && s.value).map(s => `${s.key}: ${s.value}`).join(', ');
-      const res = await api.post('/ai/generate-product-description', {
-        name: form.name, category: categoryName,
-        attributes: attributes || 'Sản phẩm nội thất cao cấp',
-      });
-      setForm(prev => ({ ...prev, description: res.data.data }));
-      toast.success('AI đã sinh mô tả thành công!');
-    } catch (error: any) {
-      console.error('Lỗi khi sinh mô tả bằng AI:', error);
-      const serverMessage = error.response?.data?.message || error.message;
-      toast.error(serverMessage ? `Lỗi: ${serverMessage}` : 'Không thể sinh mô tả lúc này');
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const processDescriptionImages = async (html: string): Promise<string> => {
-    if (!html.includes('data:image/')) return html;
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const images = doc.querySelectorAll('img');
-
-    for (let i = 0; i < images.length; i++) {
-      const img = images[i];
-      const src = img.getAttribute('src');
-      if (src && src.startsWith('data:image/')) {
-        try {
-          const res = await fetch(src);
-          const blob = await res.blob();
-          const file = new File([blob], `desc-img-${Date.now()}-${i}.png`, { type: blob.type });
-
-          const compressed = await compressImage(file);
-          const formData = new FormData();
-          formData.append('file', compressed);
-
-          const uploadRes = await api.post('/upload/image', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-
-          img.setAttribute('src', uploadRes.data.url);
-        } catch (error) {
-          console.error('Error processing description image:', error);
-        }
-      }
-    }
-    return doc.body.innerHTML;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      const localProductImages = productImages.filter(img => img.is_local && img.file);
-      const localVariantImages = variants.filter(v => v.local_file);
-      const totalToUpload = localProductImages.length + localVariantImages.length;
-      let completedUploads = 0;
-      let failedUploads = 0;
-
-      if (totalToUpload > 0) {
-        setUploadProgress({ total: totalToUpload, completed: 0, failed: 0, percent: 0 });
-      }
-
-      const incrementProgress = (fileName?: string, isSuccess = true) => {
-        if (totalToUpload <= 0) return;
-        completedUploads++;
-        if (!isSuccess) failedUploads++;
-        const percent = Math.round((completedUploads / totalToUpload) * 100);
-        setUploadProgress({
-          total: totalToUpload,
-          completed: completedUploads,
-          failed: failedUploads,
-          percent,
-          currentFileName: fileName,
-          isError: failedUploads > 0,
-        });
-      };
-
-      const processedDescription = await processDescriptionImages(form.description);
-
-      // 1. Upload ảnh chính sản phẩm song song
-      const uploadedProductImages = await Promise.all(
-        productImages.map(async (img) => {
-          let url = img.image_url;
-          if (img.is_local && img.file) {
-            try {
-              const formData = new FormData();
-              formData.append('file', img.file);
-              const res = await api.post('/upload/image', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-              });
-              incrementProgress(img.file.name, true);
-              url = res.data.url;
-            } catch (err) {
-              console.error(`Lỗi khi tải ảnh ${img.file.name}:`, err);
-              incrementProgress(img.file.name, false);
-              url = '';
-            }
-          }
-          const indices = img.variant_indices || (img.variant_index !== undefined ? [img.variant_index] : []);
-          return {
-            image_url: url,
-            is_primary: img.is_primary,
-            is_hover: img.is_hover,
-            variant_id: img.variant_id,
-            variant_indices: indices,
-          };
-        })
-      );
-
-      const validProductImages: any[] = [];
-      uploadedProductImages.forEach((img) => {
-        if (!img.image_url) return;
-        const indices = img.variant_indices || [];
-        if (indices.length > 0) {
-          indices.forEach((vIdx: number) => {
-            const vId = variants[vIdx]?.id || img.variant_id;
-            validProductImages.push({
-              image_url: img.image_url,
-              is_primary: img.is_primary ?? false,
-              is_hover: img.is_hover ?? false,
-              variant_index: vIdx,
-              variant_id: vId,
-            });
-          });
-        } else {
-          validProductImages.push({
-            image_url: img.image_url,
-            is_primary: img.is_primary ?? false,
-            is_hover: img.is_hover ?? false,
-          });
-        }
-      });
-
-      if (failedUploads > 0) {
-        throw new Error(`Có ${failedUploads} ảnh tải lên thất bại. Vui lòng kiểm tra lại.`);
-      }
-
-      // 2. Upload ảnh của biến thể song song
-      let uploadedVariants = [];
-      if (variants.length === 0) {
-        uploadedVariants = [{
-          ...(defaultVariantId ? { id: defaultVariantId } : {}),
-          sku: form.sku.trim().toUpperCase(),
-          attributes: {},
-          stock: Number(simpleStock) || 0,
-          import_price: Number(simpleImportPrice) || 0,
-          price_adjustment: 0,
-          image_url: null
-        }];
-      } else {
-        uploadedVariants = await Promise.all(
-          variants.map(async (v) => {
-            let imageUrl = v.image_url;
-            if (v.local_file) {
-              try {
-                const formData = new FormData();
-                formData.append('file', v.local_file);
-                const res = await api.post('/upload/image', formData, {
-                  headers: { 'Content-Type': 'multipart/form-data' },
-                });
-                incrementProgress(v.local_file.name, true);
-                imageUrl = res.data.url;
-              } catch (err) {
-                console.error(`Lỗi khi tải ảnh biến thể ${v.local_file.name}:`, err);
-                incrementProgress(v.local_file.name, false);
-              }
-            }
-            return {
-              ...(v.id ? { id: v.id } : {}),
-              sku: v.sku || null,
-              attributes: Object.fromEntries(Object.entries(v.attributes).filter(([, val]) => val.trim())),
-              stock: Number(v.stock) || 0,
-              import_price: Number(v.import_price) || 0,
-              price_adjustment: Number(v.price_adjustment) || 0,
-              image_url: imageUrl || null,
-            };
-          })
-        );
-      }
-
-
-      const validSpecs = specs
-        .filter(s => s.key.trim() && s.value.trim())
-        .map(s => ({ key: s.key.trim(), value: s.value.trim() }));
-
-      const payload: Record<string, unknown> = {
-        sku: form.sku, name: form.name, slug: form.slug, description: processedDescription,
-        base_price: Number(form.base_price),
-        discount_price: form.discount_price ? Number(form.discount_price) : null,
-        is_active: form.is_active,
-        is_bulky: form.is_bulky,
-        category_id: Number(form.category_id),
-        detail: {
-          specifications: validSpecs.length > 0 ? validSpecs : null,
-        },
-        variants: uploadedVariants,
-        images: validProductImages,
-        collection_ids: selectedCollectionIds,
-      };
-      await api.patch(`/products/${id}`, payload);
-      toast.success('Cập nhật sản phẩm thành công!');
-      originalDataRef.current = null;
-      navigate('/admin/products');
-    } catch (error: any) {
-      console.error(error);
-      const serverMsg = error.response?.data?.message;
-      const errorMsg = Array.isArray(serverMsg) ? serverMsg.join(', ') : serverMsg || error.message || 'Cập nhật thất bại (Lỗi tải ảnh hoặc lưu thông tin)';
-      toast.error(errorMsg);
-    } finally {
-      setSubmitting(false);
-      setTimeout(() => {
-        setUploadProgress(null);
-      }, 2500);
-    }
-  };
-
-  const groupedImages = productImages.reduce((acc, img, idx) => {
-    const indices = img.variant_indices || (img.variant_index !== undefined ? [img.variant_index] : []);
-    if (indices.length === 0) {
-      if (!acc['common']) acc['common'] = [];
-      acc['common'].push({ img, originalIndex: idx });
-    } else {
-      indices.forEach(vIdx => {
-        if (!acc[vIdx]) acc[vIdx] = [];
-        acc[vIdx].push({ img, originalIndex: idx });
-      });
-    }
-    return acc;
-  }, {} as Record<string | number, { img: typeof productImages[0], originalIndex: number }[]>);
-
-  const renderImageCard = (img: ProductImageInput, idx: number) => {
-    return (
-      <div
-        key={idx}
-        draggable
-        onDragStart={() => handleDragStart(idx)}
-        onDragOver={handleDragOver}
-        onDrop={() => handleDrop(idx)}
-        className={`group relative flex flex-col rounded-none border bg-slate-50 transition-all shadow-sm hover:shadow-md cursor-move ${img.is_primary ? 'border-blue-500 ring-2 ring-blue-100 bg-blue-50/5' : 'border-slate-200 hover:border-slate-350'
-          } ${draggedImageIndex === idx ? 'opacity-40' : ''}`}
-      >
-        <div className="relative aspect-[4/3] w-full overflow-hidden bg-white flex items-center justify-center border-b border-slate-100">
-          <img src={img.preview_url || img.image_url} alt={`Product ${idx}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
-
-          <div className="absolute top-1.5 left-1.5 flex flex-col gap-1 pointer-events-none z-10">
-            {img.is_primary && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-600/90 backdrop-blur-sm text-white text-[8px] font-bold rounded-none shadow-sm">
-                <Star size={8} className="fill-white" />
-                Ảnh chính
-              </span>
-            )}
-            {img.is_hover && (
-              <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/90 backdrop-blur-sm text-white text-[8px] font-bold rounded-none shadow-sm">
-                <Eye size={8} className="fill-white" />
-                Hover
-              </span>
-            )}
-          </div>
-
-          <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center gap-2 backdrop-blur-[1px] z-20">
-            <button
-              type="button"
-              onClick={() => setPrimaryImage(idx)}
-              className={`p-1.5 rounded-none transition-all duration-200 shadow-sm cursor-pointer border ${img.is_primary
-                ? 'bg-amber-500 text-white border-amber-400 hover:bg-amber-600'
-                : 'bg-white/90 text-slate-700 border-slate-200 hover:bg-white hover:text-amber-500 hover:scale-110'
-                }`}
-              title={img.is_primary ? 'Đang là ảnh chính' : 'Đặt làm ảnh chính'}
-            >
-              <Star size={12} className={img.is_primary ? 'fill-white' : ''} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setHoverImage(idx)}
-              className={`p-1.5 rounded-none transition-all duration-200 shadow-sm cursor-pointer border ${img.is_hover
-                ? 'bg-blue-600 text-white border-blue-500 hover:bg-blue-700'
-                : 'bg-white/90 text-slate-700 border-slate-200 hover:bg-white hover:text-blue-600 hover:scale-110'
-                }`}
-              title={img.is_hover ? 'Đang là ảnh hover' : 'Đặt làm ảnh hover'}
-            >
-              <Eye size={12} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => removeImage(idx)}
-              className="p-1.5 bg-white/90 text-slate-700 border border-slate-200 hover:bg-red-50 hover:text-red-650 rounded-none transition-all duration-200 hover:scale-110 shadow-sm cursor-pointer"
-              title="Xóa ảnh"
-            >
-              <Trash2 size={12} />
-            </button>
-          </div>
-        </div>
-
-        <div className="p-1.5 bg-white flex flex-col gap-0.5">
-          <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider px-0.5">Liên kết biến thể</label>
-          <VariantMultiSelectPopover
-            variants={variants}
-            selectedIndices={img.variant_indices || (img.variant_index !== undefined ? [img.variant_index] : [])}
-            onChange={(newIndices) => handleImageVariantMultiSelect(idx, newIndices)}
-          />
-        </div>
-      </div>
-    );
-  };
+  const {
+    navigate,
+    categories,
+    collections,
+    selectedCollectionIds,
+    submitting,
+    aiLoading,
+    uploadingImage,
+    uploadProgress,
+    loading,
+    form,
+    specs,
+    productImages,
+    variants,
+    variantAttrKeys,
+    simpleStock,
+    setSimpleStock,
+    simpleImportPrice,
+    setSimpleImportPrice,
+    descTab,
+    draggedImageIndex,
+    isFileDragOver,
+    showAddAttr,
+    setShowAddAttr,
+    newAttrKey,
+    setNewAttrKey,
+    validationErrors,
+    skuManuallyEdited,
+    setDescTab,
+    handleChange,
+    setForm,
+    validateField,
+    handleResetAutoSku,
+    handleCollectionToggle,
+    addSpec,
+    removeSpec,
+    handleSpecChange,
+    handleAddAttr,
+    removeVariantAttrKey,
+    addVariant,
+    removeVariant,
+    duplicateVariant,
+    handleVariantAttrChange,
+    handleVariantFieldChange,
+    handleAutoSyncVariantSku,
+    handleAutoSyncAllVariantSkus,
+    handleVariantImageUpload,
+    removeVariantImage,
+    handleSelectImageFromLibraryForVariant,
+    handleImagesUpload,
+    handleFileDragOver,
+    handleFileDragLeave,
+    handleFileDrop,
+    setPrimaryImage,
+    setHoverImage,
+    removeImage,
+    handleDragStart,
+    handleDragOver,
+    handleDrop,
+    handleImageVariantMultiSelect,
+    handleAiGenerate,
+    handleSubmit,
+  } = useProductEditForm();
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-3 text-slate-500">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <p className="text-sm font-medium">Đang tải thông tin sản phẩm...</p>
       </div>
     );
   }
 
-  const inputCls = 'w-full px-4 py-2.5 rounded-none border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm';
-  const smallInputCls = 'w-full px-3 py-2 rounded-none border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm';
-
   return (
-    <div className="max-w-4xl mx-auto">
-      <datalist id="preset-colors">
-        {PRESET_COLORS.map(c => <option key={c.hex} value={c.hex}>{c.name}</option>)}
-      </datalist>
-      <button onClick={() => navigate('/admin/products')}
-        className="flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600 mb-6 transition-colors cursor-pointer">
-        <ArrowLeft size={16} /> Quay lại danh sách
-      </button>
-
-      <h1 className="text-2xl font-bold text-slate-800 mb-8">Chỉnh sửa sản phẩm</h1>
-
-      <form onSubmit={handleSubmit} className="space-y-8">
-        {/* THÔNG TIN CƠ BẢN */}
-        <section className="bg-white rounded-none shadow-sm border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-700 mb-5 pb-3 border-b border-slate-100">Thông tin cơ bản</h2>
-          <div className="grid grid-cols-2 gap-5">
-            <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1.5">Mã SKU *</label>
-              <input name="sku" value={form.sku} onChange={handleChange} required className={inputCls} placeholder="VD: SOFA-001" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1.5">Danh mục *</label>
-              <select name="category_id" value={form.category_id} onChange={handleChange} required className={inputCls}>
-                <option value="">-- Chọn danh mục --</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{'— '.repeat(c.level || 0)}{c.name}</option>)}
-              </select>
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-slate-600 mb-1.5">Tên sản phẩm *</label>
-              <input name="name" value={form.name} onChange={handleChange} required className={inputCls} placeholder="VD: Sofa Văng Da Bò Thật Milano" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1.5">Giá bán niêm yết (VNĐ) *</label>
-              <input
-                type="number"
-                name="base_price"
-                value={form.base_price}
-                onChange={handleChange}
-                required
-                className={inputCls}
-                placeholder="VD: 15000000"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1.5">Giá khuyến mãi hiện tại (VNĐ)</label>
-              <input
-                type="text"
-                value={form.discount_price ? `${Number(form.discount_price).toLocaleString('vi-VN')} đ` : 'Không có khuyến mãi'}
-                disabled
-                className={`${inputCls} bg-slate-100 text-slate-500 cursor-not-allowed`}
-              />
-              <p className="text-[11px] text-slate-400 mt-1">
-                Tự động cập nhật bởi module Chương trình Khuyến mãi.
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-600 mb-1.5">Slug (tự động)</label>
-              <input name="slug" value={form.slug} onChange={handleChange} className={`${inputCls} bg-slate-50 text-slate-500`} readOnly />
-            </div>
-            {variants.length === 0 && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-slate-600 mb-1.5">Số lượng tồn kho (Chỉ đọc)</label>
-                  <input
-                    type="number"
-                    value={simpleStock}
-                    disabled
-                    className={`${inputCls} bg-slate-100 text-slate-500 cursor-not-allowed`}
-                    placeholder="0"
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    💡 Tồn kho chỉ thay đổi qua phiếu Nhập kho/Kiểm kho.
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-600 mb-1.5">Giá nhập (VNĐ)</label>
-                  <input
-                    type="number"
-                    value={simpleImportPrice}
-                    onChange={e => setSimpleImportPrice(e.target.value)}
-                    className={inputCls}
-                    placeholder="0"
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    💡 Giá nhập tự động cập nhật khi hoàn tất đơn nhập kho.
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-          <div className="mt-5">
-            <label className="block text-sm font-medium text-slate-600 mb-2">Bộ sưu tập</label>
-            <div className="flex flex-wrap gap-3">
-              {collections.map(col => (
-                <label key={col.id} className="flex items-center gap-2 cursor-pointer bg-slate-50 border border-slate-200 px-3 py-2 rounded-none hover:bg-slate-100 transition-colors">
-                  <input
-                    type="checkbox"
-                    className="rounded-none border-slate-300 text-blue-600 focus:ring-blue-500"
-                    checked={selectedCollectionIds.includes(col.id)}
-                    onChange={() => handleCollectionToggle(col.id)}
-                  />
-                  <span className="text-sm text-slate-700">{col.name}</span>
-                </label>
-              ))}
-              {collections.length === 0 && <span className="text-sm text-slate-500 italic">Chưa có bộ sưu tập nào.</span>}
-            </div>
-          </div>
-          <div className="mt-5 grid grid-cols-2 gap-4">
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-none border border-slate-150">
-              <span className="text-sm font-semibold text-slate-700">Trạng thái đăng bán</span>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" name="is_active" checked={form.is_active} onChange={handleChange} className="sr-only peer" />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-none peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-none after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
-            </div>
-
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-none border border-slate-150">
-              <span className="text-sm font-semibold text-slate-700">Hàng cồng kềnh</span>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" name="is_bulky" checked={form.is_bulky} onChange={handleChange} className="sr-only peer" />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-none peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-none after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
-            </div>
-          </div>
-        </section>
-
-        {/* MÔ TẢ + AI */}
-        <section className="bg-white rounded-none shadow-sm border border-slate-200 p-6">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-            <h2 className="text-lg font-semibold text-slate-700">Mô tả sản phẩm</h2>
-            <div className="flex items-center gap-2">
-              {/* Tab Toggle */}
-              <div className="flex items-center bg-slate-100 rounded-none p-1 mr-2">
-                <button type="button" onClick={() => setDescTab('edit')}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-none transition-all ${descTab === 'edit' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                    }`}>
-                  ✏️ Soạn thảo
-                </button>
-                <button type="button" onClick={() => setDescTab('preview')}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-none transition-all ${descTab === 'preview' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                    }`}>
-                  👁️ Xem trước
-                </button>
-              </div>
-              <button type="button" onClick={handleAiGenerate} disabled={aiLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 text-white rounded-none text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer">
-                {aiLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                {aiLoading ? 'AI đang viết...' : '✨ Sinh mô tả bằng AI'}
-              </button>
-            </div>
-          </div>
-          {descTab === 'edit' ? (
-            <TiptapEditor
-              value={form.description}
-              onChange={(value) => setForm({ ...form, description: value })}
-              placeholder="Nhập mô tả sản phẩm (hỗ trợ chèn ảnh, in đậm, list...)"
-            />
-          ) : (
-            <div className="min-h-[300px] border border-slate-200 rounded-none p-6 bg-slate-50">
-              {form.description && form.description !== '<p><br></p>' ? (
-                <div className="tiptap">
-                  <style>{`
-                    .tiptap { max-width: 100%; word-break: normal; overflow-wrap: break-word; word-wrap: break-word; }
-                    .tiptap p { margin-bottom: 0.75rem; line-height: 1.625; color: #334155; }
-                    .tiptap h1 { font-size: 1.5rem; font-weight: 700; margin-top: 1.25rem; margin-bottom: 0.5rem; color: #1e293b; }
-                    .tiptap h2 { font-size: 1.25rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; color: #1e293b; }
-                    .tiptap h3 { font-size: 1.125rem; font-weight: 600; margin-top: 0.75rem; margin-bottom: 0.25rem; color: #1e293b; }
-                    .tiptap ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 0.75rem; }
-                    .tiptap ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 0.75rem; }
-                    .tiptap blockquote { border-left: 4px solid #cbd5e1; padding-left: 1rem; font-style: italic; color: #475569; margin: 0.75rem 0; }
-                    .tiptap code { background-color: #f1f5f9; padding: 2px 4px; border-radius: 0; font-family: monospace; font-size: 0.875em; }
-                    .tiptap img { max-width: 100%; height: auto; display: block; margin: 1.5rem auto; border-radius: 0; }
-                    
-                    /* Table styles */
-                    .tiptap table { border-collapse: collapse; margin: 1.5rem 0; width: 100%; overflow: hidden; }
-                    .tiptap th, .tiptap td { border: 1px solid #cbd5e1; padding: 0.5rem; text-align: left; }
-                    .tiptap th { background-color: #f1f5f9; font-weight: 600; }
-                    .tiptap mark { background-color: #fef08a; padding: 0.1rem 0.25rem; border-radius: 0; color: #1e293b; }
-                    .tiptap hr { border: none; border-top: 2px solid #e2e8f0; margin: 1.5rem 0; }
-                    .tiptap pre { background-color: #0f172a; color: #f8fafc; padding: 1rem; border-radius: 0; font-family: monospace; overflow-x: auto; margin: 1rem 0; }
-                  `}</style>
-                  <div dangerouslySetInnerHTML={{ __html: form.description }} />
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-48 text-slate-400">
-                  <span className="text-4xl mb-3">📝</span>
-                  <p className="text-sm">Chưa có nội dung để xem trước.</p>
-                  <p className="text-xs mt-1">Hãy soạn thảo nội dung ở tab "Soạn thảo" trước.</p>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-
-        {/* CHI TIẾT KỸ THUẬT - ĐỘNG */}
-        <section className="bg-white rounded-none shadow-sm border border-slate-200 p-6">
-          <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100">
-            <h2 className="text-lg font-semibold text-slate-700">Thông số kỹ thuật</h2>
-            <button type="button" onClick={addSpec}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-none text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer">
-              <Plus size={16} /> Thêm thông số
-            </button>
-          </div>
-          {specs.length === 0 ? (
-            <div className="text-center py-10 text-slate-400">
-              <p className="text-sm">Chưa có thông số nào. Bấm "Thêm thông số" để bắt đầu.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {specs.map((s, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <input value={s.key} onChange={e => handleSpecChange(i, 'key', e.target.value)}
-                    className={`${smallInputCls} flex-[2] mt-0.5`} placeholder="Tên thông số" />
-                  <textarea
-                    value={s.value}
-                    onChange={e => handleSpecChange(i, 'value', e.target.value)}
-                    onInput={(e: React.FormEvent<HTMLTextAreaElement>) => {
-                      const target = e.currentTarget;
-                      target.style.height = 'auto';
-                      target.style.height = `${target.scrollHeight}px`;
-                    }}
-                    ref={(el) => {
-                      if (el) {
-                        el.style.height = 'auto';
-                        el.style.height = `${el.scrollHeight}px`;
-                      }
-                    }}
-                    rows={1}
-                    className={`${smallInputCls} flex-[3] resize-none overflow-y-hidden py-2 min-h-[38px]`}
-                    placeholder={"Giá trị (VD:\n- Dài 120cm\n- Rộng 80cm)"}
-                  />
-                  <button type="button" onClick={() => removeSpec(i)}
-                    className="flex-shrink-0 p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-none transition-all cursor-pointer mt-0.5">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          {specs.length > 0 && (
-            <p className="text-xs text-slate-400 mt-3 flex items-center gap-1">
-              <span>💡</span> <span>Mẹo: Bạn có thể nhấn <strong>Enter</strong> để xuống dòng đối với các thông số có nhiều chi tiết.</span>
-            </p>
-          )}
-        </section>
-
-        {/* BIẾN THỂ - ĐỘNG */}
-        <section className="bg-white rounded-none shadow-sm border border-slate-200 p-6">
-          <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100">
-            <h2 className="text-lg font-semibold text-slate-700">Biến thể sản phẩm</h2>
-            <div className="flex gap-2">
-              <button type="button" onClick={addVariantAttrKey}
-                className="flex items-center gap-1 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-none text-sm font-medium transition-all cursor-pointer border border-blue-200">
-                <Plus size={14} /> Thêm thuộc tính
-              </button>
-              {variants.length > 0 && (
-                <button type="button" onClick={handleAutoSyncAllVariantSkus}
-                  title="Tự động sinh mã SKU cho tất cả biến thể"
-                  className="flex items-center gap-1 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-none text-sm font-semibold transition-all cursor-pointer border border-indigo-200">
-                  <RotateCcw size={14} /> Auto SKU toàn bộ
-                </button>
-              )}
-              <button type="button" onClick={addVariant}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-none text-sm font-semibold transition-all shadow-md hover:shadow-lg cursor-pointer">
-                <Plus size={16} /> Thêm biến thể
-              </button>
-            </div>
-          </div>
-
-          {variantAttrKeys.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              {variantAttrKeys.map(key => (
-                <span key={key} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-none text-xs font-medium border border-blue-200">
-                  {key}
-                  <button type="button" onClick={() => removeVariantAttrKey(key)}
-                    className="hover:text-red-600 transition-colors cursor-pointer">✕</button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          {variants.length === 0 ? (
-            <div className="text-center py-10 text-slate-400 bg-slate-50/50 rounded-none border border-dashed border-slate-200 p-6">
-              <p className="text-sm font-bold text-slate-600">Sản phẩm này hiện tại là sản phẩm đơn giản</p>
-              <p className="text-xs text-slate-400 mt-1.5 max-w-md mx-auto leading-relaxed">Bạn có thể chỉnh sửa trực tiếp số lượng tồn kho của sản phẩm ở phần "Thông tin cơ bản" phía trên, hoặc bấm "Thêm biến thể" để nâng cấp thành sản phẩm có thuộc tính.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {variants.map((v, idx) => (
-                <div key={idx} className="relative p-4 bg-slate-50 rounded-none border border-slate-200 hover:border-blue-300 transition-colors">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-slate-500">Biến thể #{idx + 1}</span>
-                    <div className="flex items-center gap-1.5">
-                      <button type="button" onClick={() => duplicateVariant(idx)}
-                        title="Nhân bản biến thể"
-                        className="flex items-center gap-1 px-2 py-1 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-none transition-all cursor-pointer text-xs">
-                        <Copy size={13} />
-                        <span className="text-[10px] font-semibold">Nhân bản</span>
-                      </button>
-                      <button type="button" onClick={() => removeVariant(idx)}
-                        title="Xóa biến thể"
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-none transition-all cursor-pointer">
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-4 items-start">
-                    {/* Cột ảnh biến thể */}
-                    <div className="flex-shrink-0">
-                      <label className="block text-xs font-medium text-slate-500 mb-1">Ảnh</label>
-                      <div className="relative w-16 h-16 border border-slate-200 rounded-none bg-white overflow-hidden flex items-center justify-center group/var-img shadow-sm">
-                        {v.preview_url || v.image_url ? (
-                          <>
-                            <img src={v.preview_url || v.image_url} alt="Variant" className="w-full h-full object-cover" />
-                            <button type="button" onClick={() => removeVariantImage(idx)}
-                              className="absolute inset-0 bg-black/40 opacity-0 group-hover/var-img:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold cursor-pointer">
-                              Xóa
-                            </button>
-                          </>
-                        ) : (
-                          <label className="w-full h-full flex flex-col items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-slate-50 transition-colors cursor-pointer">
-                            <input type="file" accept="image/*" onChange={e => handleVariantImageUpload(idx, e)} className="hidden" />
-                            <Upload size={14} />
-                            <span className="text-[10px] mt-0.5 font-medium">Tải lên</span>
-                          </label>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 mt-1">
-                        <SelectImageFromLibraryPopover
-                          productImages={productImages}
-                          onSelectImage={(url, file) => handleSelectImageFromLibraryForVariant(idx, url, file)}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Phần input thông tin */}
-                    <div className="flex-grow space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
-                        {variantAttrKeys.map(attrKey => {
-                          const isColorAttr = attrKey.toLowerCase().includes('màu');
-                          const currentVal = v.attributes[attrKey] || '';
-                          const textVal = isColorAttr && currentVal.includes('|') ? currentVal.split('|')[0] : currentVal;
-                          const colorVal = isColorAttr && currentVal.includes('|') ? currentVal.split('|')[1] : '#ffffff';
-
-                          return (
-                            <div key={attrKey}>
-                              <label className="block text-xs font-medium text-slate-500 mb-1">{attrKey}</label>
-                              {isColorAttr ? (
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    value={textVal}
-                                    onChange={e => handleVariantAttrChange(idx, attrKey, `${e.target.value}|${colorVal}`)}
-                                    className={`${smallInputCls} flex-1`}
-                                    placeholder={`Tên (VD: Trắng)`}
-                                  />
-                                  <input
-                                    type="color"
-                                    value={colorVal}
-                                    list="preset-colors"
-                                    onChange={e => handleVariantAttrChange(idx, attrKey, `${textVal}|${e.target.value}`)}
-                                    className="w-8 h-8 p-0 border border-slate-300 rounded-none cursor-pointer flex-shrink-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded-none overflow-hidden"
-                                    title="Chọn mã màu"
-                                  />
-                                </div>
-                              ) : (
-                                <input value={currentVal} onChange={e => handleVariantAttrChange(idx, attrKey, e.target.value)}
-                                  className={smallInputCls} placeholder={`Nhập ${attrKey.toLowerCase()}`} />
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="grid grid-cols-4 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-slate-500 mb-1">Tồn kho (Chỉ xem)</label>
-                          <input type="number" value={v.stock} disabled
-                            className={`${smallInputCls} bg-slate-100 text-slate-500 cursor-not-allowed`} />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-slate-500 mb-1">Giá nhập (VNĐ)</label>
-                          <input type="number" value={v.import_price ?? ''} onChange={e => handleVariantFieldChange(idx, 'import_price', e.target.value)}
-                            className={smallInputCls} placeholder="0" />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-slate-500 mb-1">Phụ giá (VNĐ)</label>
-                          <input type="number" value={v.price_adjustment} onChange={e => handleVariantFieldChange(idx, 'price_adjustment', e.target.value)}
-                            className={smallInputCls} />
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <label className="block text-xs font-medium text-slate-500">SKU biến thể</label>
-                            <button
-                              type="button"
-                              onClick={() => handleAutoSyncVariantSku(idx)}
-                              className="flex items-center gap-0.5 text-[10px] text-blue-600 hover:text-blue-700 font-semibold hover:underline cursor-pointer"
-                              title="Tự động sinh mã SKU cho biến thể này"
-                            >
-                              <RotateCcw size={10} /> Auto
-                            </button>
-                          </div>
-                          <input value={v.sku} onChange={e => handleVariantFieldChange(idx, 'sku', e.target.value)}
-                            className={smallInputCls} placeholder="Tự động / nhập tay" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* HÌNH ẢNH */}
-        <section className="bg-white rounded-none shadow-sm border border-slate-200 p-6">
-          <div className="flex justify-between items-center mb-5 pb-3 border-b border-slate-100">
-            <h2 className="text-lg font-semibold text-slate-700">Hình ảnh sản phẩm</h2>
-            <label className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-none hover:bg-blue-100 transition-colors cursor-pointer text-sm font-medium">
-              <input type="file" accept="image/*" multiple onChange={handleImagesUpload} className="hidden" />
-              {uploadingImage ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-              Tải thêm ảnh
-            </label>
-          </div>
-
-          <div className="space-y-6">
-            {/* Dùng chung */}
-            {(groupedImages['common']?.length > 0 || productImages.length === 0) && (
-              <div>
-                <h3 className="text-sm font-semibold text-slate-600 mb-3">Dùng chung (Không thuộc biến thể nào)</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                  {groupedImages['common']?.map(({ img, originalIndex }) => renderImageCard(img, originalIndex))}
-
-                  {productImages.length === 0 && !uploadingImage && (
-                    <div className="col-span-full text-center py-8 bg-slate-50 rounded-none border-2 border-dashed border-slate-200">
-                      <Upload size={32} className="text-slate-300 mx-auto mb-2" />
-                      <p className="text-slate-500 font-medium">Chưa có hình ảnh nào</p>
-                      <p className="text-slate-400 text-xs mt-1">Nhấn "Tải thêm ảnh" ở góc trên</p>
-                    </div>
-                  )}
-                  {uploadingImage && productImages.length === 0 && (
-                    <div className="col-span-full text-center py-8 bg-slate-50 rounded-none border-2 border-dashed border-slate-200">
-                      <Loader2 size={32} className="text-blue-500 animate-spin mx-auto mb-2" />
-                      <p className="text-slate-500 font-medium">Đang tải ảnh lên...</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Biến thể */}
-            {variants.map((v, vIdx) => {
-              const group = groupedImages[vIdx];
-              if (!group || group.length === 0) return null;
-
-              const attrValues = Object.values(v.attributes || {}).map(val => String(val).split('|')[0]).filter(val => val.trim()).join(', ');
-
-              return (
-                <div key={vIdx} className="pt-4 border-t border-slate-100">
-                  <h3 className="text-sm font-semibold text-slate-600 mb-3">
-                    Biến thể #{vIdx + 1}: {attrValues || 'Chưa đặt tên'}
-                  </h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                    {group.map(({ img, originalIndex }) => renderImageCard(img, originalIndex))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* STICKY ACTION BAR */}
-        <div className="sticky bottom-0 -mx-6 md:-mx-8 -mb-6 md:-mb-8 px-6 md:px-8 py-3.5 mt-8 bg-white/95 backdrop-blur-sm border-t border-slate-200 flex items-center justify-between z-30 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+    <div className="p-6 max-w-7xl mx-auto space-y-6 pb-24">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
           <button
             type="button"
             onClick={() => navigate('/admin/products')}
-            className="px-5 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-none text-sm transition-all cursor-pointer"
+            className="p-2 border border-slate-300 hover:bg-slate-100 rounded-none transition-colors cursor-pointer"
           >
-            Hủy
+            <ArrowLeft size={18} />
           </button>
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" name="is_active" checked={form.is_active} onChange={handleChange}
-                className="w-4 h-4 rounded-none border-slate-300 text-blue-600 focus:ring-blue-500" />
-              <span className="text-sm text-slate-600 font-medium">Hiển thị bán ngay</span>
-            </label>
-            <button type="submit" disabled={submitting}
-              className="px-8 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold rounded-none transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center gap-2 text-sm">
-              {submitting ? <Loader2 size={16} className="animate-spin" /> : null}
-              {submitting ? 'Đang lưu...' : 'Cập nhật sản phẩm'}
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">
+              Chỉnh sửa sản phẩm: {form.name || '...'}
+            </h1>
+            <p className="text-xs text-slate-500">
+              Cập nhật thông tin chi tiết, giá bán, danh mục và quản lý ma trận biến thể của sản phẩm.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Upload Progress Widget */}
+      {uploadProgress && <UploadProgressWidget progress={uploadProgress} />}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Component 1: Basic Info, Tiptap Description, Specs */}
+        <ProductBasicInfoForm
+          form={form}
+          validationErrors={validationErrors}
+          skuManuallyEdited={skuManuallyEdited}
+          categories={categories}
+          collections={collections}
+          selectedCollectionIds={selectedCollectionIds}
+          specs={specs}
+          descTab={descTab}
+          aiLoading={aiLoading}
+          setDescTab={setDescTab}
+          handleChange={handleChange}
+          setForm={setForm}
+          validateField={validateField}
+          handleResetAutoSku={handleResetAutoSku}
+          handleCollectionToggle={handleCollectionToggle}
+          handleAiGenerate={handleAiGenerate}
+          addSpec={addSpec}
+          removeSpec={removeSpec}
+          handleSpecChange={handleSpecChange}
+        />
+
+        {/* Component 2: Product Image Uploader */}
+        <ProductImageUploader
+          productImages={productImages}
+          variants={variants}
+          uploadingImage={uploadingImage}
+          isFileDragOver={isFileDragOver}
+          draggedImageIndex={draggedImageIndex}
+          handleImagesUpload={handleImagesUpload}
+          handleFileDragOver={handleFileDragOver}
+          handleFileDragLeave={handleFileDragLeave}
+          handleFileDrop={handleFileDrop}
+          handleDragStart={handleDragStart}
+          handleDragOver={handleDragOver}
+          handleDrop={handleDrop}
+          setPrimaryImage={setPrimaryImage}
+          setHoverImage={setHoverImage}
+          removeImage={removeImage}
+          handleImageVariantMultiSelect={handleImageVariantMultiSelect}
+        />
+
+        {/* Component 3: Attribute Manager */}
+        <ProductAttributeSelector
+          variantAttrKeys={variantAttrKeys}
+          showAddAttr={showAddAttr}
+          newAttrKey={newAttrKey}
+          setShowAddAttr={setShowAddAttr}
+          setNewAttrKey={setNewAttrKey}
+          handleAddAttr={handleAddAttr}
+          removeVariantAttrKey={removeVariantAttrKey}
+        />
+
+        {/* Component 4: Variant Matrix Table */}
+        <ProductVariantMatrixTable
+          variants={variants}
+          variantAttrKeys={variantAttrKeys}
+          productImages={productImages}
+          simpleStock={simpleStock}
+          simpleImportPrice={simpleImportPrice}
+          setSimpleStock={setSimpleStock}
+          setSimpleImportPrice={setSimpleImportPrice}
+          addVariant={addVariant}
+          removeVariant={removeVariant}
+          duplicateVariant={duplicateVariant}
+          handleAutoSyncAllVariantSkus={handleAutoSyncAllVariantSkus}
+          handleAutoSyncVariantSku={handleAutoSyncVariantSku}
+          handleVariantFieldChange={handleVariantFieldChange}
+          handleVariantImageUpload={handleVariantImageUpload}
+          removeVariantImage={removeVariantImage}
+          handleVariantAttrChange={handleVariantAttrChange}
+          handleSelectImageFromLibraryForVariant={handleSelectImageFromLibraryForVariant}
+        />
+
+        {/* Sticky Action Footer Bar */}
+        <div className="sticky bottom-0 -mx-6 -mb-6 md:-mx-8 md:-mb-8 mt-8 bg-white/95 backdrop-blur-sm border-t border-slate-200 p-4 shadow-xl z-10">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => navigate('/admin/products')}
+              className="px-4 py-2 border border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-bold rounded-none transition-colors cursor-pointer"
+            >
+              Hủy bỏ
+            </button>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-bold rounded-none flex items-center gap-2 shadow-lg shadow-blue-600/20 transition-all cursor-pointer"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="animate-spin" size={18} />
+                  <span>Đang lưu thay đổi...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={18} />
+                  <span>Lưu thay đổi sản phẩm</span>
+                </>
+              )}
             </button>
           </div>
         </div>
       </form>
-
-      {/* Upload Floating Progress Widget */}
-      <UploadProgressWidget progress={uploadProgress} />
     </div>
   );
 }

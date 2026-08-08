@@ -137,7 +137,7 @@ const WarrantyLookupPage: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-surface font-body-md text-on-surface">
       <Header />
 
-      <main className="flex-grow pt-[100px] md:pt-[120px] pb-24 animate-in fade-in duration-700">
+      <main className="flex-grow pt-6 md:pt-8 pb-24 animate-in fade-in duration-700">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 space-y-8">
           {/* Banner header */}
           <div className="text-center space-y-3">

@@ -113,7 +113,7 @@ export default function SearchPage() {
     <div className="bg-surface text-on-surface min-h-screen font-body-md antialiased overflow-x-hidden" ref={containerRef}>
       <Header />
 
-      <main className="pt-[150px] md:pt-32 pb-sp-xl">
+      <main className="pt-6 md:pt-8 pb-sp-xl">
         <div className="max-w-container-max mx-auto px-sp-md md:px-lg w-full">
           {/* Breadcrumb và Tiêu đề kết quả */}
           <div className="mb-sp-md">

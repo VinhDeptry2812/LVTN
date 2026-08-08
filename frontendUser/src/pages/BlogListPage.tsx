@@ -119,7 +119,7 @@ export default function BlogListPage() {
     <div className="min-h-screen flex flex-col bg-surface font-body-md text-on-surface selection:bg-primary selection:text-on-primary">
       <Header />
 
-      <main className="flex-grow pt-[80px] md:pt-[100px] pb-24 animate-in fade-in duration-700">
+      <main className="flex-grow pt-6 md:pt-8 pb-24 animate-in fade-in duration-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-xs text-on-surface-variant/80 pt-2">

@@ -5,6 +5,10 @@ import { OrderItem } from './order-item.entity';
 import { OrderReturn } from './order-return.entity';
 import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
+import { OrderCancellationService } from './services/order-cancellation.service';
+import { OrderInvoiceService } from './services/order-invoice.service';
+import { OrderPaymentService } from './services/order-payment.service';
+import { OrderReturnService } from './services/order-return.service';
 import { ProductVariant } from '../products/product-variant.entity';
 import { InventoryTransaction } from '../products/inventory-transaction.entity';
 import { StockIssue } from '../stock-issues/stock-issue.entity';
@@ -36,8 +40,20 @@ import { ShippingSettingsModule } from '../shipping-settings/shipping-settings.m
     WarrantiesModule,
     ShippingSettingsModule,
   ],
-  providers: [OrdersService],
+  providers: [
+    OrdersService,
+    OrderCancellationService,
+    OrderInvoiceService,
+    OrderPaymentService,
+    OrderReturnService,
+  ],
   controllers: [OrdersController],
-  exports: [OrdersService],
+  exports: [
+    OrdersService,
+    OrderCancellationService,
+    OrderInvoiceService,
+    OrderPaymentService,
+    OrderReturnService,
+  ],
 })
 export class OrdersModule {}

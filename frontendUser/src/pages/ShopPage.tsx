@@ -263,7 +263,7 @@ export default function ShopPage() {
 
       <main className="pb-sp-xl">
         {/* Shop Hero Banner */}
-        <div className="relative w-full h-[250px] md:h-[350px] flex items-end pb-16 mt-20 mb-sp-xl">
+        <div className="relative w-full h-[250px] md:h-[350px] flex items-end pb-16 mb-sp-xl">
           <div className="absolute inset-0 z-0">
             <img
               src={heroBannerImage(heroImage)}

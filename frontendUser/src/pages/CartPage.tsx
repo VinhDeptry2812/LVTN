@@ -85,7 +85,7 @@ export default function CartPage() {
     <div className="bg-surface text-on-surface min-h-screen font-body-md antialiased overflow-x-hidden" ref={cartContainerRef}>
       <Header />
 
-      <main className="pt-28 pb-sp-xl">
+      <main className="pt-6 md:pt-8 pb-sp-xl">
         <div className="max-w-container-max mx-auto px-sp-md md:px-lg">
           {/* Breadcrumbs */}
           <Breadcrumbs items={[{ label: 'Giỏ hàng' }]} className="pb-sp-lg" />
@@ -118,74 +118,74 @@ export default function CartPage() {
                   <div
                     key={item.id}
                     data-cart-item={item.id}
-                    className="cart-item-card relative flex flex-col sm:flex-row gap-4 sm:gap-6 p-4 sm:p-6 bg-white rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-outline-variant/30 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-shadow duration-300"
+                    className="cart-item-card relative flex flex-col p-4 sm:p-6 bg-white rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-outline-variant/30 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-shadow duration-300"
                   >
                     {/* Delete button (Xóa) ở góc trên bên phải */}
                     <button
                       onClick={() => deleteItem(item.id)}
                       aria-label={`Xóa ${item.name} khỏi giỏ hàng`}
-                      className="absolute top-4 right-4 sm:top-6 sm:right-6 text-on-surface-variant hover:text-error transition-colors p-1 rounded-full hover:bg-error/5 cursor-pointer z-10"
+                      className="absolute top-3 right-3 sm:top-5 sm:right-5 text-on-surface-variant hover:text-error transition-colors p-1 rounded-full hover:bg-error/5 cursor-pointer z-10"
                     >
-                      <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
+                      <span className="material-symbols-outlined text-[18px] sm:text-[20px]" aria-hidden="true">
                         close
                       </span>
                     </button>
 
-                    {/* Image Container */}
-                    <Link to={`/product/${item.productId}`} className="w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0 bg-[#f4f5f4] rounded-xl overflow-hidden mx-auto sm:mx-0 flex items-center justify-center p-2 hover:opacity-80 transition-opacity">
-                      <img alt={item.name} className="max-w-full max-h-full object-contain mix-blend-multiply" src={productCardImage(item.image)} loading="lazy" />
-                    </Link>
+                    {/* Top Row: Image + Name + Price + Variant Selector */}
+                    <div className="flex flex-row items-start gap-3 sm:gap-4">
+                      {/* Image Container - Luôn ở bên trái */}
+                      <Link to={`/product/${item.productId}`} className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 bg-[#f4f5f4] rounded-xl overflow-hidden flex items-center justify-center p-1.5 sm:p-2 hover:opacity-80 transition-opacity">
+                        <img alt={item.name} className="max-w-full max-h-full object-contain mix-blend-multiply" src={productCardImage(item.image)} loading="lazy" />
+                      </Link>
 
-                    {/* Content Container */}
-                    <div className="flex-grow flex flex-col min-w-0 pr-0 sm:pr-8">
-                      {/* Top row: Name, Variant, Price */}
-                      <div className="flex flex-col justify-between items-start gap-1">
-                        <div className="min-w-0 flex-1 text-left">
-                          <Link to={`/product/${item.productId}`} className="font-headline-md text-headline-md text-on-surface line-clamp-2 hover:text-primary transition-colors block pr-6 font-semibold">{item.name}</Link>
+                      {/* Content Container - Nằm ở bên phải ảnh */}
+                      <div className="flex-grow flex flex-col min-w-0 pr-6 sm:pr-8 text-left">
+                        <Link to={`/product/${item.productId}`} className="font-headline-md text-sm sm:text-base text-on-surface line-clamp-2 hover:text-primary transition-colors block font-semibold">{item.name}</Link>
 
-                          {/* Đơn giá và giá gốc gạch ngang */}
-                          <div className="flex flex-wrap items-baseline gap-2 mt-1.5 text-left">
-                            <span className="font-body-sm text-sm text-on-surface-variant/80 font-medium">{formatPrice(item.rawPrice)}</span>
-                            {item.rawOldPrice && item.rawOldPrice > item.rawPrice && (
-                              <span className="font-body-sm text-xs text-on-surface-variant/50 line-through">{formatPrice(item.rawOldPrice)}</span>
-                            )}
-                          </div>
+                        {/* Đơn giá và giá gốc gạch ngang */}
+                        <div className="flex flex-wrap items-baseline gap-2 mt-1 text-left">
+                          <span className="font-body-sm text-xs sm:text-sm text-on-surface-variant/80 font-medium">{formatPrice(item.rawPrice)}</span>
+                          {item.rawOldPrice && item.rawOldPrice > item.rawPrice && (
+                            <span className="font-body-sm text-[11px] sm:text-xs text-on-surface-variant/50 line-through">{formatPrice(item.rawOldPrice)}</span>
+                          )}
+                        </div>
 
-                          {/* Chọn biến thể sản phẩm */}
+                        {/* Chọn biến thể sản phẩm */}
+                        <div className="mt-1.5">
                           <VariantSelectorModal
                             item={item}
                             onUpdateVariant={updateVariant}
                           />
                         </div>
                       </div>
+                    </div>
 
-                      {/* Bottom row: Quantity selector & Line item subtotal */}
-                      <div className="mt-6 pt-4 flex justify-between items-center border-t border-outline-variant/20">
-                        {/* Quantity selector */}
-                        <div className="flex items-center border border-outline-variant rounded-lg bg-surface-container-lowest h-9" role="group" aria-label={`Số lượng ${item.name}`}>
-                          <button
-                            onClick={() => handleUpdateQuantity(item.id, item.quantity, -1, item)}
-                            aria-label="Giảm số lượng"
-                            className="w-9 h-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors cursor-pointer rounded-l-lg"
-                          >
-                            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">remove</span>
-                          </button>
-                          <span className="font-label-md text-label-md w-10 text-center select-none" aria-live="polite">{item.quantity}</span>
-                          <button
-                            onClick={() => handleUpdateQuantity(item.id, item.quantity, 1, item)}
-                            aria-label="Tăng số lượng"
-                            className="w-9 h-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors cursor-pointer rounded-r-lg"
-                          >
-                            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
-                          </button>
-                        </div>
+                    {/* Bottom Row: Đường kẻ ngang + Nút số lượng & Giá tổng bên trái */}
+                    <div className="mt-3.5 pt-3.5 border-t border-outline-variant/20 flex flex-col items-start gap-2 text-left">
+                      {/* Quantity selector */}
+                      <div className="flex items-center border border-outline-variant rounded-lg bg-surface-container-lowest h-9 w-28 sm:w-32 justify-between" role="group" aria-label={`Số lượng ${item.name}`}>
+                        <button
+                          onClick={() => handleUpdateQuantity(item.id, item.quantity, -1, item)}
+                          aria-label="Giảm số lượng"
+                          className="w-9 h-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors cursor-pointer rounded-l-lg"
+                        >
+                          <span className="material-symbols-outlined text-[18px]" aria-hidden="true">remove</span>
+                        </button>
+                        <span className="font-label-md text-sm w-10 text-center select-none" aria-live="polite">{item.quantity}</span>
+                        <button
+                          onClick={() => handleUpdateQuantity(item.id, item.quantity, 1, item)}
+                          aria-label="Tăng số lượng"
+                          className="w-9 h-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors cursor-pointer rounded-r-lg"
+                        >
+                          <span className="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
+                        </button>
+                      </div>
 
-                        {/* Line subtotal */}
-                        <div className="text-right">
-                          <p className="font-headline-md text-headline-md text-on-surface font-bold" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                            {formatPrice(item.rawPrice * item.quantity)}
-                          </p>
-                        </div>
+                      {/* Line subtotal */}
+                      <div className="mt-0.5">
+                        <p className="font-headline-md text-base sm:text-lg text-on-surface font-bold" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {formatPrice(item.rawPrice * item.quantity)}
+                        </p>
                       </div>
                     </div>
                   </div>

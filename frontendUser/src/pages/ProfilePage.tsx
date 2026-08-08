@@ -167,10 +167,10 @@ const ProfilePage: React.FC = () => {
   }
 
   return (
-    <div className="pt-10 md:pt-0min-h-screen bg-background flex flex-col font-body-md text-on-surface">
+    <div className="min-h-screen bg-background flex flex-col font-body-md text-on-surface">
       <Header />
 
-      <main className="flex-grow py-12 md:py-20 bg-background mt-16 md:mt-20">
+      <main className="flex-grow pt-6 md:pt-8 pb-16 md:pb-24 bg-background">
         <div className="max-w-[1200px] mx-auto px-4 md:px-6">
 
           {/* Greeting Banner */}

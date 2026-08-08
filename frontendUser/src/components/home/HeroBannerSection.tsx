@@ -46,7 +46,7 @@ export const HeroBannerSection = forwardRef<HTMLElement, HeroBannerSectionProps>
     return (
       <section
         ref={ref}
-        className="relative mt-20 h-[400px] sm:h-[460px] md:h-[540px] lg:h-[calc(100vh-80px)] min-h-[400px] w-full overflow-hidden flex items-end pb-10 md:items-center md:pb-0 bg-slate-900 animate-pulse"
+        className="relative h-[400px] sm:h-[460px] md:h-[540px] lg:h-[calc(100vh-80px)] min-h-[400px] w-full overflow-hidden flex items-end pb-10 md:items-center md:pb-0 bg-slate-900 animate-pulse"
       >
         <div className="relative z-20 max-w-container-max mx-auto px-4 md:px-8 lg:px-12 w-full">
           <div className="max-w-lg md:max-w-2xl space-y-4">
@@ -66,7 +66,7 @@ export const HeroBannerSection = forwardRef<HTMLElement, HeroBannerSectionProps>
   return (
     <section
       ref={ref}
-      className="relative mt-20 h-[400px] sm:h-[460px] md:h-[540px] lg:h-[calc(100vh-80px)] min-h-[400px] w-full overflow-hidden flex items-end pb-10 md:items-center md:pb-0 bg-surface-container cursor-grab active:cursor-grabbing select-none touch-pan-y"
+      className="relative h-[400px] sm:h-[460px] md:h-[540px] lg:h-[calc(100vh-80px)] min-h-[400px] w-full overflow-hidden flex items-end pb-10 md:items-center md:pb-0 bg-surface-container cursor-grab active:cursor-grabbing select-none touch-pan-y"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => {
         setIsHovered(false);

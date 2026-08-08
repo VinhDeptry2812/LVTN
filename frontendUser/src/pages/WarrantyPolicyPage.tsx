@@ -30,7 +30,7 @@ const WarrantyPolicyPage: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-surface font-body-md text-on-surface selection:bg-primary selection:text-on-primary">
       <Header />
 
-      <main className="flex-grow pt-[80px] md:pt-[100px] pb-24 animate-in fade-in duration-700">
+      <main className="flex-grow pt-6 md:pt-8 pb-24 animate-in fade-in duration-700">
         {/* Hero Banner Section */}
         <section className="relative py-16 md:py-24 bg-surface-container-low border-b border-outline-variant/20 overflow-hidden">
           <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#536257_1px,transparent_1px)] [background-size:16px_16px]"></div>

@@ -7,7 +7,7 @@ const AboutFurniturePage: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-surface font-body-md text-on-surface selection:bg-primary selection:text-on-primary">
       <Header />
 
-      <main className="flex-grow pt-[80px] md:pt-[100px] pb-24 animate-in fade-in duration-1000">
+      <main className="flex-grow pt-0 pb-24 animate-in fade-in duration-1000">
         {/* Hero Section */}
         <section className="relative h-[60vh] md:h-[80vh] w-full overflow-hidden bg-surface-container-low">
           <img

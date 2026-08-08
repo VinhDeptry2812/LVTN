@@ -134,7 +134,7 @@ const RegisterPage: React.FC = () => {
     <div className="min-h-screen bg-surface flex flex-col font-body-md text-on-surface">
       <Header />
 
-      <main className="flex-grow flex items-center justify-center px-4 py-12 bg-gray-50 mt-20">
+      <main className="flex-grow flex items-center justify-center px-4 py-12 bg-gray-50">
         <div className="w-full max-w-[500px] p-6 sm:p-10 bg-white rounded-lg shadow-md border border-gray-100">
           {step === 'register' ? (
             <>

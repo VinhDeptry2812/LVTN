@@ -176,7 +176,7 @@ const CollectionPage: React.FC = () => {
     <div ref={containerRef} className="min-h-screen flex flex-col bg-surface font-sans text-on-surface selection:bg-primary selection:text-on-primary">
       <Header />
 
-      <main className="flex-grow pt-[72px]">
+      <main className="flex-grow pt-0">
         {/* HERO SECTION - Lookbook Style */}
         <section className="hero-parallax-container relative h-[60vh] md:h-[75vh] w-full overflow-hidden bg-surface">
           <img

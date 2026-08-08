@@ -127,7 +127,7 @@ export default function PaymentResultPage() {
     >
       <Header />
 
-      <main className="flex-1 flex items-center justify-center pt-32 pb-20 md:pt-40 md:pb-28 px-4">
+      <main className="flex-1 flex items-center justify-center pt-6 md:pt-8 pb-16 px-4">
         <div className="max-w-md w-full">
           {/* Loading State */}
           {status === 'loading' && (

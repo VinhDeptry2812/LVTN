@@ -117,7 +117,7 @@ const ForgotPasswordPage: React.FC = () => {
     <div className="min-h-screen bg-surface flex flex-col font-body-md text-on-surface">
       <Header />
 
-      <main className="flex-grow flex items-center justify-center px-4 py-16 bg-white mt-20">
+      <main className="flex-grow flex items-center justify-center px-4 py-16 bg-white">
         <div className="w-full max-w-[500px] p-6 sm:p-10 border border-outline-variant rounded-sm bg-transparent">
           <div className="text-center mb-8">
             <h1 className="text-[28px] font-bold text-on-surface mb-2">Khôi phục mật khẩu</h1>

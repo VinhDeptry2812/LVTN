@@ -26,7 +26,7 @@ const CollectionListPage: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-surface font-sans text-on-surface selection:bg-primary selection:text-on-primary">
       <Header />
 
-      <main className="flex-grow pt-[100px] md:pt-[120px] pb-20 animate-in fade-in duration-700">
+      <main className="flex-grow pt-6 md:pt-8 pb-20 animate-in fade-in duration-700">
         <div className="max-w-container-max mx-auto px-sp-md md:px-lg text-center mb-16">
            <h1 className="font-headline-xl text-3xl md:text-5xl text-on-surface font-medium mb-4">
              Nội thất đẹp cho không gian sống
