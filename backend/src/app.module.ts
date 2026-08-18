@@ -29,7 +29,6 @@ import { WarrantiesModule } from './warranties/warranties.module';
 import { BannersModule } from './banners/banners.module';
 import { PromotionsModule } from './promotions/promotions.module';
 import { ShippingSettingsModule } from './shipping-settings/shipping-settings.module';
-import { TasksModule } from './tasks/tasks.module';
 import { PostsModule } from './posts/posts.module';
 
 @Module({
@@ -86,7 +85,6 @@ import { PostsModule } from './posts/posts.module';
     StockIssuesModule,
     WarrantiesModule,
     BannersModule,
-    TasksModule,
     ShippingSettingsModule,
     PostsModule,
   ],

@@ -239,8 +239,8 @@ export default function InventoryPage() {
 
   // Render transaction type badge
   const renderTxTypeBadge = (type: string) => {
-    switch (type) {
-      case 'INITIAL_STOCK':
+    const normalizedType = type?.toLowerCase();
+    switch (normalizedType) {
       case 'initial_stock':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-wider text-[10px] whitespace-nowrap">
@@ -249,6 +249,8 @@ export default function InventoryPage() {
         );
       case 'purchase_order':
       case 'stock_in':
+      case 'import':
+      case 'import_stock':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider text-[10px] whitespace-nowrap">
             Nhập kho
@@ -275,6 +277,9 @@ export default function InventoryPage() {
           </span>
         );
       case 'stock_out':
+      case 'export':
+      case 'export_stock':
+      case 'stock_issue':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 uppercase tracking-wider text-[10px] whitespace-nowrap">
             Xuất kho
@@ -645,11 +650,13 @@ export default function InventoryPage() {
                 >
                   <option value="all">Tất cả biến động</option>
                   <option value="INITIAL_STOCK">Khởi tạo</option>
-                  <option value="purchase_order">Nhập kho</option>
+                  <option value="purchase_order">Nhập kho (Đổi trả)</option>
+                  <option value="import">Nhập kho (Thủ công)</option>
                   <option value="order_sale">Bán hàng</option>
                   <option value="order_return">Trả hàng</option>
                   <option value="order_cancel">Hủy đơn</option>
-                  <option value="stock_out">Xuất kho</option>
+                  <option value="stock_out">Xuất kho (Tự động)</option>
+                  <option value="export">Xuất kho (Thủ công)</option>
                   <option value="adjustment">Điều chỉnh</option>
                 </select>
               </div>
