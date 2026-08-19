@@ -10,10 +10,10 @@ export const Header: React.FC = () => {
   const header = useHeader();
 
   return (
-    <header className="w-full bg-surface">
+    <header className="sticky top-0 z-50 w-full bg-surface">
       {/* Main Header Bar */}
       <nav
-        className={`sticky top-0 z-40 transition-all duration-300 ${
+        className={`transition-all duration-300 ${
           header.isScrolled
             ? 'bg-surface/95 backdrop-blur-md border-b border-outline-variant/40 shadow-sm py-2 sm:py-2.5'
             : 'bg-surface border-b border-outline-variant/40 py-3 sm:py-4'
