@@ -193,7 +193,11 @@ export default function AdminLayout() {
     }
     setIsNotiOpen(false);
     if (noti.reference_link) {
-      navigate(noti.reference_link);
+      if (location.pathname === noti.reference_link) {
+        window.location.reload();
+      } else {
+        navigate(noti.reference_link);
+      }
     }
   };
 

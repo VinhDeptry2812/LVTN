@@ -33,7 +33,7 @@ export class WarrantiesService {
     }
     const match = str.match(/(\d+)/);
     if (match) return parseInt(match[1], 10);
-    return 12;
+    return 24;
   }
 
   /** Tự động tạo phiếu bảo hành cho toàn bộ sản phẩm trong đơn hàng khi giao hàng thành công */

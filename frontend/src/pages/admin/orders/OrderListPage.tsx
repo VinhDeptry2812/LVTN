@@ -62,6 +62,7 @@ interface Order {
   phone: string;
   notes: string | null;
   total_amount: number;
+  shipping_fee?: number;
   status: string;
   payment_method: string;
   payment_status: string;
@@ -753,7 +754,11 @@ export default function OrderListPage() {
                         )}
                         <div className="flex justify-between text-xs text-slate-500">
                           <span>Phí giao hàng:</span>
-                          <span className="font-bold text-emerald-600">Miễn phí</span>
+                          {selectedOrder.shipping_fee && selectedOrder.shipping_fee > 0 ? (
+                            <span className="font-bold text-slate-700">{formatPrice(selectedOrder.shipping_fee)}</span>
+                          ) : (
+                            <span className="font-bold text-emerald-600">Miễn phí</span>
+                          )}
                         </div>
                         <div className="pt-3 border-t border-slate-100 flex justify-between items-center font-bold text-slate-850">
                           <span className="text-xs">Tổng cộng thanh toán:</span>
@@ -997,15 +1002,30 @@ export default function OrderListPage() {
                   </button>
                 )}
 
-                {selectedOrder.status === 'delivered' && (
-                  <button
-                    disabled={updatingId !== null}
-                    onClick={() => handleUpdateStatus(selectedOrder.id, 'completed', 'paid')}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-none text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    Cưỡng chế hoàn thành
-                  </button>
-                )}
+                {selectedOrder.status === 'delivered' && (() => {
+                  const deliveredDate = selectedOrder.delivered_at ? new Date(selectedOrder.delivered_at).getTime() : 0;
+                  const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+                  const isPastReturnWindow = new Date().getTime() - deliveredDate > sevenDaysInMs;
+
+                  return isPastReturnWindow ? (
+                    <button
+                      disabled={updatingId !== null}
+                      onClick={() => handleUpdateStatus(selectedOrder.id, 'completed', 'paid')}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-none text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+                      title="Đã qua 7 ngày đổi trả, có thể cưỡng chế hoàn thành"
+                    >
+                      Cưỡng chế hoàn thành
+                    </button>
+                  ) : (
+                    <button
+                      disabled
+                      className="px-4 py-2 bg-slate-200 text-slate-500 rounded-none text-xs font-bold transition-all cursor-not-allowed"
+                      title="Chưa qua 7 ngày đổi trả, không thể cưỡng chế"
+                    >
+                      Chờ hết hạn đổi trả
+                    </button>
+                  );
+                })()}
 
 
               </div>
