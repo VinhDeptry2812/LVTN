@@ -82,7 +82,7 @@ export default function CartPage() {
   const subtotal = cartItems.reduce((sum, item) => sum + item.rawPrice * item.quantity, 0);
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen font-body-md antialiased overflow-x-hidden" ref={cartContainerRef}>
+    <div className="bg-surface text-on-surface min-h-screen font-body-md antialiased overflow-x-clip" ref={cartContainerRef}>
       <Header />
 
       <main className="pt-6 md:pt-8 pb-sp-xl">

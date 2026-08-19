@@ -110,7 +110,7 @@ export default function SearchPage() {
   }, { dependencies: [paginatedProducts], scope: containerRef });
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen font-body-md antialiased overflow-x-hidden" ref={containerRef}>
+    <div className="bg-surface text-on-surface min-h-screen font-body-md antialiased overflow-x-clip" ref={containerRef}>
       <Header />
 
       <main className="pt-6 md:pt-8 pb-sp-xl">

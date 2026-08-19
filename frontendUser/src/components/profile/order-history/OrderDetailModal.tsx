@@ -266,6 +266,31 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
 
             if (!returnReq) return null;
 
+            const rawItems = returnReq.items || (selectedOrder as any).return_items;
+            const parsedReturnItems = parseReturnItemsHelper(rawItems);
+
+            let totalRefundAmount = 0;
+            if (returnReq.action_type === 'refund') {
+              selectedOrder.items?.forEach((item: any) => {
+                let isReturned = false;
+                let returnedQty = item.quantity || 1;
+
+                if (parsedReturnItems.length === 0 && selectedOrder.return_request) {
+                  isReturned = true;
+                } else {
+                  const match = parsedReturnItems.find((ri) => Number(ri.itemId) === Number(item.id));
+                  if (match) {
+                    isReturned = true;
+                    returnedQty = match.quantity ? Math.min(Math.max(Number(match.quantity), 1), item.quantity) : item.quantity;
+                  }
+                }
+
+                if (isReturned) {
+                  totalRefundAmount += Number(item.price || 0) * returnedQty;
+                }
+              });
+            }
+
             return (
               <div className="border border-red-200 bg-red-50/40 p-4 rounded-sm space-y-3">
                 <div className="flex items-center justify-between border-b border-red-200/60 pb-2">
@@ -298,6 +323,11 @@ export const OrderDetailModal: React.FC<OrderDetailModalProps> = ({
                         ? 'Đổi mới 1-1'
                         : 'Trả hàng & Hoàn tiền'}
                     </span>
+                    {returnReq.action_type === 'refund' && (
+                      <div className="mt-1 font-semibold">
+                        Số tiền hoàn (dự kiến): <span className="text-red-600 font-bold">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalRefundAmount)}</span>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <span className="font-semibold text-on-surface">Lý do chính:</span>{' '}

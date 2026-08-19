@@ -504,14 +504,9 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
                             </p>
                             {w.assigned_technician && (
                               <p className="text-xs font-mono font-medium text-blue-900">
-                                Đội ngũ phụ trách: {w.assigned_technician}
+                                Nhân viên kĩ thuật: {w.assigned_technician}
                               </p>
                             )}
-                            <p className="text-[11px] text-amber-900/80 leading-relaxed pt-0.5">
-                              {w.resolution_type === 'repair' || w.resolution_type === 'replace'
-                                ? 'Đội xe tải và thợ tháo lắp sẽ liên hệ trước 30 phút. Quý khách vui lòng dọn dẹp mặt bằng xung quanh sản phẩm.'
-                                : 'Kỹ thuật viên sẽ mang đầy đủ dụng cụ đến kiểm tra & tinh chỉnh tại chỗ.'}
-                            </p>
                           </div>
                         </div>
                       </div>

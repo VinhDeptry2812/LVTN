@@ -556,19 +556,30 @@ export class OrdersService implements OnModuleInit {
       .leftJoinAndSelect('items.product', 'product')
       .leftJoinAndSelect('product.images', 'images')
       .leftJoinAndSelect('items.variant', 'variant')
-      .leftJoinAndSelect('order.return_request', 'return_request')
-      .orderBy('order.created_at', 'DESC');
+      .leftJoinAndSelect('order.return_request', 'return_request');
+
+    if (isReturn === 'true') {
+      queryBuilder
+        .orderBy('return_request.requested_at', 'DESC')
+        .addOrderBy('order.created_at', 'DESC');
+    } else {
+      queryBuilder.orderBy('order.created_at', 'DESC');
+    }
 
     queryBuilder.where('1=1');
 
     if (isReturn === 'true') {
-      queryBuilder.andWhere('order.status IN (:...returnStatuses)', {
-        returnStatuses: [
-          OrderStatus.RETURN_PENDING,
-          OrderStatus.RETURN_APPROVED,
-          OrderStatus.RETURN_REJECTED,
-        ],
-      });
+      if (status) {
+        queryBuilder.andWhere('order.status = :status', { status });
+      } else {
+        queryBuilder.andWhere('order.status IN (:...returnStatuses)', {
+          returnStatuses: [
+            OrderStatus.RETURN_PENDING,
+            OrderStatus.RETURN_APPROVED,
+            OrderStatus.RETURN_REJECTED,
+          ],
+        });
+      }
     } else if (status) {
       queryBuilder.andWhere('order.status = :status', { status });
     }

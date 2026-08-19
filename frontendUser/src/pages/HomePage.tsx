@@ -380,7 +380,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen font-body-md antialiased overflow-x-hidden" ref={heroRef}>
+    <div className="bg-surface text-on-surface min-h-screen font-body-md antialiased overflow-x-clip" ref={heroRef}>
       <Header />
 
       <main>

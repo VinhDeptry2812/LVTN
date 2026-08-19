@@ -258,7 +258,7 @@ export default function ShopPage() {
     (sortBy !== 'default' ? 1 : 0);
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen font-body-md antialiased overflow-x-hidden" ref={containerRef}>
+    <div className="bg-surface text-on-surface min-h-screen font-body-md antialiased overflow-x-clip" ref={containerRef}>
       <Header />
 
       <main className="pb-sp-xl">
