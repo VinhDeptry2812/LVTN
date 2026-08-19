@@ -214,11 +214,13 @@ export default function WarrantyListPage() {
     setResolutionNote(w.resolution_note || '');
     setResolutionType(w.resolution_type || (w.claim_status === 'rejected' ? 'reject' : 'repair'));
     setAssignedTechnician(w.assigned_technician || '');
-    setAppointmentDate(
-      w.appointment_date
-        ? new Date(w.appointment_date).toISOString().slice(0, 16)
-        : ''
-    );
+    let initialDate = '';
+    if (w.appointment_date) {
+      const d = new Date(w.appointment_date);
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      initialDate = d.toISOString().slice(0, 16);
+    }
+    setAppointmentDate(initialDate);
     setIsModalOpen(true);
   };
 

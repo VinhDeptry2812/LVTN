@@ -323,14 +323,18 @@ export default function OrderListPage() {
     }
   };
 
-  const getPaymentStatusBadge = (pStatus: string) => {
+  const getPaymentStatusBadge = (pStatus: string, oStatus?: string) => {
+    if (pStatus === 'failed' && oStatus === 'return_approved') {
+      return <span className="px-2.5 py-0.5 rounded-none text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">Đã hoàn tiền</span>;
+    }
+    
     switch (pStatus) {
       case 'pending':
         return <span className="px-2.5 py-0.5 rounded-none text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Chờ thanh toán</span>;
       case 'paid':
         return <span className="px-2.5 py-0.5 rounded-none text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Đã thanh toán</span>;
       case 'refunded':
-        return <span className="px-2.5 py-0.5 rounded-none text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">Đã hoàn tiền</span>;
+        return <span className="px-2.5 py-0.5 rounded-none text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">Đã hoàn tiền</span>;
       case 'failed':
         return <span className="px-2.5 py-0.5 rounded-none text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">Thất bại</span>;
       default:
@@ -558,7 +562,7 @@ export default function OrderListPage() {
                     </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex flex-col items-center gap-1">
-                        {getPaymentStatusBadge(order.payment_status)}
+                        {getPaymentStatusBadge(order.payment_status, order.status)}
                         {order.payment_method === 'VNPAY' ? (
                           <span className="text-[9px] font-bold text-blue-700 bg-blue-50/60 border border-blue-200/60 px-1.5 py-0.5 rounded-none uppercase mt-1">VNPAY</span>
                         ) : (
@@ -774,7 +778,7 @@ export default function OrderListPage() {
                         </div>
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-slate-400 font-semibold">Thanh toán:</span>
-                          {getPaymentStatusBadge(selectedOrder.payment_status)}
+                          {getPaymentStatusBadge(selectedOrder.payment_status, selectedOrder.status)}
                         </div>
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-slate-400 font-semibold">Trạng thái đơn:</span>
