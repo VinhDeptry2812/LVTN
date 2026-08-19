@@ -149,6 +149,7 @@ export class VnpayService {
     amount: number;
     reason: string;
     ipAddr: string;
+    transactionType?: '02' | '03'; // 02: Full Refund, 03: Partial Refund
   }): Promise<{ success: boolean; message: string; responseCode: string; rawData?: any }> {
     const apiUrl =
       process.env.VNPAY_API_URL ||
@@ -162,7 +163,7 @@ export class VnpayService {
       vnp_Version: '2.1.0',
       vnp_Command: 'refund',
       vnp_TmnCode: this.tmnCode,
-      vnp_TransactionType: '02', // 02 = Hoàn tiền toàn phần
+      vnp_TransactionType: params.transactionType || '02',
       vnp_TxnRef: params.txnRef,
       vnp_Amount: String(Math.round(params.amount * 100)),
       vnp_TransactionNo: params.transactionNo,

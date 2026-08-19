@@ -83,6 +83,86 @@ interface Order {
   return_should_restock?: boolean;
 }
 
+const parseReturnItemsHelper = (raw: any): { itemId: number; quantity: number | null }[] => {
+  if (!raw) return [];
+  let items = raw;
+  while (typeof items === 'string') {
+    try {
+      const parsed = JSON.parse(items);
+      if (parsed === items) break;
+      items = parsed;
+    } catch {
+      break;
+    }
+  }
+  if (!items) return [];
+  if (typeof items === 'number' || typeof items === 'string') {
+    const num = Number(items);
+    return isNaN(num) || num <= 0 ? [] : [{ itemId: num, quantity: null }];
+  }
+  if (typeof items === 'object' && !Array.isArray(items)) {
+    if (Array.isArray(items.items)) {
+      return parseReturnItemsHelper(items.items);
+    }
+    const possibleId = items.itemId ?? items.id ?? items.productId ?? items.product_id;
+    if (possibleId !== undefined && possibleId !== null) {
+      const num = Number(possibleId);
+      if (!isNaN(num) && num > 0) {
+        return [{ itemId: num, quantity: items.quantity ? Number(items.quantity) : null }];
+      }
+    }
+    return Object.entries(items)
+      .map(([k, v]) => ({
+        itemId: Number(k),
+        quantity: typeof v === 'number' ? v : (v as any)?.quantity ? Number((v as any).quantity) : null,
+      }))
+      .filter((i) => !isNaN(i.itemId) && i.itemId > 0);
+  }
+  if (Array.isArray(items)) {
+    return items
+      .map((ri: any) => {
+        if (typeof ri === 'number' || typeof ri === 'string') {
+          const num = Number(ri);
+          return { itemId: isNaN(num) ? 0 : num, quantity: null };
+        }
+        if (typeof ri === 'object' && ri !== null) {
+          const id = ri.itemId ?? ri.id;
+          const num = Number(id);
+          return {
+            itemId: isNaN(num) ? 0 : num,
+            quantity: ri.quantity ? Number(ri.quantity) : null,
+          };
+        }
+        return { itemId: 0, quantity: null };
+      })
+      .filter((i) => i.itemId > 0);
+  }
+  return [];
+};
+
+const calculateReturnTotal = (order: Order): number => {
+  const rawItems = order.return_items || (order as any).return_request?.items;
+  const parsedReturnItems = parseReturnItemsHelper(rawItems);
+  
+  if (parsedReturnItems.length === 0 && (order.return_items || (order as any).return_request)) {
+    // If we have a return request but couldn't parse specific items, we assume it's for all items.
+    return order.total_amount;
+  }
+  
+  let totalRefund = 0;
+  order.items.forEach(item => {
+    const match = parsedReturnItems.find((ri) => Number(ri.itemId) === Number(item.id));
+    if (match) {
+      const qty = match.quantity
+        ? Math.min(Math.max(Number(match.quantity), 1), item.quantity)
+        : item.quantity;
+      totalRefund += item.price * qty;
+    }
+  });
+  
+  return totalRefund > 0 ? totalRefund : order.total_amount; // fallback if calculation is 0
+};
+
 export default function ReturnOrderListPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
@@ -335,7 +415,7 @@ export default function ReturnOrderListPage() {
                       {order.return_reason || '—'}
                     </td>
                     <td className="py-4 px-6 font-semibold text-slate-900">
-                      {formatPrice(order.total_amount)}
+                      {formatPrice(calculateReturnTotal(order))}
                     </td>
                     <td className="py-4 px-6 text-slate-500 font-medium">
                       {formatDate(order.return_requested_at)}
@@ -465,63 +545,6 @@ export default function ReturnOrderListPage() {
                 <div className="divide-y divide-slate-100">
                   {selectedOrder.items.map(item => {
                     const returnInfo = (() => {
-                      const parseReturnItemsHelper = (raw: any): { itemId: number; quantity: number | null }[] => {
-                        if (!raw) return [];
-                        let items = raw;
-                        while (typeof items === 'string') {
-                          try {
-                            const parsed = JSON.parse(items);
-                            if (parsed === items) break;
-                            items = parsed;
-                          } catch {
-                            break;
-                          }
-                        }
-                        if (!items) return [];
-                        if (typeof items === 'number' || typeof items === 'string') {
-                          const num = Number(items);
-                          return isNaN(num) || num <= 0 ? [] : [{ itemId: num, quantity: null }];
-                        }
-                        if (typeof items === 'object' && !Array.isArray(items)) {
-                          if (Array.isArray(items.items)) {
-                            return parseReturnItemsHelper(items.items);
-                          }
-                          const possibleId = items.itemId ?? items.id ?? items.productId ?? items.product_id;
-                          if (possibleId !== undefined && possibleId !== null) {
-                            const num = Number(possibleId);
-                            if (!isNaN(num) && num > 0) {
-                              return [{ itemId: num, quantity: items.quantity ? Number(items.quantity) : null }];
-                            }
-                          }
-                          return Object.entries(items)
-                            .map(([k, v]) => ({
-                              itemId: Number(k),
-                              quantity: typeof v === 'number' ? v : (v as any)?.quantity ? Number((v as any).quantity) : null,
-                            }))
-                            .filter((i) => !isNaN(i.itemId) && i.itemId > 0);
-                        }
-                        if (Array.isArray(items)) {
-                          return items
-                            .map((ri: any) => {
-                              if (typeof ri === 'number' || typeof ri === 'string') {
-                                const num = Number(ri);
-                                return { itemId: isNaN(num) ? 0 : num, quantity: null };
-                              }
-                              if (typeof ri === 'object' && ri !== null) {
-                                const id = ri.itemId ?? ri.id;
-                                const num = Number(id);
-                                return {
-                                  itemId: isNaN(num) ? 0 : num,
-                                  quantity: ri.quantity ? Number(ri.quantity) : null,
-                                };
-                              }
-                              return { itemId: 0, quantity: null };
-                            })
-                            .filter((i) => i.itemId > 0);
-                        }
-                        return [];
-                      };
-
                       const rawItems = selectedOrder.return_items || (selectedOrder as any).return_request?.items;
                       const parsedReturnItems = parseReturnItemsHelper(rawItems);
 

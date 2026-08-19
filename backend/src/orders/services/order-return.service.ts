@@ -451,30 +451,47 @@ export class OrderReturnService {
             await manager.save(StockIssueItem, stockIssueItems);
           }
         } else if (actionType === 'refund') {
+          let calculatedRefundAmount = 0;
+          for (const item of order.items) {
+            const { isReturned, qty } = getReturnQty(item);
+            if (isReturned && qty > 0) {
+              calculatedRefundAmount += Number(item.price) * qty;
+            }
+          }
+          
+          if (calculatedRefundAmount <= 0 || calculatedRefundAmount > Number(order.total_amount)) {
+            calculatedRefundAmount = Number(order.total_amount);
+          }
+
           // Xử lý hoàn tiền trực tuyến VNPAY (nếu đơn thanh toán VNPAY)
           if (
             order.payment_method === PaymentMethod.VNPAY &&
             order.vnpay_transaction_no
           ) {
             try {
+              const isFullRefund = calculatedRefundAmount >= Number(order.total_amount);
               const refundRes = await this.vnpayService.refundTransaction({
                 txnRef: order.vnpay_txn_ref || `${order.id}`,
                 transactionNo: order.vnpay_transaction_no,
                 transactionDate: order.vnpay_payment_date || '',
-                amount: Number(order.total_amount),
+                amount: Math.round(calculatedRefundAmount),
                 reason: `Hoan tien don hang ${order.id}`,
                 ipAddr: '127.0.0.1',
+                transactionType: isFullRefund ? '02' : '03',
               });
 
               if (refundRes.responseCode === '00') {
                 order.payment_status = PaymentStatus.FAILED;
               } else {
-                console.error(
-                  `Cảnh báo: Hoàn tiền VNPAY tự động thất bại (Mã: ${refundRes.responseCode}) - ${refundRes.message}. Cần xử lý hoàn tiền thủ công.`,
+                throw new BadRequestException(
+                  `Hoàn tiền VNPAY thất bại (Mã: ${refundRes.responseCode}). Lý do: ${refundRes.message || 'Lỗi không xác định'}`
                 );
               }
             } catch (vnpErr) {
-              console.error('Lỗi khi gọi API refund VNPAY:', vnpErr);
+              if (vnpErr instanceof BadRequestException) {
+                throw vnpErr;
+              }
+              throw new BadRequestException(`Lỗi hệ thống khi gọi API hoàn tiền VNPAY: ${(vnpErr as Error).message}`);
             }
           }
         }

@@ -218,11 +218,7 @@ export const CheckoutOrderSummary: React.FC<CheckoutOrderSummaryProps> = ({
           </span>
         </div>
 
-        {isBulky && (
-          <div className="text-xs text-amber-700 bg-amber-50 p-2 rounded border border-amber-200 mt-1">
-            ⚠️ Đơn hàng có sản phẩm cồng kềnh/nặng, đã áp dụng phụ phí vận chuyển.
-          </div>
-        )}
+
       </div>
 
       {/* Total Price (Định dạng VND 10.340.000 ₫ theo chuẩn Ảnh 1) */}
