@@ -121,4 +121,13 @@ export class ReviewsController {
   delete(@Param('id', ParseIntPipe) id: number) {
     return this.reviewsService.delete(id);
   }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  @ApiOperation({ summary: 'Ẩn/Hiện đánh giá (Admin & Staff)' })
+  @Patch(':id/toggle-visibility')
+  toggleVisibility(@Param('id', ParseIntPipe) id: number) {
+    return this.reviewsService.toggleVisibility(id);
+  }
 }

@@ -44,6 +44,9 @@ export class Review {
   @Column({ type: 'int', default: 0 })
   edit_count: number; // Số lần đã chỉnh sửa (tối đa 1 lần)
 
+  @Column({ type: 'boolean', default: false })
+  is_hidden: boolean; // Đánh giá bị ẩn bởi Admin
+
   @CreateDateColumn()
   created_at: Date;
 

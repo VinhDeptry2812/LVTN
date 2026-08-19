@@ -8,13 +8,14 @@ import TableLoader from '@/components/TableLoader';
 import AdminPageHeader from '@/components/AdminPageHeader';
 
 import toast from 'react-hot-toast';
-import { Trash2, MessageSquare, Loader2, Star, Search, Calendar, User, Package, ChevronRight, Eye, X } from 'lucide-react';
+import { Trash2, MessageSquare, Loader2, Star, Search, Calendar, User, Package, ChevronRight, Eye, EyeOff, X } from 'lucide-react';
 
 interface Review {
   id: number;
   rating: number;
   comment: string;
   images?: string[];
+  is_hidden: boolean;
   created_at: string;
   user: {
     id: number;
@@ -88,6 +89,19 @@ export default function ReviewListPage() {
         }
       }
     });
+  };
+
+  const handleToggleVisibility = async (id: number, currentStatus: boolean) => {
+    try {
+      await api.patch(`/reviews/${id}/toggle-visibility`);
+      toast.success(currentStatus ? 'Đã hiển thị lại đánh giá' : 'Đã ẩn đánh giá khỏi cửa hàng');
+      fetchReviews();
+      if (selectedReview && selectedReview.id === id) {
+        setSelectedReview({ ...selectedReview, is_hidden: !currentStatus });
+      }
+    } catch (err) {
+      toast.error('Có lỗi xảy ra khi cập nhật trạng thái');
+    }
   };
 
   // Filter reviews based on search term and rating stars
@@ -190,7 +204,7 @@ export default function ReviewListPage() {
                     </tr>
                   ) : (
                     paginatedReviews.map((r) => (
-                      <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                      <tr key={r.id} className={`border-b border-slate-100 transition-colors ${r.is_hidden ? 'bg-slate-100/50 opacity-75' : 'hover:bg-slate-50/50'}`}>
                         <td className="px-6 py-4 font-mono text-slate-500">#{r.id}</td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
@@ -251,11 +265,18 @@ export default function ReviewListPage() {
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-1">
                             <button
-                              onClick={() => setSelectedReview(r)}
-                              className="p-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-all cursor-pointer rounded-none"
-                              title="Xem chi tiết đánh giá"
+                              onClick={() => handleToggleVisibility(r.id, r.is_hidden)}
+                              className={`p-2 transition-all cursor-pointer rounded-none ${r.is_hidden ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50' : 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'}`}
+                              title={r.is_hidden ? "Đang ẩn (Bấm để hiện)" : "Đang hiện (Bấm để ẩn)"}
                             >
-                              <Eye size={16} />
+                              {r.is_hidden ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                            <button
+                              onClick={() => setSelectedReview(r)}
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all cursor-pointer rounded-none"
+                              title="Xem chi tiết"
+                            >
+                              <MessageSquare size={16} />
                             </button>
                             <button
                               onClick={() => handleDelete(r.id)}
@@ -310,6 +331,11 @@ export default function ReviewListPage() {
                 <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider">
                   Chi tiết đánh giá #{selectedReview.id}
                 </h3>
+                {selectedReview.is_hidden && (
+                  <span className="ml-2 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold uppercase rounded-none border border-amber-200">
+                    Đang ẩn
+                  </span>
+                )}
               </div>
               <button
                 onClick={() => setSelectedReview(null)}
@@ -414,15 +440,29 @@ export default function ReviewListPage() {
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3 shrink-0">
-              <button
-                onClick={() => {
-                  setSelectedReview(null);
-                  handleDelete(selectedReview.id);
-                }}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
-              >
-                Xóa đánh giá
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    handleToggleVisibility(selectedReview.id, selectedReview.is_hidden);
+                  }}
+                  className={`px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                    selectedReview.is_hidden 
+                    ? 'bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200' 
+                    : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                  }`}
+                >
+                  {selectedReview.is_hidden ? 'Hiển thị lại' : 'Ẩn đánh giá'}
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedReview(null);
+                    handleDelete(selectedReview.id);
+                  }}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
+                >
+                  Xóa vĩnh viễn
+                </button>
+              </div>
               <button
                 onClick={() => setSelectedReview(null)}
                 className="px-4 py-2 border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"

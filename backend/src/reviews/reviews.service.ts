@@ -149,9 +149,9 @@ export class ReviewsService {
     rating?: number | string,
     sort?: string,
   ) {
-    // 1. Tải tất cả đánh giá của sản phẩm để tính thống kê điểm số & tổng số ảnh
+    // 1. Tải tất cả đánh giá của sản phẩm (chưa bị ẩn) để tính thống kê điểm số & tổng số ảnh
     const allReviews = await this.reviewsRepository.find({
-      where: { product: { id: productId } },
+      where: { product: { id: productId }, is_hidden: false },
       relations: { user: true },
       order: { created_at: 'DESC' },
     });
@@ -376,7 +376,7 @@ export class ReviewsService {
 
   async getByUserId(userId: number): Promise<Review[]> {
     return this.reviewsRepository.find({
-      where: { user: { id: userId } },
+      where: { user: { id: userId }, is_hidden: false },
       relations: {
         product: {
           images: true,
@@ -389,7 +389,7 @@ export class ReviewsService {
 
   async getFeaturedReviews(limit = 10) {
     const reviews = await this.reviewsRepository.find({
-      where: { rating: 5 },
+      where: { rating: 5, is_hidden: false },
       relations: { user: true, product: true },
       order: { created_at: 'DESC' },
       take: limit,
@@ -419,5 +419,16 @@ export class ReviewsService {
       throw new NotFoundException(`Không tìm thấy đánh giá với ID ${reviewId}`);
     }
     await this.reviewsRepository.softRemove(review);
+  }
+
+  async toggleVisibility(reviewId: number): Promise<Review> {
+    const review = await this.reviewsRepository.findOne({
+      where: { id: reviewId },
+    });
+    if (!review) {
+      throw new NotFoundException(`Không tìm thấy đánh giá với ID ${reviewId}`);
+    }
+    review.is_hidden = !review.is_hidden;
+    return this.reviewsRepository.save(review);
   }
 }
