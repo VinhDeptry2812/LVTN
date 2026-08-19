@@ -49,6 +49,15 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
 
   // Timeline log expand state
   const [expandedLogWarrantyId, setExpandedLogWarrantyId] = useState<number | null>(null);
+  
+  // Warranty details expand state
+  const [expandedWarrantyIds, setExpandedWarrantyIds] = useState<number[]>([]);
+  
+  const toggleExpand = (id: number) => {
+    setExpandedWarrantyIds((prev) =>
+      prev.includes(id) ? prev.filter((wId) => wId !== id) : [...prev, id]
+    );
+  };
 
   // Fetch warranties
   const fetchWarranties = async () => {
@@ -318,7 +327,7 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
                 />
 
                 <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 lg:gap-6 pl-2 sm:pl-3">
-                  {/* Left: Product Info & Dates */}
+                  {/* Left: Product Info & Summary */}
                   <div className="flex items-start gap-4 flex-1 min-w-0 w-full">
                     <img
                       src={getProductImage(w, 'https://res.cloudinary.com/dblkv5veh/image/upload/v1784303294/Image-not-found_dm03kv.png')}
@@ -340,253 +349,271 @@ const WarrantyTab: React.FC<WarrantyTabProps> = ({ user }) => {
                         )}
                       </div>
 
-                      {/* Code & Serial Pills */}
-                      <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <span className="font-mono font-bold text-[#536257] bg-[#536257]/10 px-2.5 py-0.5 rounded-md border border-[#536257]/20 flex items-center gap-1">
-                          
-                          Mã : {w.code}
+                      {/* Status Badges */}
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider border flex items-center gap-1.5 ${
+                          isActive
+                            ? 'bg-[#536257]/10 text-[#536257] border-[#536257]/30'
+                            : isExpired
+                            ? 'bg-stone-100 text-stone-600 border-stone-200'
+                            : 'bg-rose-50 text-rose-800 border-rose-200'
+                        }`}>
+                          <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-[#536257] animate-pulse' : 'bg-stone-400'}`} />
+                          {isActive && 'Còn hạn bảo hành'}
+                          {w.status === 'expired' && 'Đã hết hạn'}
+                          {w.status === 'voided' && 'Phiếu bị hủy'}
                         </span>
-                        {w.serial_number && (
-                          <span className="text-stone-500 font-mono text-[11px] bg-stone-50 px-2 py-0.5 rounded-md border border-stone-200/60">
-                            SN: {w.serial_number}
+
+                        {w.claim_status && w.claim_status !== 'none' && (
+                          <span className={`px-2.5 py-1 rounded-md text-[11px] font-medium border flex items-center gap-1.5 ${
+                            isClaiming
+                              ? 'bg-[#8c7a6b]/10 text-[#6b5c4c] border-[#6b5c4c]/30'
+                              : isProcessing
+                              ? 'bg-blue-50 text-blue-900 border-blue-200'
+                              : isCompleted
+                              ? 'bg-[#536257]/10 text-[#536257] border-[#536257]/30'
+                              : 'bg-rose-50 text-rose-900 border-rose-200'
+                          }`}>
+                            <Wrench className="w-3.5 h-3.5 shrink-0" />
+                            <span>
+                              {isClaiming && 'Đã gửi yêu cầu (Chờ duyệt)'}
+                              {isProcessing && 'Đang tiếp nhận & sửa chữa'}
+                              {isCompleted && 'Đã bảo hành thành công'}
+                              {isRejected && 'Yêu cầu bị từ chối'}
+                            </span>
                           </span>
                         )}
                       </div>
-
-                      {/* Period dates */}
-                      <div className="text-xs text-stone-600 flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="flex items-center gap-1 text-stone-500">
-                          <Calendar className="w-3.5 h-3.5" />
-                          Thời hạn:
-                        </span>
-                        <span className="font-semibold text-stone-800">{formatDate(w.start_date)} - {formatDate(w.end_date)}</span>
-                        <span className="text-stone-500">({w.warranty_months} tháng)</span>
-                      </div>
-
-                      {/* Claim Images preview if present */}
-                      {w.claim_images && Array.isArray(w.claim_images) && w.claim_images.length > 0 && (
-                        <div className="pt-1.5 flex items-center gap-2">
-                          <span className="text-[11px] text-stone-500 font-medium">Ảnh chụp sự cố:</span>
-                          <div className="flex gap-1.5 overflow-x-auto">
-                            {w.claim_images.map((imgUrl: string, idx: number) => (
-                              <a key={idx} href={imgUrl} target="_blank" rel="noreferrer" className="block shrink-0">
-                                <img
-                                  src={imgUrl}
-                                  alt={`Ảnh lỗi ${idx + 1}`}
-                                  className="w-9 h-9 object-cover rounded-md border border-stone-200 hover:ring-2 hover:ring-[#536257] transition"
-                                />
-                              </a>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
 
-                  {/* Right: Badges & Main Action */}
-                  <div className="w-full lg:w-auto flex flex-col items-start lg:items-end justify-between gap-3 shrink-0 pt-3 lg:pt-0 border-t lg:border-t-0 border-stone-100">
-                    {/* Status Badges */}
-                    <div className="flex flex-wrap lg:flex-col items-start lg:items-end gap-1.5">
-                      <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider border flex items-center gap-1.5 ${
-                        isActive
-                          ? 'bg-[#536257]/10 text-[#536257] border-[#536257]/30'
-                          : isExpired
-                          ? 'bg-stone-100 text-stone-600 border-stone-200'
-                          : 'bg-rose-50 text-rose-800 border-rose-200'
-                      }`}>
-                        <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-[#536257] animate-pulse' : 'bg-stone-400'}`} />
-                        {isActive && 'Còn hạn bảo hành'}
-                        {w.status === 'expired' && 'Đã hết hạn'}
-                        {w.status === 'voided' && 'Phiếu bị hủy'}
-                      </span>
-
-                      {w.claim_status && w.claim_status !== 'none' && (
-                        <span className={`px-2.5 py-1 rounded-md text-[11px] font-medium border flex items-center gap-1.5 ${
-                          isClaiming
-                            ? 'bg-[#8c7a6b]/10 text-[#6b5c4c] border-[#6b5c4c]/30'
-                            : isProcessing
-                            ? 'bg-blue-50 text-blue-900 border-blue-200'
-                            : isCompleted
-                            ? 'bg-[#536257]/10 text-[#536257] border-[#536257]/30'
-                            : 'bg-rose-50 text-rose-900 border-rose-200'
-                        }`}>
-                          <Wrench className="w-3.5 h-3.5 shrink-0" />
-                          <span>
-                            {isClaiming && 'Đã gửi yêu cầu (Chờ duyệt)'}
-                            {isProcessing && 'Đang tiếp nhận & sửa chữa'}
-                            {isCompleted && 'Đã bảo hành thành công'}
-                            {isRejected && 'Yêu cầu bị từ chối'}
-                          </span>
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Action Button */}
-                    {isActive && (
-                      <div className="w-full lg:w-auto">
-                        {(!w.claim_status || w.claim_status === 'none') && (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenClaimModal(w)}
-                            className="w-full lg:w-auto px-4 py-2 bg-[#536257] hover:bg-[#435147] text-white font-medium text-xs rounded-lg transition-all shadow-xs hover:shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
-                          >
-                            <Wrench className="w-3.5 h-3.5" />
-                            Gửi yêu cầu bảo hành / sửa chữa
-                          </button>
-                        )}
-
-                        {isCompleted && (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenClaimModal(w)}
-                            className="w-full lg:w-auto px-4 py-2 bg-[#536257] hover:bg-[#435147] text-white font-medium text-xs rounded-lg transition-all shadow-xs hover:shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
-                          >
-                            <Wrench className="w-3.5 h-3.5" />
-                            Gửi yêu cầu đợt mới
-                          </button>
-                        )}
-
-                        {isRejected && (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenClaimModal(w)}
-                            className="w-full lg:w-auto px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-medium text-xs rounded-lg transition-all shadow-xs hover:shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
-                          >
-                            <Wrench className="w-3.5 h-3.5" />
-                            Gửi lại yêu cầu bảo hành
-                          </button>
-                        )}
-                      </div>
-                    )}
+                  {/* Right: Expand/Collapse Button */}
+                  <div className="w-full lg:w-auto flex justify-end shrink-0 pt-2 lg:pt-0">
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(w.id)}
+                      className="px-4 py-2 bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      {expandedWarrantyIds.includes(w.id) ? 'Thu gọn' : 'Xem chi tiết'}
+                      {expandedWarrantyIds.includes(w.id) ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
                   </div>
                 </div>
 
-                {/* Highlight Appointment Box (Callout) */}
-                {w.appointment_date && (
-                  <div className="pl-2 sm:pl-3 pt-1">
-                    <div className="bg-gradient-to-r from-[#536257]/10 via-[#536257]/5 to-transparent border border-[#536257]/30 rounded-lg p-3 sm:p-3.5 flex items-start gap-3 text-xs text-stone-900">
-                      <div className="w-8 h-8 rounded-full bg-[#536257] text-white flex items-center justify-center shrink-0 shadow-xs">
-                        <Clock className="w-4 h-4" />
-                      </div>
-                      <div className="space-y-0.5">
-                        <p className="font-bold text-[#536257] text-xs sm:text-sm flex items-center gap-1.5">
-                          {w.resolution_type === 'repair' || w.resolution_type === 'replace'
-                            ? 'Lịch Hẹn Thu Hồi Về Xưởng'
-                            : 'Lịch Hẹn Kỹ Thuật Viên Tới Nhà'}
-                        </p>
-                        <p className="font-mono text-xs font-semibold text-[#536257]">
-                          Thời gian dự kiến: {formatDate(w.appointment_date)}
-                        </p>
-                        {w.assigned_technician && (
-                          <p className="text-xs font-mono font-medium text-blue-900">
-                            Đội ngũ phụ trách: {w.assigned_technician}
-                          </p>
-                        )}
-                        <p className="text-[11px] text-amber-900/80 leading-relaxed pt-0.5">
-                          {w.resolution_type === 'repair' || w.resolution_type === 'replace'
-                            ? 'Đội xe tải và thợ tháo lắp sẽ liên hệ trước 30 phút. Quý khách vui lòng dọn dẹp mặt bằng xung quanh sản phẩm.'
-                            : 'Kỹ thuật viên sẽ mang đầy đủ dụng cụ đến kiểm tra & tinh chỉnh tại chỗ.'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {/* Expanded Detailed View */}
+                {expandedWarrantyIds.includes(w.id) && (
+                  <div className="mt-4 pt-4 border-t border-stone-100 space-y-4 pl-2 sm:pl-3 animate-fadeIn">
+                    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+                      {/* Detailed Info */}
+                      <div className="space-y-3">
+                        {/* Code & Serial Pills */}
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          <span className="font-mono font-bold text-[#536257] bg-[#536257]/10 px-2.5 py-0.5 rounded-md border border-[#536257]/20 flex items-center gap-1">
+                            Mã : {w.code}
+                          </span>
+                          {w.serial_number && (
+                            <span className="text-stone-500 font-mono text-[11px] bg-stone-50 px-2 py-0.5 rounded-md border border-stone-200/60">
+                              SN: {w.serial_number}
+                            </span>
+                          )}
+                        </div>
 
-                {/* Resolution Note Callout */}
-                {w.resolution_note && (
-                  <div className="pl-2 sm:pl-3 pt-1">
-                    <div className="bg-stone-50 border border-stone-200/80 rounded-lg p-3 text-xs text-stone-800 space-y-1">
-                      <span className="font-bold text-[11px] uppercase tracking-wider text-[#536257] flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-[#536257]" />
-                        Ghi chú từ Kỹ Thuật Viên:
-                      </span>
-                      <p className="text-stone-700 leading-relaxed break-words">{w.resolution_note}</p>
-                    </div>
-                  </div>
-                )}
+                        {/* Period dates */}
+                        <div className="text-xs text-stone-600 flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="flex items-center gap-1 text-stone-500">
+                            <Calendar className="w-3.5 h-3.5" />
+                            Thời hạn:
+                          </span>
+                          <span className="font-semibold text-stone-800">{formatDate(w.start_date)} - {formatDate(w.end_date)}</span>
+                          <span className="text-stone-500">({w.warranty_months} tháng)</span>
+                        </div>
 
-                {/* Timeline Log Section Toggle */}
-                {(() => {
-                  // Gom nhóm các log thuộc cùng 1 lý do báo lỗi (đợt bảo hành)
-                  const uniqueLogs: any[] = [];
-                  const seenReasons = new Set<string>();
-                  (w.claim_logs || []).forEach((log: any) => {
-                    const key = log.claim_reason ? log.claim_reason.trim().toLowerCase() : `log_${log.id}`;
-                    if (!seenReasons.has(key)) {
-                      seenReasons.add(key);
-                      uniqueLogs.push(log);
-                    }
-                  });
-
-                  if (uniqueLogs.length === 0) return null;
-
-                  return (
-                    <div className="pt-2 border-t border-stone-100 pl-2 sm:pl-3">
-                      <button
-                        type="button"
-                        onClick={() => setExpandedLogWarrantyId(expandedLogWarrantyId === w.id ? null : w.id)}
-                        className="text-xs font-semibold text-stone-700 hover:text-[#536257] flex items-center gap-1.5 cursor-pointer py-1 transition"
-                      >
-                        <History className="w-4 h-4 text-[#536257]" />
-                        <span>{expandedLogWarrantyId === w.id ? 'Thu gọn nhật ký bảo hành' : `Xem nhật ký lịch sử (${uniqueLogs.length} đợt)`}</span>
-                        {expandedLogWarrantyId === w.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
-
-                      {/* Timeline Tree */}
-                      {expandedLogWarrantyId === w.id && (
-                        <div className="mt-3 pt-2 space-y-4 pl-3 border-l-2 border-stone-200 ml-2">
-                          {uniqueLogs.map((log: any, index: number) => (
-                            <div key={log.id || index} className="relative pl-4 space-y-1.5 text-xs">
-                              {/* Dot indicator */}
-                              <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-[#536257] ring-4 ring-white" />
-
-                              <div className="flex items-center justify-between text-stone-500 font-mono text-[11px]">
-                                <span className="font-bold text-stone-800">Đợt #{uniqueLogs.length - index}</span>
-                                <span>{formatDate(log.created_at)}</span>
-                              </div>
-
-                              {log.claim_reason && (
-                                <p className="text-stone-700 bg-stone-50 p-2.5 rounded-md border border-stone-200/60">
-                                  <strong className="text-stone-900 block text-[11px] mb-0.5">Mô tả sự cố:</strong>
-                                  {log.claim_reason}
-                                </p>
-                              )}
-
-                              {log.resolution_type && (
-                                <p className="text-stone-800 font-semibold text-[11px]">
-                                  <strong>Phương án xử lý:</strong>{' '}
-                                  {log.resolution_type === 'repair' && 'Thu hồi về xưởng sửa chữa'}
-                                  {log.resolution_type === 'replace' && 'Đổi mới sản phẩm 1:1'}
-                                  {log.resolution_type === 'home_service' && 'KTV hỗ trợ tại nhà'}
-                                  {log.resolution_type === 'reject' && 'Từ chối bảo hành'}
-                                </p>
-                              )}
-
-                              {log.assigned_technician && (
-                                <p className="text-blue-900 font-mono text-[11px]">
-                                  <strong>Đội ngũ phụ trách:</strong> {log.assigned_technician}
-                                </p>
-                              )}
-
-                              {log.resolution_note && (
-                                <p className="text-emerald-950 bg-emerald-50/70 p-2.5 rounded-md border border-emerald-200/60">
-                                  <strong className="text-emerald-900 block text-[11px] mb-0.5">Phương án kỹ thuật:</strong>
-                                  {log.resolution_note}
-                                </p>
-                              )}
-
-                              {log.appointment_date && (
-                                <p className="text-[#536257] font-mono text-[11px] bg-[#536257]/10 p-2 rounded-md border border-[#536257]/20">
-                                  📅 <strong>Lịch hẹn kiểm tra / thu hồi:</strong> {formatDate(log.appointment_date)}
-                                </p>
-                              )}
+                        {/* Claim Images preview if present */}
+                        {w.claim_images && Array.isArray(w.claim_images) && w.claim_images.length > 0 && (
+                          <div className="pt-1.5 flex items-center gap-2">
+                            <span className="text-[11px] text-stone-500 font-medium">Ảnh chụp sự cố:</span>
+                            <div className="flex gap-1.5 overflow-x-auto">
+                              {w.claim_images.map((imgUrl: string, idx: number) => (
+                                <a key={idx} href={imgUrl} target="_blank" rel="noreferrer" className="block shrink-0">
+                                  <img
+                                    src={imgUrl}
+                                    alt={`Ảnh lỗi ${idx + 1}`}
+                                    className="w-9 h-9 object-cover rounded-md border border-stone-200 hover:ring-2 hover:ring-[#536257] transition"
+                                  />
+                                </a>
+                              ))}
                             </div>
-                          ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Button */}
+                      {isActive && (
+                        <div className="w-full lg:w-auto">
+                          {(!w.claim_status || w.claim_status === 'none') && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenClaimModal(w)}
+                              className="w-full lg:w-auto px-4 py-2 bg-[#536257] hover:bg-[#435147] text-white font-medium text-xs rounded-lg transition-all shadow-xs hover:shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                              <Wrench className="w-3.5 h-3.5" />
+                              Gửi yêu cầu bảo hành / sửa chữa
+                            </button>
+                          )}
+
+                          {isCompleted && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenClaimModal(w)}
+                              className="w-full lg:w-auto px-4 py-2 bg-[#536257] hover:bg-[#435147] text-white font-medium text-xs rounded-lg transition-all shadow-xs hover:shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                              <Wrench className="w-3.5 h-3.5" />
+                              Gửi yêu cầu đợt mới
+                            </button>
+                          )}
+
+                          {isRejected && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenClaimModal(w)}
+                              className="w-full lg:w-auto px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-medium text-xs rounded-lg transition-all shadow-xs hover:shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                              <Wrench className="w-3.5 h-3.5" />
+                              Gửi lại yêu cầu bảo hành
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
-                  );
-                })()}
+
+                    {/* Highlight Appointment Box (Callout) */}
+                    {w.appointment_date && (
+                      <div className="pt-2">
+                        <div className="bg-gradient-to-r from-[#536257]/10 via-[#536257]/5 to-transparent border border-[#536257]/30 rounded-lg p-3 sm:p-3.5 flex items-start gap-3 text-xs text-stone-900">
+                          <div className="w-8 h-8 rounded-full bg-[#536257] text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <Clock className="w-4 h-4" />
+                          </div>
+                          <div className="space-y-0.5">
+                            <p className="font-bold text-[#536257] text-xs sm:text-sm flex items-center gap-1.5">
+                              {w.resolution_type === 'repair' || w.resolution_type === 'replace'
+                                ? 'Lịch Hẹn Thu Hồi Về Xưởng'
+                                : 'Lịch Hẹn Kỹ Thuật Viên Tới Nhà'}
+                            </p>
+                            <p className="font-mono text-xs font-semibold text-[#536257]">
+                              Thời gian dự kiến: {formatDate(w.appointment_date)}
+                            </p>
+                            {w.assigned_technician && (
+                              <p className="text-xs font-mono font-medium text-blue-900">
+                                Đội ngũ phụ trách: {w.assigned_technician}
+                              </p>
+                            )}
+                            <p className="text-[11px] text-amber-900/80 leading-relaxed pt-0.5">
+                              {w.resolution_type === 'repair' || w.resolution_type === 'replace'
+                                ? 'Đội xe tải và thợ tháo lắp sẽ liên hệ trước 30 phút. Quý khách vui lòng dọn dẹp mặt bằng xung quanh sản phẩm.'
+                                : 'Kỹ thuật viên sẽ mang đầy đủ dụng cụ đến kiểm tra & tinh chỉnh tại chỗ.'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Resolution Note Callout */}
+                    {w.resolution_note && (
+                      <div className="pt-2">
+                        <div className="bg-stone-50 border border-stone-200/80 rounded-lg p-3 text-xs text-stone-800 space-y-1">
+                          <span className="font-bold text-[11px] uppercase tracking-wider text-[#536257] flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#536257]" />
+                            Ghi chú từ Kỹ Thuật Viên:
+                          </span>
+                          <p className="text-stone-700 leading-relaxed break-words">{w.resolution_note}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Timeline Log Section Toggle */}
+                    {(() => {
+                      // Gom nhóm các log thuộc cùng 1 lý do báo lỗi (đợt bảo hành)
+                      const uniqueLogs: any[] = [];
+                      const seenReasons = new Set<string>();
+                      (w.claim_logs || []).forEach((log: any) => {
+                        const key = log.claim_reason ? log.claim_reason.trim().toLowerCase() : `log_${log.id}`;
+                        if (!seenReasons.has(key)) {
+                          seenReasons.add(key);
+                          uniqueLogs.push(log);
+                        }
+                      });
+
+                      if (uniqueLogs.length === 0) return null;
+
+                      return (
+                        <div className="pt-2 border-t border-stone-100">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedLogWarrantyId(expandedLogWarrantyId === w.id ? null : w.id)}
+                            className="text-xs font-semibold text-stone-700 hover:text-[#536257] flex items-center gap-1.5 cursor-pointer py-1 transition"
+                          >
+                            <History className="w-4 h-4 text-[#536257]" />
+                            <span>{expandedLogWarrantyId === w.id ? 'Thu gọn nhật ký bảo hành' : `Xem nhật ký lịch sử (${uniqueLogs.length} đợt)`}</span>
+                            {expandedLogWarrantyId === w.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          </button>
+
+                          {/* Timeline Tree */}
+                          {expandedLogWarrantyId === w.id && (
+                            <div className="mt-3 pt-2 space-y-4 pl-3 border-l-2 border-stone-200 ml-2">
+                              {uniqueLogs.map((log: any, index: number) => (
+                                <div key={log.id || index} className="relative pl-4 space-y-1.5 text-xs">
+                                  {/* Dot indicator */}
+                                  <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-[#536257] ring-4 ring-white" />
+
+                                  <div className="flex items-center justify-between text-stone-500 font-mono text-[11px]">
+                                    <span className="font-bold text-stone-800">Đợt #{uniqueLogs.length - index}</span>
+                                    <span>{formatDate(log.created_at)}</span>
+                                  </div>
+
+                                  {log.claim_reason && (
+                                    <p className="text-stone-700 bg-stone-50 p-2.5 rounded-md border border-stone-200/60">
+                                      <strong className="text-stone-900 block text-[11px] mb-0.5">Mô tả sự cố:</strong>
+                                      {log.claim_reason}
+                                    </p>
+                                  )}
+
+                                  {log.resolution_type && (
+                                    <p className="text-stone-800 font-semibold text-[11px]">
+                                      <strong>Phương án xử lý:</strong>{' '}
+                                      {log.resolution_type === 'repair' && 'Thu hồi về xưởng sửa chữa'}
+                                      {log.resolution_type === 'replace' && 'Đổi mới sản phẩm 1:1'}
+                                      {log.resolution_type === 'home_service' && 'KTV hỗ trợ tại nhà'}
+                                      {log.resolution_type === 'reject' && 'Từ chối bảo hành'}
+                                    </p>
+                                  )}
+
+                                  {log.assigned_technician && (
+                                    <p className="text-blue-900 font-mono text-[11px]">
+                                      <strong>Đội ngũ phụ trách:</strong> {log.assigned_technician}
+                                    </p>
+                                  )}
+
+                                  {log.resolution_note && (
+                                    <p className="text-emerald-950 bg-emerald-50/70 p-2.5 rounded-md border border-emerald-200/60">
+                                      <strong className="text-emerald-900 block text-[11px] mb-0.5">Phương án kỹ thuật:</strong>
+                                      {log.resolution_note}
+                                    </p>
+                                  )}
+
+                                  {log.appointment_date && (
+                                    <p className="text-[#536257] font-mono text-[11px] bg-[#536257]/10 p-2 rounded-md border border-[#536257]/20">
+                                      📅 <strong>Lịch hẹn kiểm tra / thu hồi:</strong> {formatDate(log.appointment_date)}
+                                    </p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             );
           })}

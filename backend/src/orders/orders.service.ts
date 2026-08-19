@@ -263,10 +263,25 @@ export class OrdersService implements OnModuleInit {
       );
       order.shipping_fee = shippingFee;
       
+      // Load products for the items to calculate prices securely
+      const productIds = dto.items.map((i) => i.product_id);
+      const products = await queryRunner.manager.find(Product, {
+        where: { id: In(productIds) },
+      });
+      const productsMap = new Map(products.map((p) => [p.id, p]));
+
       // Khóa bi quan (pessimistic lock) để kiểm tra tồn kho cho các sản phẩm
       for (const item of dto.items) {
+        const product = productsMap.get(item.product_id);
+        if (!product) {
+          throw new NotFoundException(`Sản phẩm (ID: ${item.product_id}) không tồn tại.`);
+        }
+
+        let actualPrice = product.discount_price ? Number(product.discount_price) : Number(product.base_price);
+        let variant: ProductVariant | null = null;
+
         if (item.variant_id) {
-          const variant = await queryRunner.manager.findOne(ProductVariant, {
+          variant = await queryRunner.manager.findOne(ProductVariant, {
             where: { id: item.variant_id },
             lock: { mode: 'pessimistic_write' },
           });
@@ -280,9 +295,11 @@ export class OrdersService implements OnModuleInit {
               `Không đủ hàng tồn kho. Chỉ còn lại ${variant.stock} sản phẩm.`,
             );
           }
+          
+          actualPrice += Number(variant.price_adjustment || 0);
         }
 
-        const itemSubtotal = item.price * item.quantity;
+        const itemSubtotal = actualPrice * item.quantity;
         totalAmount += itemSubtotal;
 
         const orderItem = new OrderItem();
@@ -293,7 +310,7 @@ export class OrdersService implements OnModuleInit {
           } as unknown as ProductVariant;
         }
         orderItem.quantity = item.quantity;
-        orderItem.price = item.price;
+        orderItem.price = actualPrice;
         orderItems.push(orderItem);
       }
 

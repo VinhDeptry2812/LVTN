@@ -414,7 +414,7 @@ export default function HomePage() {
           {newProducts.length > 0 && (
             <ProductSectionCarousel
               title="SẢN PHẨM MỚI"
-              subtitle="Những thiết kế mới nhất vừa cập bến FurniShop"
+              subtitle="Những thiết kế mới nhất vừa cập bến Nội thất"
               products={newProducts}
               viewAllLink="/shop?sort=newest"
               onAddToCart={handleAddToCart}

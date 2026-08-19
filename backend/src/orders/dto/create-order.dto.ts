@@ -7,6 +7,9 @@ import {
   ValidateNested,
   IsNumber,
   Matches,
+  Min,
+  Max,
+  ArrayMaxSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaymentMethod } from '../order.entity';
@@ -22,6 +25,8 @@ export class OrderItemDto {
 
   @IsNotEmpty()
   @IsNumber()
+  @Min(1, { message: 'Số lượng tối thiểu là 1' })
+  @Max(20, { message: 'Không thể mua quá 20 sản phẩm cùng loại trong 1 đơn hàng' })
   quantity: number;
 
   @IsNotEmpty()
@@ -56,6 +61,7 @@ export class CreateOrderDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
+  @ArrayMaxSize(20, { message: 'Đơn hàng không được vượt quá 20 loại sản phẩm khác nhau' })
   @Type(() => OrderItemDto)
   items?: OrderItemDto[];
 }

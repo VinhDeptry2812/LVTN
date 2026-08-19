@@ -40,7 +40,7 @@ export const AboutUsSection = forwardRef<HTMLDivElement>((_, ref) => {
               Nội thất <span className="text-primary">Xanh</span> cho gia đình Việt
             </h2>
             <p className="font-body-md text-xs sm:text-body-md text-on-surface-variant/90 mb-4 sm:mb-5 leading-relaxed">
-              Là thương hiệu nội thất bán lẻ trực thuộc nhà máy liên doanh xuất khẩu quy mô lớn, FurniShop tự hào sở hữu quy trình sản xuất khép kín đạt chứng chỉ bảo vệ rừng quốc tế <strong>FSC</strong>.
+              Là thương hiệu nội thất bán lẻ trực thuộc nhà máy liên doanh xuất khẩu quy mô lớn, Nội thất tự hào sở hữu quy trình sản xuất khép kín đạt chứng chỉ bảo vệ rừng quốc tế <strong>FSC</strong>.
             </p>
             <p className="font-body-md text-xs sm:text-body-md text-on-surface-variant/90 mb-6 sm:mb-8 leading-relaxed">
               Từng thớ gỗ, từng lớp sơn phủ đều vượt qua kiểm định khắt khe của chứng chỉ <strong>CARB-P2</strong> (California Air Resources Board) - tiêu chuẩn an toàn không khí cao cấp nhất dành cho vật liệu gỗ công nghiệp.

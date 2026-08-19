@@ -131,6 +131,18 @@ export class OrderReturnService {
       );
     }
 
+    const returnWindowDays = 7;
+    if (order.completed_at) {
+      const daysSinceCompleted =
+        (new Date().getTime() - order.completed_at.getTime()) /
+        (1000 * 3600 * 24);
+      if (daysSinceCompleted > returnWindowDays) {
+        throw new BadRequestException(
+          `Đã quá thời hạn ${returnWindowDays} ngày để yêu cầu đổi/trả hàng.`,
+        );
+      }
+    }
+
     // Helper lấy thông tin sản phẩm đổi trả và số lượng tương ứng
     const parseReturnItems = (rawItems: any[]): { itemId: number; quantity: number | null }[] => {
       if (!Array.isArray(rawItems)) return [];
