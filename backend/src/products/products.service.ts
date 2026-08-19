@@ -19,6 +19,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { AiService } from '../ai/ai.service';
 import { OrderItem } from '../orders/order-item.entity';
 import { OrderStatus } from '../orders/order.entity';
+import { Review } from '../reviews/review.entity';
 
 @Injectable()
 export class ProductsService {
@@ -142,9 +143,7 @@ export class ProductsService {
         .leftJoin('category.parent', 'parentCategory')
         .leftJoinAndSelect('product.detail', 'detail')
         .leftJoinAndSelect('product.variants', 'variants')
-        .leftJoinAndSelect('product.images', 'images')
-        .leftJoinAndSelect('product.collections', 'collections')
-        .leftJoinAndSelect('product.reviews', 'reviews');
+        .leftJoinAndSelect('product.images', 'images');
 
       if (isActive !== undefined) {
         query.andWhere('product.is_active = :isActive', { isActive });
@@ -231,6 +230,7 @@ export class ProductsService {
     const soldCountMap = new Map<number, number>();
     const inventoryUpdateMap = new Map<number, Date>();
     const stockAdditionMap = new Map<number, Date>();
+    const ratingMap = new Map<number, number>();
 
     if (products.length > 0) {
       const productIds = products.map((p) => p.id);
@@ -248,6 +248,19 @@ export class ProductsService {
 
       soldCounts.forEach((row) => {
         soldCountMap.set(Number(row.productId), Number(row.soldQty || 0));
+      });
+
+      // Query average rating chỉ cho sản phẩm trên trang hiện tại
+      const reviewStats = await this.productsRepository.manager
+        .createQueryBuilder(Review, 'r')
+        .select('r.product_id', 'productId')
+        .addSelect('AVG(r.rating)', 'avgRating')
+        .where('r.product_id IN (:...productIds)', { productIds })
+        .groupBy('r.product_id')
+        .getRawMany();
+
+      reviewStats.forEach((row) => {
+        ratingMap.set(Number(row.productId), Number(row.avgRating || 0));
       });
 
       // Query latest inventory transaction date chỉ cho sản phẩm trên trang hiện tại
@@ -293,16 +306,9 @@ export class ProductsService {
     }
 
     products.forEach((product) => {
-      const totalReviews = product.reviews?.length || 0;
-      product.averageRating =
-        totalReviews > 0
-          ? Number(
-              (
-                product.reviews.reduce((sum, r) => sum + r.rating, 0) /
-                totalReviews
-              ).toFixed(1),
-            )
-          : 0;
+      product.averageRating = ratingMap.get(product.id)
+        ? Number(Number(ratingMap.get(product.id)).toFixed(1))
+        : 0;
 
       product.soldCount = soldCountMap.get(product.id) || 0;
       product.inventoryUpdatedAt = inventoryUpdateMap.get(product.id) || product.created_at;
