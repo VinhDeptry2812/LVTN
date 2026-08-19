@@ -629,6 +629,20 @@ export default function ReturnOrderListPage() {
                     );
                   })}
                 </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-100 bg-rose-50/50 p-3 rounded-sm flex flex-col md:flex-row md:items-center justify-between gap-2">
+                  <div>
+                    <p className="font-bold text-rose-900 text-xs">SỐ TIỀN HOÀN DỰ KIẾN (NẾU REFUND)</p>
+                    <p className="text-[10px] text-rose-700/70 mt-0.5">
+                      Đã tự động trừ chiết khấu Voucher theo tỷ lệ.
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-rose-600 font-black text-lg">
+                      {formatPrice(calculateReturnTotal(selectedOrder as any))}
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* return reason detailed box */}
