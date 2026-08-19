@@ -149,18 +149,38 @@ const calculateReturnTotal = (order: Order): number => {
     return order.total_amount;
   }
   
-  let totalRefund = 0;
+  let returnedItemsPrice = 0;
+  let totalItemsPrice = 0;
+
   order.items.forEach(item => {
+    const itemTotal = Number(item.price) * item.quantity;
+    totalItemsPrice += itemTotal;
+
     const match = parsedReturnItems.find((ri) => Number(ri.itemId) === Number(item.id));
     if (match) {
       const qty = match.quantity
         ? Math.min(Math.max(Number(match.quantity), 1), item.quantity)
         : item.quantity;
-      totalRefund += item.price * qty;
+      returnedItemsPrice += Number(item.price) * qty;
     }
   });
+
+  if (returnedItemsPrice >= totalItemsPrice) {
+    return order.total_amount;
+  }
   
-  return totalRefund > 0 ? totalRefund : order.total_amount; // fallback if calculation is 0
+  let calculatedRefundAmount = returnedItemsPrice;
+  const discountAmount = Number(order.discount_amount) || 0;
+  
+  if (discountAmount > 0 && totalItemsPrice > 0) {
+    const prorationRatio = returnedItemsPrice / totalItemsPrice;
+    calculatedRefundAmount = returnedItemsPrice - (prorationRatio * discountAmount);
+  }
+  
+  if (calculatedRefundAmount <= 0) return 0;
+  if (calculatedRefundAmount > order.total_amount) return order.total_amount;
+  
+  return calculatedRefundAmount;
 };
 
 export default function ReturnOrderListPage() {

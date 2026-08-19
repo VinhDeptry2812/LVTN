@@ -18,6 +18,7 @@ import { VnpayService } from '../../vnpay/vnpay.service';
 import { MailService } from '../../auth/mail.service';
 import { OrderInvoiceService } from './order-invoice.service';
 import { NotificationsService } from '../../notifications/notifications.service';
+import { WarrantiesService } from '../../warranties/warranties.service';
 
 /**
  * Service chuyên trách quản lý yêu cầu Đổi / Trả hàng và Hoàn tiền
@@ -34,6 +35,7 @@ export class OrderReturnService {
     private readonly mailService: MailService,
     private readonly orderInvoiceService: OrderInvoiceService,
     private readonly notificationsService: NotificationsService,
+    private readonly warrantiesService: WarrantiesService,
   ) {}
 
   /**
@@ -451,15 +453,38 @@ export class OrderReturnService {
             await manager.save(StockIssueItem, stockIssueItems);
           }
         } else if (actionType === 'refund') {
-          let calculatedRefundAmount = 0;
+          let returnedItemsPrice = 0;
+          let totalItemsPrice = 0;
+
           for (const item of order.items) {
+            const itemTotal = Number(item.price) * item.quantity;
+            totalItemsPrice += itemTotal;
+
             const { isReturned, qty } = getReturnQty(item);
             if (isReturned && qty > 0) {
-              calculatedRefundAmount += Number(item.price) * qty;
+              returnedItemsPrice += Number(item.price) * qty;
             }
           }
-          
-          if (calculatedRefundAmount <= 0 || calculatedRefundAmount > Number(order.total_amount)) {
+
+          let calculatedRefundAmount = 0;
+          // Nếu trả toàn bộ đơn hàng, hoàn trả 100% số tiền khách đã thanh toán (bao gồm cả phí ship)
+          if (returnedItemsPrice >= totalItemsPrice) {
+            calculatedRefundAmount = Number(order.total_amount);
+          } else {
+            // Phân bổ chiết khấu (Discount Proration) cho hàng trả một phần
+            const discountAmount = Number(order.discount_amount) || 0;
+            let proratedDiscount = 0;
+            if (discountAmount > 0 && totalItemsPrice > 0) {
+              const prorationRatio = returnedItemsPrice / totalItemsPrice;
+              proratedDiscount = prorationRatio * discountAmount;
+            }
+            calculatedRefundAmount = returnedItemsPrice - proratedDiscount;
+          }
+
+          // Tránh trường hợp âm hoặc vượt quá tổng tiền
+          if (calculatedRefundAmount <= 0) {
+            calculatedRefundAmount = 0;
+          } else if (calculatedRefundAmount > Number(order.total_amount)) {
             calculatedRefundAmount = Number(order.total_amount);
           }
 
@@ -508,6 +533,14 @@ export class OrderReturnService {
       'admin',
       dto.rejectReason,
     ).catch((err) => console.error('Lỗi khi gửi email xử lý đổi trả:', err));
+
+    if (dto.status === OrderStatus.RETURN_APPROVED) {
+      this.warrantiesService.voidWarrantiesForReturnItems(
+        order.id,
+        order.return_request?.items || [],
+        `Hủy phiếu bảo hành do sản phẩm được chấp nhận đổi trả.`
+      ).catch((err) => console.error('Lỗi khi hủy phiếu bảo hành cho sản phẩm đổi trả:', err));
+    }
 
     return savedOrder;
   }

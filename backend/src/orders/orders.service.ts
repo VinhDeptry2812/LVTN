@@ -64,15 +64,7 @@ export class OrdersService implements OnModuleInit {
   ) { }
 
   onModuleInit() {
-    // Chạy dọn dẹp đơn hàng chưa thanh toán định kỳ mỗi 5 phút
-    setInterval(
-      () => {
-        this.cleanupUnpaidOrders().catch((err) => {
-          console.error('Lỗi khi chạy dọn dẹp đơn hàng chưa thanh toán:', err);
-        });
-      },
-      5 * 60 * 1000,
-    );
+    // onModuleInit is empty now as the cleanup job is handled in OrderPaymentService
   }
 
   private generateShippingCode(): string {
@@ -833,16 +825,23 @@ export class OrdersService implements OnModuleInit {
       minDate.setHours(0, 0, 0, 0);
     }
 
+    const completedStatuses = [
+      OrderStatus.COMPLETED,
+      OrderStatus.RETURN_PENDING,
+      OrderStatus.RETURN_APPROVED,
+      OrderStatus.RETURN_REJECTED,
+    ];
+
     // 2. Thống kê tổng quan dựa trên khoảng thời gian lọc
     const statsQuery = this.orderRepository
       .createQueryBuilder('o')
       .select('COUNT(o.id)', 'totalOrders')
       .addSelect(
-        'SUM(CASE WHEN o.status = :completed THEN 1 ELSE 0 END)',
+        'SUM(CASE WHEN o.status IN (:...completedStatuses) THEN 1 ELSE 0 END)',
         'completedOrdersCount',
       )
       .addSelect(
-        'SUM(CASE WHEN o.status = :completed THEN o.total_amount ELSE 0 END)',
+        'SUM(CASE WHEN o.status IN (:...completedStatuses) THEN o.total_amount ELSE 0 END)',
         'revenue',
       )
       .addSelect('COUNT(DISTINCT o.user_id)', 'customerCount')
@@ -854,7 +853,7 @@ export class OrdersService implements OnModuleInit {
 
     const rawStats = await statsQuery
       .setParameters({
-        completed: OrderStatus.COMPLETED,
+        completedStatuses,
         minDate,
         ...(maxDate ? { maxDate } : {}),
       })
@@ -889,7 +888,7 @@ export class OrdersService implements OnModuleInit {
         .innerJoin('orders', 'o', 'oi.order_id = o.id')
         .innerJoin('products', 'p', 'oi.product_id = p.id')
         .leftJoin('categories', 'c', 'p.category_id = c.id')
-        .where('o.status = :completed', { completed: OrderStatus.COMPLETED })
+        .where('o.status IN (:...completedStatuses)', { completedStatuses })
         .andWhere('o.created_at >= :minDate', { minDate });
 
       if (maxDate) {
@@ -913,7 +912,7 @@ export class OrdersService implements OnModuleInit {
     const completedOrders = await this.orderRepository.find({
       select: { id: true, total_amount: true, completed_at: true, created_at: true },
       where: {
-        status: OrderStatus.COMPLETED,
+        status: In(completedStatuses),
         created_at: maxDate ? Between(minDate, maxDate) : MoreThanOrEqual(minDate),
       },
     });
@@ -1270,78 +1269,7 @@ export class OrdersService implements OnModuleInit {
     }
   }
 
-  /**
-   * Tự động quét và hủy các đơn hàng online chưa thanh toán quá 15 phút
-   */
-  async cleanupUnpaidOrders(): Promise<void> {
-    const unpaidOrders = await this.orderRepository.find({
-      where: {
-        status: OrderStatus.PENDING,
-        payment_status: PaymentStatus.PENDING,
-        payment_method: In(['vnpay']),
-        created_at: Raw((alias) => `${alias} < NOW() - INTERVAL '15 minutes'`),
-      },
-      relations: {
-        items: {
-          variant: true,
-        },
-      },
-    });
-
-    if (unpaidOrders.length === 0) {
-      return;
-    }
-
-    console.log(
-      `[Order Cleanup] Phát hiện ${unpaidOrders.length} đơn hàng quá hạn thanh toán.`,
-    );
-
-    for (const order of unpaidOrders) {
-      const queryRunner = this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction();
-
-      try {
-        // Hủy phiếu xuất kho liên quan
-        await this.cancelStockIssueForOrder(
-          queryRunner.manager,
-          order.id,
-          `Hủy tự động do quá 15 phút chưa thanh toán, đơn #${order.id}`,
-        );
-
-        // Hoàn lại lượt dùng voucher
-        if (order.voucher_code) {
-          const voucher = await queryRunner.manager.findOne(Voucher, {
-            where: { code: order.voucher_code.trim().toUpperCase() },
-            lock: { mode: 'pessimistic_write' },
-          });
-          if (voucher && voucher.used_count > 0) {
-            voucher.used_count -= 1;
-            await queryRunner.manager.save(voucher);
-          }
-        }
-
-        // Hủy đơn hàng
-        order.status = OrderStatus.CANCELLED;
-        order.payment_status = PaymentStatus.FAILED;
-        order.cancelled_at = new Date();
-        await queryRunner.manager.save(order);
-
-        await queryRunner.commitTransaction();
-        console.log(
-          `[Order Cleanup] Hủy thành công đơn hàng ID ${order.id} do quá hạn thanh toán.`,
-        );
-      } catch (error) {
-        await queryRunner.rollbackTransaction();
-        console.error(
-          `[Order Cleanup] Lỗi khi hủy đơn hàng ID ${order.id}:`,
-          error.stack,
-        );
-      } finally {
-        await queryRunner.release();
-      }
-    }
-  }
+  // Hàm cleanupUnpaidOrders đã được chuyển sang OrderPaymentService để tránh chạy đúp dẫn đến cộng dồn kho 2 lần
 
   async requestOrderReturn(
     userId: number,
