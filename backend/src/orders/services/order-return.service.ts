@@ -428,15 +428,15 @@ export class OrderReturnService {
             }
           }
 
-          const stockIssueCode = `PXK-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
           const newStockIssue = manager.create(StockIssue, {
-            code: stockIssueCode,
             reason: StockIssueReason.OTHER,
             order_id: savedNewOrder.id,
             status: StockIssueStatus.PENDING,
             notes: `Phiếu xuất kho tự động cho đơn đổi trả 1-1 #${savedNewOrder.id}`,
           });
-          const savedStockIssue = await manager.save(StockIssue, newStockIssue);
+          let savedStockIssue = await manager.save(StockIssue, newStockIssue);
+          savedStockIssue.code = `PXK${savedStockIssue.id.toString().padStart(5, '0')}`;
+          savedStockIssue = await manager.save(StockIssue, savedStockIssue);
 
           const stockIssueItems = order.items
             .filter((item) => item.variant !== null)
